@@ -1,0 +1,9 @@
+# Normalise line endings so prereg hashes (SHA-256 of LF Markdown) are stable across platforms.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.svg text
+pnpm-lock.yaml -diff
+requirements*.lock -diff
+packages/contracts/src/generated/** linguist-generated=true
+docs/evals.md linguist-generated=true

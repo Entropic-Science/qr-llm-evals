@@ -1,0 +1,47 @@
+# ── Node / frontend ──────────────────────────────────────────────────────────
+node_modules/
+dist/
+build/
+.cache/
+.vite/
+coverage/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_tmp/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Run artifacts (paid-for data never lives in git; see AGENTS.md) ──────────
+results/
+data/
+logs/
+*.jsonl
+!backend/tests/fixtures/**/*.jsonl
+!packages/contracts/fixtures/**/*.jsonl
+*.eval
+.inspect/
+
+# ── Secrets — never committed, templates end in .example ─────────────────────
+.env
+*.env
+!*.env.example
+api-keys.json
+
+# ── Logs / OS cruft / editors ────────────────────────────────────────────────
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ── Zenflow task workspace (kept local) ──────────────────────────────────────
+.zenflow/
+.zenflow-attachments/

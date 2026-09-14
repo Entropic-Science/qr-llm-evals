@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* Semantic design tokens (Tailwind 4 CSS-first). Extend here, never inline hex in components. */
+@theme {
+  --color-quantum: oklch(0.62 0.19 285);
+  --color-prng: oklch(0.6 0.02 260);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}

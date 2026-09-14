@@ -1,0 +1,44 @@
+name: Eval proposal
+description: Propose a new eval / benchmark card for the registry before opening a PR.
+labels: ["eval-proposal", "registry"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Cards are admitted against the checklist in `.github/PULL_REQUEST_TEMPLATE.md` (B.1).
+        The copy-to-agent brief is `docs/add-an-eval.md`.
+  - type: input
+    id: id
+    attributes:
+      label: Proposed card id
+      placeholder: e.g. semantic_entropy_sqa
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: What would differ between QRNG and PRNG arms, and why
+      description: Which endpoint(s) and which tier (Tier 0 token-level, Tier 4 supervised, …).
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Engine
+      options: ["thin (own runner)", "inspect (Inspect AI task)"]
+    validations:
+      required: true
+  - type: checkboxes
+    id: admission
+    attributes:
+      label: Admission criteria
+      options:
+        - label: Free generation (no forced choice)
+        - label: Per-prompt statistic from k ≥ 10 samples
+        - label: Judge fixed (temperature 0, different model than the target) or judge-free
+        - label: Dataset revision can be pinned
+  - type: textarea
+    id: estimates
+    attributes:
+      label: Rough estimates
+      description: prompts × k × max_tokens, thinking on/off, expected wall-clock at ~400 tok/s aggregate.

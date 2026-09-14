@@ -1,0 +1,24 @@
+{
+  "name": "qr-llm-evals",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "Frontend workspace for evals.entropic.science (apps/web) and the generated API contracts (packages/contracts).",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10"
+  },
+  "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "dev": "pnpm --filter @qr-evals/web dev",
+    "build": "pnpm --filter @qr-evals/web build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "check": "python scripts/check.py"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3"
+  }
+}

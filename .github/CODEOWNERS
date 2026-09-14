@@ -1,0 +1,14 @@
+# Default: maintainers review everything.
+*                                            @Entropic-Science/maintainers
+
+# The eval registry, its generated doc and the pre-registered statistical plan
+# need registry reviewers (eval-card admission checklist, .github/PULL_REQUEST_TEMPLATE.md).
+/evals/                                      @Entropic-Science/registry-reviewers
+/docs/evals.md                               @Entropic-Science/registry-reviewers
+/docs/ANALYSIS_PLAN.md                       @Entropic-Science/registry-reviewers
+/backend/src/qr_llm_evals/analysis/          @Entropic-Science/registry-reviewers
+
+# Deployment units and env catalogue are operator territory.
+/infra/                                      @Entropic-Science/operators
+/scripts/deploy.sh                           @Entropic-Science/operators
+/scripts/rollback.sh                         @Entropic-Science/operators

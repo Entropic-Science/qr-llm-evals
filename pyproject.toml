@@ -1,0 +1,112 @@
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qr-llm-evals"
+version = "0.1.0"
+description = "Pre-registered research harness comparing quantum-random vs pseudo-random token sampling in LLMs (evals.entropic.science)."
+readme = "README.md"
+# The qr-server box runs Python 3.11; pin the minor version so local gates
+# validate against the interpreter the harness actually runs on.
+requires-python = ">=3.11,<3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Entropic Science" }]
+# Deliberately NO `openai` SDK, NO `vllm`, NO `modal` (spec §1.2, enforced by
+# backend/tests/test_layering.py). The backend is a thin httpx client of the
+# shared vLLM on loopback; torch/transformers live only in the [metrics] extra.
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "httpx>=0.27,<1",
+    "pydantic>=2.7,<3",
+    "pyyaml>=6.0",
+    "jinja2>=3.1",
+    "numpy>=1.26,<3",
+    "scipy>=1.12",
+]
+
+[project.optional-dependencies]
+# Inspect AI engine for registry cards that ship as Inspect tasks (spec D-5).
+# `inspect-evals` is git-pinned to a commit by the step that wires novelty_bench.
+inspect = [
+    "inspect-ai>=0.3.263",
+]
+# Statistics + figures for the analysis phase (spec §2.10). The MMD-Hamming
+# permutation test has a vendored fallback in analysis/mmd.py; the upstream
+# `model-equality-testing` git pin is added by the analysis step if it resolves on 3.11.
+analysis = [
+    "statsmodels>=0.14",
+    "matplotlib>=3.8",
+]
+# Heavy text metrics — NEVER imported by the core package; only under
+# qr_llm_evals.analysis.metrics_heavy, lazily (spec §1.2).
+metrics = [
+    "torch>=2.2",
+    "transformers>=4.40",
+    "sentence-transformers>=3.0",
+    "vendi-score>=0.0.3",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "hypothesis>=6.100",
+    "respx>=0.21",
+    "ruff>=0.8",
+    "mypy>=1.10",
+    "bandit>=1.7",
+    "types-PyYAML>=6.0",
+    "uv>=0.5",
+]
+
+[project.urls]
+Homepage = "https://evals.entropic.science"
+Repository = "https://github.com/Entropic-Science/qr-llm-evals"
+Community = "https://github.com/Entropic-Science/community"
+
+[tool.setuptools.packages.find]
+where = ["backend/src"]
+
+[tool.setuptools.package-data]
+"qr_llm_evals" = ["py.typed"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["backend/src", "backend/tests", "scripts"]
+extend-exclude = ["node_modules", ".venv", "dist", "build", ".pytest_tmp"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["qr_llm_evals"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "backend/src"
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+# --basetemp keeps tmp_path under the repo instead of %TEMP%: sandboxed agent
+# sessions on Windows can leave undeletable dirs under %TEMP%/pytest-of-<user>.
+addopts = "-q --basetemp=.pytest_tmp"
+asyncio_mode = "auto"
+markers = [
+    "live: requires live on-box services (vLLM / Qbert0G / cloudflared); skipped unless --run-live is passed",
+]
+
+[tool.bandit]
+# `bandit -c pyproject.toml -r backend/src -q` (scripts/check.py `security` row).
+exclude_dirs = ["backend/tests", ".venv", "node_modules"]
+skips = []

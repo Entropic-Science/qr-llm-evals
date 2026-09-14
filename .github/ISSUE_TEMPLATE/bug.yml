@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in the harness, the SPA or the API misbehaves.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Never paste API keys, launch keys or host tokens. Run ids and prereg hashes are fine.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - backend / API
+        - SPA (evals.entropic.science)
+        - supervised mode
+        - analysis / figures / narrative
+        - pre-registration export
+        - eval registry card
+        - deployment / infra
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps, expected vs actual, run id / prereg hash if applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Browser / OS, commit or version, `tier0_source` and `determinism_tier` from the run page if relevant.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text
