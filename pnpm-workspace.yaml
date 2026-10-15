@@ -8,7 +8,7 @@ autoInstallPeers: true
 # Versions shared across workspace packages (`"react": "catalog:"`).
 catalog:
   "@tailwindcss/vite": ^4.1.14
-  "@tanstack/react-query": ^5.102.8
+  "@tanstack/react-query": ^5.104.2
   "@testing-library/jest-dom": ^6.6.0
   "@testing-library/react": ^16.3.0
   "@types/node": ^24.6.0
@@ -21,11 +21,11 @@ catalog:
   react-dom: ^19.2.0
   tailwindcss: ^4.1.14
   typescript: ~5.9.3
-  typescript-eslint: ^8.45.0
+  typescript-eslint: ^8.71.2
   vite: ^7.1.0
   vitest: ^3.2.0
-  wouter: ^3.11.0
-  zod: ^4.1.0
+  wouter: ^3.13.0
+  zod: ^4.6.7
 # ============================================================================
 # SECURITY: minimum release age for npm packages (supply-chain defence).
 # Any package version must have been published for at least 1 day (1440 min)
