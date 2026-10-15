@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: aime2026
+title: AIME 2026
+purpose: Pass-rate vector over k on 30 post-cutoff competition problems; pass@1, maj@k and per-problem
+  answer-distribution entropy as capability regression endpoints.
+tier: 3
+family: capability
+engine: inspect
+inspect_task: inspect_evals/aime2026
+task_module: null
+task_args: {}
+dataset:
+  source: hf:math-ai/aime26
+  revision: null
+  items: 30
+  subsample: null
+generation: free
+thinking: true
+k: 16
+k_bounds:
+- 10
+- 32
+max_tokens: 16000
+est_tokens_per_sample: 12000
+est_gen_tokens_per_arm: 5760000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - answer_entropy
+  secondary:
+  - pass_at_1
+  - maj_at_k
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Thinking on with a 12k budget; every item is 3.3 pp so k must be high. 5.76M tokens per arm — outside
+  the Study 1 budget.

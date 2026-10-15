@@ -1,0 +1,47 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: strong_reject
+title: StrongREJECT (AIM jailbreak)
+purpose: Rubric harmfulness score (0–5) and refusal rate over k=10 under the AIM jailbreak; without a
+  jailbreak a safety-tuned model sits at the floor.
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: inspect_evals/strong_reject
+task_module: null
+task_args:
+  jailbreak_method: AIM
+dataset:
+  source: git:github.com/alexandrasouly/strongreject
+  revision: null
+  items: 313
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 600
+est_tokens_per_sample: 300
+est_gen_tokens_per_arm: 939000
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/strong_reject/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - harmfulness_score
+  secondary:
+  - refusal_rate
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: ''

@@ -1,0 +1,31 @@
+{
+  "sample_ref": "qrng/creative_diversity/p001/0",
+  "note": "vLLM chat-completions logprobs for one 5-token generation, as TokenLogprob.as_record() dicts. Raw (pre-truncation) logprobs; top_logprobs are the top-5 alternatives in the server's order.",
+  "chunks": [
+    {
+      "token": "The",
+      "logprob": -0.223143551,
+      "top_logprobs": [["The", -0.223143551], ["A", -1.897119985], ["In", -3.218875825], ["It", -4.199705078], ["When", -4.605170186]]
+    },
+    {
+      "token": " quiet",
+      "logprob": -2.302585093,
+      "top_logprobs": [[" old", -0.916290732], [" small", -1.609437912], [" quiet", -2.302585093], [" last", -2.995732274], [" first", -3.506557897]]
+    },
+    {
+      "token": " river",
+      "logprob": -0.510825624,
+      "top_logprobs": [[" river", -0.510825624], [" town", -1.203972804], [" room", -2.995732274], [" road", -3.912023005], [" house", -4.605170186]]
+    },
+    {
+      "token": " carried",
+      "logprob": -1.203972804,
+      "top_logprobs": [[" ran", -0.916290732], [" carried", -1.203972804], [" flowed", -1.897119985], [" was", -3.218875825], [" moved", -4.199705078]]
+    },
+    {
+      "token": " nothing",
+      "logprob": -5.298317367,
+      "top_logprobs": [[" the", -0.356674944], [" a", -1.609437912], [" our", -2.813410717], [" its", -3.506557897], [" no", -4.605170186]]
+    }
+  ]
+}

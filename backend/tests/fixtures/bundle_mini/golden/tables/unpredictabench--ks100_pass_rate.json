@@ -1,0 +1,266 @@
+{
+  "available": true,
+  "card_id": "unpredictabench",
+  "comparisons": [
+    {
+      "arms_a": [
+        "qrng_unsupervised"
+      ],
+      "arms_b": [
+        "prng_seed_1",
+        "prng_seed_7",
+        "prng_seed_42"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -1.042639,
+      "ci_upper": 1.487083,
+      "claim_supported": false,
+      "effect": 0.222222,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "exceeds_all_seed_controls": false,
+      "id": "source:0",
+      "kind": "source",
+      "mean_a": 0.666667,
+      "mean_b": 0.444444,
+      "mean_diff": 0.222222,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_adjusted": 1.0,
+      "p_value": 0.726137,
+      "se_clustered": 0.293972,
+      "significant": false,
+      "significant_at_05": false,
+      "t_clustered": 0.755929
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -2.484138,
+      "ci_upper": 2.484138,
+      "effect": 0.0,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.333333,
+      "mean_diff": 0.0,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.57735,
+      "significant_at_05": false,
+      "t_clustered": 0.0
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -1.767551,
+      "ci_upper": 1.100884,
+      "effect": -0.333333,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.666667,
+      "mean_diff": -0.333333,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.333333,
+      "significant_at_05": false,
+      "t_clustered": -1.0
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -3.201768,
+      "ci_upper": 2.535102,
+      "effect": -0.333333,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.666667,
+      "mean_diff": -0.333333,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.666667,
+      "significant_at_05": false,
+      "t_clustered": -0.5
+    },
+    {
+      "arms_a": [
+        "qrng_supervised"
+      ],
+      "arms_b": [
+        "qrng_unsupervised"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -1.100884,
+      "ci_upper": 1.767551,
+      "effect": 0.333333,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "supervised:4",
+      "kind": "supervised",
+      "mean_a": 1.0,
+      "mean_b": 0.666667,
+      "mean_diff": 0.333333,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_adjusted": 1.0,
+      "p_value": 1.0,
+      "se_clustered": 0.333333,
+      "significant": false,
+      "significant_at_05": false,
+      "t_clustered": 1.0
+    }
+  ],
+  "controls": [
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -2.484138,
+      "ci_upper": 2.484138,
+      "effect": 0.0,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.333333,
+      "mean_diff": 0.0,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.57735,
+      "significant_at_05": false,
+      "t_clustered": 0.0
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -1.767551,
+      "ci_upper": 1.100884,
+      "effect": -0.333333,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.666667,
+      "mean_diff": -0.333333,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.333333,
+      "significant_at_05": false,
+      "t_clustered": -1.0
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "ci_level": 0.95,
+      "ci_lower": -3.201768,
+      "ci_upper": 2.535102,
+      "effect": -0.333333,
+      "epsilon": null,
+      "equivalence": {
+        "available": false,
+        "reason": "frozen SESOI and independent pilot differences are required"
+      },
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "mean_a": 0.333333,
+      "mean_b": 0.666667,
+      "mean_diff": -0.333333,
+      "n_pairs": 3,
+      "n_permutations": 2000,
+      "n_prompts": 3,
+      "p_value": 1.0,
+      "se_clustered": 0.666667,
+      "significant_at_05": false,
+      "t_clustered": -0.5
+    }
+  ],
+  "correction": "holm",
+  "endpoint": "ks100_pass_rate",
+  "epsilon_curve": [],
+  "family": "source_primaries",
+  "precision": 6,
+  "role": "primary",
+  "schema_version": 1,
+  "special": null,
+  "test": "paired_permutation",
+  "tier": 1
+}

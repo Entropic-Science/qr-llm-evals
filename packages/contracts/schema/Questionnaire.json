@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Questionnaire.json",
+  "additionalProperties": false,
+  "description": "One line of ``questionnaires.jsonl``; items are frozen by ``items_hash``.",
+  "properties": {
+    "observer_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Observer Id",
+      "type": "string"
+    },
+    "session_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Session Id",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "pre",
+        "post"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "items_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Items Hash",
+      "type": "string"
+    },
+    "answers": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "title": "Answers",
+      "type": "object"
+    },
+    "free_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Free Text"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "observer_id",
+    "session_id",
+    "phase",
+    "items_hash",
+    "at"
+  ],
+  "title": "Questionnaire",
+  "type": "object"
+}

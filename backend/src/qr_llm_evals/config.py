@@ -44,6 +44,17 @@ def _env_int(env: _Env, name: str, default: int) -> int:
         raise SystemExit(f"{name}={raw!r} is not an integer") from err
 
 
+def _env_bool(env: _Env, name: str, default: bool) -> bool:
+    raw = env.get(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    raise SystemExit(f"{name}={raw!r} is not a boolean (use 1/0, true/false, yes/no, on/off)")
+
+
 def _env_list(env: _Env, name: str, default: tuple[str, ...]) -> tuple[str, ...]:
     raw = env.get(name, "").strip()
     if not raw:
@@ -84,11 +95,22 @@ class Settings(BaseModel):
         description="Engine-side per-request token log directory (DEP-1); None = not available.",
     )
 
+    # ── readiness (spec §2.7 step 4) ──────────────────────────────────────
+    tier2_replay_active: bool = Field(
+        description=(
+            "Operator flag: the engine runs qr-sampler's tier2-replay.conf (max_num_seqs=1, "
+            "prefix caching off). Readiness still requires the solo replay to pass."
+        ),
+    )
+
     # ── HTTP server ───────────────────────────────────────────────────────
     bind_host: str
     bind_port: int = Field(ge=1, le=65535)
     cors_origins: tuple[str, ...]
     log_level: str
+    commit: str | None = Field(
+        default=None, description="Deployed git commit, reported by GET /health (set by deploy.sh)."
+    )
 
 
 def load_settings(env: _Env | None = None) -> Settings:
@@ -112,10 +134,12 @@ def load_settings(env: _Env | None = None) -> Settings:
         priority=_env_int(e, "QR_EVALS_PRIORITY", 0),
         data_dir=_env_str(e, "QR_EVALS_DATA_DIR", "/var/lib/qr-llm-evals"),
         token_log_dir=_env_opt(e, "QR_EVALS_TOKEN_LOG_DIR"),
+        tier2_replay_active=_env_bool(e, "QR_EVALS_TIER2_REPLAY_ACTIVE", False),
         bind_host=_env_str(e, "QR_EVALS_BIND_HOST", "127.0.0.1"),
         bind_port=_env_int(e, "QR_EVALS_BIND_PORT", 8830),
         cors_origins=_env_list(e, "QR_EVALS_CORS_ORIGINS", DEFAULT_CORS_ORIGINS),
         log_level=_env_str(e, "QR_EVALS_LOG_LEVEL", "INFO").upper(),
+        commit=_env_opt(e, "QR_EVALS_COMMIT"),
     )
 
 

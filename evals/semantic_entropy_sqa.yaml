@@ -1,0 +1,47 @@
+# Eval card - schema in backend/src/qr_llm_evals/cards/schema.py.
+id: semantic_entropy_sqa
+title: Semantic entropy on SimpleQA Verified
+purpose: Discrete semantic entropy over NLI-entailment clusters of 20 answers to short factual questions,
+  plus Vendi on embeddings; accuracy comes for free as a secondary.
+tier: 1
+family: distribution
+engine: thin
+inspect_task: null
+task_module: evals/semantic_entropy_sqa/task.py
+task_args: {}
+dataset:
+  source: hf:google/simpleqa-verified
+  revision: ed392714d14fa5225b07c2b456453983bc75f690
+  items: 300
+  subsample:
+    n: 300
+    stratify: topic
+generation: short
+thinking: false
+k: 20
+k_bounds:
+- 10
+- 30
+max_tokens: 128
+est_tokens_per_sample: 60
+est_gen_tokens_per_arm: 360000
+sensitivity: native
+judge:
+  kind: classifier
+  model: hf:microsoft/deberta-large-mnli
+told_actual: false
+endpoints:
+  primary:
+  - semantic_entropy
+  secondary:
+  - vendi_embed
+  - accuracy
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: SimpleQA Verified is MIT, 1,000 items; deterministic 300-item topic-stratified subsample. Mutual
+  entailment clustering uses the frozen microsoft/deberta-large-mnli checkpoint on CPU, identical on all
+  arms; heavy endpoints are explicitly unavailable when the metrics extra is absent.

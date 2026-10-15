@@ -6,9 +6,9 @@ via ``--only`` so the check set cannot drift between laptops and CI::
 
     lint → format → types → security → tests → schemas → evals-doc → web → smoke
 
-Rows whose tool does not exist yet (``scripts/export_schemas.py``,
-``scripts/gen_evals_doc.py``, ``scripts/smoke.py``) are listed but **skip with a
-printed reason** until the step that owns them lands; a skip is not a failure.
+The smoke row is mandatory: a missing script or an incomplete integration
+fails the gate. ``schemas`` runs ``scripts/export_schemas.py --check``
+(committed ``packages/contracts`` output equals a fresh export).
 
 Usage::
 
@@ -86,7 +86,6 @@ CHECKS: tuple[Check, ...] = (
     Check(
         "smoke",
         ((PY, "scripts/smoke.py"),),
-        skip_unless=_needs_script("scripts/smoke.py"),
     ),
 )
 BY_NAME: dict[str, Check] = {c.name: c for c in CHECKS}

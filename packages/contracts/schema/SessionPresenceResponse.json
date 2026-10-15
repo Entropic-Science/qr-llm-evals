@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionPresenceResponse.json",
+  "$defs": {
+    "ObserverPresence": {
+      "additionalProperties": false,
+      "properties": {
+        "observer_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Observer Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "observer_id",
+        "name"
+      ],
+      "title": "ObserverPresence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "present": {
+      "items": {
+        "$ref": "#/$defs/ObserverPresence"
+      },
+      "title": "Present",
+      "type": "array"
+    }
+  },
+  "required": [
+    "session_id",
+    "present"
+  ],
+  "title": "SessionPresenceResponse",
+  "type": "object"
+}

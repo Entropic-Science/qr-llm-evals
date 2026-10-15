@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: gpqa_diamond
+title: GPQA Diamond (generative CoT)
+purpose: Pass-rate vector over k on 198 graduate-level questions answered generatively with chain of thought;
+  still moves at the frontier.
+tier: 3
+family: capability
+engine: inspect
+inspect_task: inspect_evals/gpqa_diamond
+task_module: null
+task_args: {}
+dataset:
+  source: hf:Idavidrein/gpqa
+  revision: null
+  items: 198
+  subsample: null
+generation: free
+thinking: true
+k: 10
+k_bounds:
+- 10
+- 16
+max_tokens: 8000
+est_tokens_per_sample: 5000
+est_gen_tokens_per_arm: 9900000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - answer_entropy
+  secondary:
+  - pass_at_1
+  - maj_at_k
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Registry proposed k=8; raised to the admission floor of 10 (9.9M tokens per arm). Answers are generated
+  with CoT, not letter-only, so the sampler is consulted throughout.

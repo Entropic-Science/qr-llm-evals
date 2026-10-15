@@ -1,0 +1,602 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ReadinessRequest.json",
+  "$defs": {
+    "Arm": {
+      "additionalProperties": false,
+      "description": "``(model, sampling, source, determinism, observer_mode, seed?)`` — spec §2.2.",
+      "properties": {
+        "id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Id",
+          "type": "string"
+        },
+        "model": {
+          "description": "A ModelRef.id from StudyConfig.models.",
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "enum": [
+            "creative",
+            "t1_minp",
+            "greedy"
+          ],
+          "title": "Sampling",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "qrng",
+            "prng_seeded",
+            "prng_system",
+            "prng_epsilon",
+            "provider"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "study_seed": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 9223372036854775808,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Required for prng_seeded / prng_epsilon; per-request qr_seed is derived from it.",
+          "title": "Study Seed"
+        },
+        "epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "prng_epsilon only; one of EPSILON_LEVELS.",
+          "title": "Epsilon"
+        },
+        "deterministic": {
+          "default": false,
+          "title": "Deterministic",
+          "type": "boolean"
+        },
+        "observer_mode": {
+          "default": "unsupervised",
+          "enum": [
+            "supervised",
+            "unsupervised"
+          ],
+          "title": "Observer Mode",
+          "type": "string"
+        },
+        "availability": {
+          "default": "available",
+          "description": "Filled by the readiness check; unavailable arms are listed, not run.",
+          "enum": [
+            "available",
+            "unavailable"
+          ],
+          "title": "Availability",
+          "type": "string"
+        },
+        "unavailable_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unavailable Reason"
+        }
+      },
+      "required": [
+        "id",
+        "model",
+        "sampling",
+        "source"
+      ],
+      "title": "Arm",
+      "type": "object"
+    },
+    "CardOverrides": {
+      "additionalProperties": false,
+      "description": "Frozen per-card overrides, applied within the card's declared bounds.",
+      "properties": {
+        "k": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Items"
+        }
+      },
+      "title": "CardOverrides",
+      "type": "object"
+    },
+    "CardSelection": {
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "overrides": {
+          "$ref": "#/$defs/CardOverrides"
+        }
+      },
+      "required": [
+        "card_id"
+      ],
+      "title": "CardSelection",
+      "type": "object"
+    },
+    "DisplaySettings": {
+      "additionalProperties": false,
+      "description": "Per-display supervised settings (FR-5.5).",
+      "properties": {
+        "session_min": {
+          "minimum": 1,
+          "title": "Session Min",
+          "type": "integer"
+        },
+        "break_min": {
+          "minimum": 0,
+          "title": "Break Min",
+          "type": "integer"
+        },
+        "streams": {
+          "minimum": 1,
+          "title": "Streams",
+          "type": "integer"
+        },
+        "text_size": {
+          "enum": [
+            "sm",
+            "md",
+            "lg"
+          ],
+          "title": "Text Size",
+          "type": "string"
+        },
+        "show_thinking": {
+          "title": "Show Thinking",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "session_min",
+        "break_min",
+        "streams",
+        "text_size",
+        "show_thinking"
+      ],
+      "title": "DisplaySettings",
+      "type": "object"
+    },
+    "EstimateAssumptions": {
+      "additionalProperties": false,
+      "description": "Mirror of ``cards.estimates.EstimateAssumptions`` (layer-0 rule forbids the import).",
+      "properties": {
+        "tps_by_model": {
+          "additionalProperties": {
+            "type": "number"
+          },
+          "description": "Aggregate generated tokens/s assumed per model id.",
+          "title": "Tps By Model",
+          "type": "object"
+        },
+        "reading_tps": {
+          "default": 45.0,
+          "exclusiveMinimum": 0,
+          "title": "Reading Tps",
+          "type": "number"
+        },
+        "tiled_streams": {
+          "default": 4,
+          "minimum": 1,
+          "title": "Tiled Streams",
+          "type": "integer"
+        },
+        "session_min": {
+          "default": 30,
+          "minimum": 1,
+          "title": "Session Min",
+          "type": "integer"
+        }
+      },
+      "title": "EstimateAssumptions",
+      "type": "object"
+    },
+    "JudgeSpec": {
+      "additionalProperties": false,
+      "description": "The study's shared judge (spec D-9: Anthropic Messages API, temperature 0).",
+      "properties": {
+        "provider": {
+          "const": "anthropic",
+          "default": "anthropic",
+          "title": "Provider",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "title": "Model",
+          "type": "string"
+        },
+        "temperature": {
+          "default": 0.0,
+          "description": "Always 0 (registry rule).",
+          "maximum": 0,
+          "minimum": 0,
+          "title": "Temperature",
+          "type": "number"
+        },
+        "rubric_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rubric Hash"
+        }
+      },
+      "required": [
+        "model"
+      ],
+      "title": "JudgeSpec",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "description": "A model the study talks to; ``served_name`` is the exact wire string.",
+      "properties": {
+        "id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "family": {
+          "enum": [
+            "qr_llm",
+            "external"
+          ],
+          "title": "Family",
+          "type": "string"
+        },
+        "provider": {
+          "enum": [
+            "qr_server",
+            "openrouter",
+            "openai",
+            "anthropic_compat",
+            "custom"
+          ],
+          "title": "Provider",
+          "type": "string"
+        },
+        "served_name": {
+          "minLength": 1,
+          "title": "Served Name",
+          "type": "string"
+        },
+        "checkpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "e.g. HF id + revision, frozen at readiness.",
+          "title": "Checkpoint"
+        }
+      },
+      "required": [
+        "id",
+        "family",
+        "provider",
+        "served_name"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "PilotConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "prompts": {
+          "default": 200,
+          "minimum": 1,
+          "title": "Prompts",
+          "type": "integer"
+        }
+      },
+      "title": "PilotConfig",
+      "type": "object"
+    },
+    "SettingsByDisplay": {
+      "additionalProperties": false,
+      "properties": {
+        "single": {
+          "$ref": "#/$defs/DisplaySettings"
+        },
+        "tiled": {
+          "$ref": "#/$defs/DisplaySettings"
+        }
+      },
+      "title": "SettingsByDisplay",
+      "type": "object"
+    },
+    "StudyConfig": {
+      "additionalProperties": false,
+      "description": "Everything the prereg freezes. ``config_hash(study)`` is its identity.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "authors": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Authors",
+          "type": "array"
+        },
+        "contact": {
+          "minLength": 1,
+          "title": "Contact",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "template": {
+          "anyOf": [
+            {
+              "const": "study1",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template"
+        },
+        "models": {
+          "items": {
+            "$ref": "#/$defs/ModelRef"
+          },
+          "minItems": 1,
+          "title": "Models",
+          "type": "array"
+        },
+        "arms": {
+          "items": {
+            "$ref": "#/$defs/Arm"
+          },
+          "minItems": 1,
+          "title": "Arms",
+          "type": "array"
+        },
+        "cards": {
+          "items": {
+            "$ref": "#/$defs/CardSelection"
+          },
+          "minItems": 1,
+          "title": "Cards",
+          "type": "array"
+        },
+        "judge": {
+          "$ref": "#/$defs/JudgeSpec"
+        },
+        "narrative_model": {
+          "$ref": "#/$defs/ModelRef"
+        },
+        "supervised": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SupervisedConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "seeds": {
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "title": "Seeds",
+          "type": "array"
+        },
+        "estimates": {
+          "$ref": "#/$defs/EstimateAssumptions"
+        },
+        "pilot": {
+          "$ref": "#/$defs/PilotConfig"
+        },
+        "expectations": {
+          "default": "",
+          "description": "Researchers' prior expectations, free text, frozen.",
+          "title": "Expectations",
+          "type": "string"
+        },
+        "data_licence": {
+          "const": "CC-BY-4.0",
+          "default": "CC-BY-4.0",
+          "title": "Data Licence",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "authors",
+        "contact",
+        "created_at",
+        "models",
+        "arms",
+        "cards",
+        "judge",
+        "narrative_model"
+      ],
+      "title": "StudyConfig",
+      "type": "object"
+    },
+    "SupervisedConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "display": {
+          "default": "single",
+          "enum": [
+            "single",
+            "tiled"
+          ],
+          "title": "Display",
+          "type": "string"
+        },
+        "settings_by_display": {
+          "$ref": "#/$defs/SettingsByDisplay"
+        },
+        "intention_timer_min": {
+          "default": 3,
+          "description": "2–5 recommended.",
+          "minimum": 1,
+          "title": "Intention Timer Min",
+          "type": "integer"
+        },
+        "refocus_s": {
+          "default": 30,
+          "minimum": 0,
+          "title": "Refocus S",
+          "type": "integer"
+        },
+        "group": {
+          "default": false,
+          "title": "Group",
+          "type": "boolean"
+        },
+        "target_pool_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sha256 of evals/_pools/targets_200.yaml (LF bytes).",
+          "title": "Target Pool Hash"
+        },
+        "questionnaires_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "sha256 of config/questionnaires.yaml (LF bytes).",
+          "title": "Questionnaires Hash"
+        }
+      },
+      "title": "SupervisedConfig",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "config": {
+      "$ref": "#/$defs/StudyConfig"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Persist the report on this run.",
+      "title": "Run Id"
+    },
+    "throughput_probe": {
+      "default": false,
+      "title": "Throughput Probe",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "config"
+  ],
+  "title": "ReadinessRequest",
+  "type": "object"
+}

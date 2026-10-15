@@ -1,0 +1,29 @@
+# Model catalogue — the targets a study may pick (spec §2.2, §4.1 ModelRef).
+#
+# Loaded by qr_llm_evals.models.catalogue. `id` is the ModelRef.id the SPA
+# shows and arms reference; `served_name` is the exact string sent on the wire.
+# Dynamic ids ("openrouter:<vendor>/<model>", "custom:<base_url>#<model>") are
+# parsed at run time and need no row here.
+#
+# `pipeline_pinned` is true only where THIS harness owns the full qr_* envelope
+# (the shared vLLM on loopback, spec D-1). Public api.entropic.science lanes
+# drop client qr_* keys, so they can never be pinned and any run against them
+# carries provenance.pipeline_pinned=false (spec §1.3).
+
+defaults:
+  tps: 400            # aggregate generated tokens/s assumed per model (estimates)
+  reading_tps: 45     # observer reading speed for supervised-mode estimates
+
+models:
+  - id: qr-llm
+    family: qr_llm
+    provider: qr_server
+    # VLLM_SERVED_MODEL_NAME on the box (qr-llm-api config default).
+    served_name: qr-llm
+    checkpoint: rdtand/Qwen3.8-27B-PrismaAQUA-5.5bit-vllm
+    tps: 400
+    pipeline_pinned: true
+    description: >-
+      Qwen3.8-27B PrismaAQUA served by the shared vLLM + qr-sampler on the
+      qr-server box. The only target on which every Study 1 arm can run:
+      the harness pins the whole sampling envelope per request.

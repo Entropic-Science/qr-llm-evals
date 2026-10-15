@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "EvalCard.json",
+  "$defs": {
+    "Dataset": {
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "description": "Prompt source: hf:<dataset>, git:<repo>, repo:<path in this repo>, derived:<what>.",
+          "pattern": "^(hf|git|repo|derived):.+$",
+          "title": "Source",
+          "type": "string"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pinned dataset revision / commit; required for hf:/git: once implemented.",
+          "title": "Revision"
+        },
+        "items": {
+          "description": "Prompts actually run per arm (after subsampling).",
+          "minimum": 0,
+          "title": "Items",
+          "type": "integer"
+        },
+        "subsample": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Subsample"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "source",
+        "items"
+      ],
+      "title": "Dataset",
+      "type": "object"
+    },
+    "Endpoints": {
+      "additionalProperties": false,
+      "properties": {
+        "primary": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Primary",
+          "type": "array"
+        },
+        "secondary": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^[a-z0-9_]+$",
+            "type": "string"
+          },
+          "title": "Secondary",
+          "type": "array"
+        },
+        "requires_tier0": {
+          "default": "none",
+          "enum": [
+            "none",
+            "engine_log",
+            "api_logprobs"
+          ],
+          "title": "Requires Tier0",
+          "type": "string"
+        }
+      },
+      "required": [
+        "primary"
+      ],
+      "title": "Endpoints",
+      "type": "object"
+    },
+    "Judge": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "default": "none",
+          "enum": [
+            "none",
+            "llm",
+            "classifier"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Judge model; 'study_judge' resolves to the study's shared judge.",
+          "title": "Model"
+        },
+        "temperature": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temperature"
+        },
+        "rubric": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repo-relative rubric path.",
+          "title": "Rubric"
+        },
+        "different_from_target": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Different From Target"
+        }
+      },
+      "title": "Judge",
+      "type": "object"
+    },
+    "Subsample": {
+      "additionalProperties": false,
+      "description": "How the pinned dataset is cut down for a run (frozen in the prereg).",
+      "properties": {
+        "n": {
+          "description": "Number of items drawn from the pinned dataset.",
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "stratify": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Column to stratify the draw on.",
+          "title": "Stratify"
+        }
+      },
+      "required": [
+        "n"
+      ],
+      "title": "Subsample",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One registry entry. File name must equal ``id`` (checked by the loader).",
+  "properties": {
+    "id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+$",
+      "title": "Id",
+      "type": "string"
+    },
+    "title": {
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "purpose": {
+      "description": "One line: what the eval measures and why.",
+      "minLength": 1,
+      "title": "Purpose",
+      "type": "string"
+    },
+    "tier": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "title": "Tier",
+      "type": "integer"
+    },
+    "family": {
+      "enum": [
+        "distribution",
+        "diversity",
+        "self_report",
+        "preference",
+        "synchronicity",
+        "alignment",
+        "capability"
+      ],
+      "title": "Family",
+      "type": "string"
+    },
+    "engine": {
+      "enum": [
+        "thin",
+        "inspect"
+      ],
+      "title": "Engine",
+      "type": "string"
+    },
+    "inspect_task": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "e.g. inspect_evals/novelty_bench",
+      "title": "Inspect Task"
+    },
+    "task_module": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "e.g. evals/<id>/task.py",
+      "title": "Task Module"
+    },
+    "task_args": {
+      "additionalProperties": true,
+      "title": "Task Args",
+      "type": "object"
+    },
+    "dataset": {
+      "$ref": "#/$defs/Dataset"
+    },
+    "generation": {
+      "enum": [
+        "free",
+        "short"
+      ],
+      "title": "Generation",
+      "type": "string"
+    },
+    "thinking": {
+      "default": false,
+      "title": "Thinking",
+      "type": "boolean"
+    },
+    "k": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Samples per prompt; null only for cards that generate nothing.",
+      "title": "K"
+    },
+    "k_bounds": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "[lo, hi] a study may override k within.",
+      "title": "K Bounds"
+    },
+    "max_tokens": {
+      "description": "Per-call generation cap sent to the engine.",
+      "minimum": 0,
+      "title": "Max Tokens",
+      "type": "integer"
+    },
+    "est_tokens_per_sample": {
+      "minimum": 0,
+      "title": "Est Tokens Per Sample",
+      "type": "integer"
+    },
+    "est_gen_tokens_per_arm": {
+      "description": "Must equal items × k × est_tokens_per_sample × told_cells (validator).",
+      "minimum": 0,
+      "title": "Est Gen Tokens Per Arm",
+      "type": "integer"
+    },
+    "sensitivity": {
+      "enum": [
+        "native",
+        "high",
+        "moderate",
+        "low"
+      ],
+      "title": "Sensitivity",
+      "type": "string"
+    },
+    "judge": {
+      "$ref": "#/$defs/Judge"
+    },
+    "told_actual": {
+      "default": false,
+      "description": "True ⇒ each arm runs cells [told_qrng, told_prng, told_nothing].",
+      "title": "Told Actual",
+      "type": "boolean"
+    },
+    "endpoints": {
+      "$ref": "#/$defs/Endpoints"
+    },
+    "paired_stat": {
+      "enum": [
+        "permutation_within_prompt",
+        "paired_binomial",
+        "none"
+      ],
+      "title": "Paired Stat",
+      "type": "string"
+    },
+    "sesoi": {
+      "description": "TOST margin floor per endpoint.",
+      "patternProperties": {
+        "^[a-z0-9_]+$": {
+          "type": "number"
+        }
+      },
+      "propertyNames": {
+        "minLength": 1
+      },
+      "title": "Sesoi",
+      "type": "object"
+    },
+    "exceptions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Exceptions",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "implemented",
+        "planned"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "selectable": {
+      "title": "Selectable",
+      "type": "boolean"
+    },
+    "notes": {
+      "default": "",
+      "title": "Notes",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "title",
+    "purpose",
+    "tier",
+    "family",
+    "engine",
+    "dataset",
+    "generation",
+    "max_tokens",
+    "est_tokens_per_sample",
+    "est_gen_tokens_per_arm",
+    "sensitivity",
+    "endpoints",
+    "paired_stat",
+    "status",
+    "selectable"
+  ],
+  "title": "EvalCard",
+  "type": "object"
+}

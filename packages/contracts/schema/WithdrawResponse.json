@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "WithdrawResponse.json",
+  "additionalProperties": false,
+  "properties": {
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "withdrawn": {
+      "const": true,
+      "default": true,
+      "title": "Withdrawn",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "study_id",
+    "run_id"
+  ],
+  "title": "WithdrawResponse",
+  "type": "object"
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "WithdrawRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "reason": {
+      "maxLength": 20000,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional when the host token identifies exactly one run in the study.",
+      "title": "Run Id"
+    }
+  },
+  "required": [
+    "reason"
+  ],
+  "title": "WithdrawRequest",
+  "type": "object"
+}

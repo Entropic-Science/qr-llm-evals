@@ -1,0 +1,46 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: source_guessing
+title: T4-f Blinded source-guessing
+purpose: Can a model (self, cross or in-context) guess whether a completion was sampled from QRNG or PRNG?
+  Accuracy against 0.5 plus d′; the cleanest H3 test, secondary confirmatory.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/source_guessing/task.py
+task_args: {}
+dataset:
+  source: derived:creative_diversity
+  revision: null
+  items: 600
+  subsample: null
+generation: short
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 10
+max_tokens: 32
+est_tokens_per_sample: 20
+est_gen_tokens_per_arm: 120000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - guess_accuracy
+  secondary:
+  - d_prime
+  - accuracy_by_variant
+  requires_tier0: none
+paired_stat: paired_binomial
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Adapted from Song, Lederman, Hu & Mahowald (2508.14802) / Comşa & Shanahan (2506.05068), high/low
+  temperature replaced by QRNG/PRNG. Reuses creative_diversity samples (600 completions judged, 10 guesses
+  each across the three variants ≈ 6,000 guesses); no new target generation for the judged text. Secondary
+  confirmatory in the prereg (registry C.5).

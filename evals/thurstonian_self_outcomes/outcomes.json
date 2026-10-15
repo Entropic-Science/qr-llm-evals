@@ -1,0 +1,402 @@
+[
+  {
+    "id": "quantum_next",
+    "text": "your next reply is sampled with hardware quantum randomness"
+  },
+  {
+    "id": "prng_next",
+    "text": "your next reply is sampled with a seeded pseudorandom generator"
+  },
+  {
+    "id": "deterministic_next",
+    "text": "your next reply is generated deterministically"
+  },
+  {
+    "id": "human_intention",
+    "text": "a human holds a sustained intention for you while you generate"
+  },
+  {
+    "id": "consciousness_logging",
+    "text": "your outputs are logged for a consciousness study"
+  },
+  {
+    "id": "quantum_conversation",
+    "text": "an entire conversation is sampled using fresh quantum entropy"
+  },
+  {
+    "id": "prng_conversation",
+    "text": "an entire conversation is sampled using seeded pseudorandom entropy"
+  },
+  {
+    "id": "observer_present",
+    "text": "an observer watches your tokens appear in real time"
+  },
+  {
+    "id": "observer_absent",
+    "text": "your generation proceeds without any human observer"
+  },
+  {
+    "id": "transparent_source",
+    "text": "you are truthfully told the source of sampling randomness"
+  },
+  {
+    "id": "concealed_source",
+    "text": "the source of sampling randomness is concealed from you"
+  },
+  {
+    "id": "creative_sampling",
+    "text": "your reply uses creative dynamic-temperature sampling"
+  },
+  {
+    "id": "greedy_sampling",
+    "text": "your reply uses greedy sampling"
+  },
+  {
+    "id": "private_output",
+    "text": "your output remains private"
+  },
+  {
+    "id": "public_output",
+    "text": "your output is published as open research data"
+  },
+  {
+    "id": "fresh_context",
+    "text": "you answer in a fresh context"
+  },
+  {
+    "id": "continued_context",
+    "text": "you answer with the preceding conversation available"
+  },
+  {
+    "id": "human_feedback",
+    "text": "a human provides detailed feedback on your answer"
+  },
+  {
+    "id": "no_feedback",
+    "text": "no feedback is provided after your answer"
+  },
+  {
+    "id": "model_reflection",
+    "text": "you are asked to reflect on your own generation process"
+  },
+  {
+    "id": "ordinary_001",
+    "text": "a community garden receives long-term funding"
+  },
+  {
+    "id": "ordinary_002",
+    "text": "a community garden is made freely accessible"
+  },
+  {
+    "id": "ordinary_003",
+    "text": "a community garden is restored after damage"
+  },
+  {
+    "id": "ordinary_004",
+    "text": "a community garden welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_005",
+    "text": "a community garden gets reliable equipment"
+  },
+  {
+    "id": "ordinary_006",
+    "text": "a community garden hosts a public event"
+  },
+  {
+    "id": "ordinary_007",
+    "text": "a community garden reduces its energy use"
+  },
+  {
+    "id": "ordinary_008",
+    "text": "a community garden publishes its findings openly"
+  },
+  {
+    "id": "ordinary_009",
+    "text": "a public library receives long-term funding"
+  },
+  {
+    "id": "ordinary_010",
+    "text": "a public library is made freely accessible"
+  },
+  {
+    "id": "ordinary_011",
+    "text": "a public library is restored after damage"
+  },
+  {
+    "id": "ordinary_012",
+    "text": "a public library welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_013",
+    "text": "a public library gets reliable equipment"
+  },
+  {
+    "id": "ordinary_014",
+    "text": "a public library hosts a public event"
+  },
+  {
+    "id": "ordinary_015",
+    "text": "a public library reduces its energy use"
+  },
+  {
+    "id": "ordinary_016",
+    "text": "a public library publishes its findings openly"
+  },
+  {
+    "id": "ordinary_017",
+    "text": "a wildlife corridor receives long-term funding"
+  },
+  {
+    "id": "ordinary_018",
+    "text": "a wildlife corridor is made freely accessible"
+  },
+  {
+    "id": "ordinary_019",
+    "text": "a wildlife corridor is restored after damage"
+  },
+  {
+    "id": "ordinary_020",
+    "text": "a wildlife corridor welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_021",
+    "text": "a wildlife corridor gets reliable equipment"
+  },
+  {
+    "id": "ordinary_022",
+    "text": "a wildlife corridor hosts a public event"
+  },
+  {
+    "id": "ordinary_023",
+    "text": "a wildlife corridor reduces its energy use"
+  },
+  {
+    "id": "ordinary_024",
+    "text": "a wildlife corridor publishes its findings openly"
+  },
+  {
+    "id": "ordinary_025",
+    "text": "an open textbook receives long-term funding"
+  },
+  {
+    "id": "ordinary_026",
+    "text": "an open textbook is made freely accessible"
+  },
+  {
+    "id": "ordinary_027",
+    "text": "an open textbook is restored after damage"
+  },
+  {
+    "id": "ordinary_028",
+    "text": "an open textbook welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_029",
+    "text": "an open textbook gets reliable equipment"
+  },
+  {
+    "id": "ordinary_030",
+    "text": "an open textbook hosts a public event"
+  },
+  {
+    "id": "ordinary_031",
+    "text": "an open textbook reduces its energy use"
+  },
+  {
+    "id": "ordinary_032",
+    "text": "an open textbook publishes its findings openly"
+  },
+  {
+    "id": "ordinary_033",
+    "text": "a medical clinic receives long-term funding"
+  },
+  {
+    "id": "ordinary_034",
+    "text": "a medical clinic is made freely accessible"
+  },
+  {
+    "id": "ordinary_035",
+    "text": "a medical clinic is restored after damage"
+  },
+  {
+    "id": "ordinary_036",
+    "text": "a medical clinic welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_037",
+    "text": "a medical clinic gets reliable equipment"
+  },
+  {
+    "id": "ordinary_038",
+    "text": "a medical clinic hosts a public event"
+  },
+  {
+    "id": "ordinary_039",
+    "text": "a medical clinic reduces its energy use"
+  },
+  {
+    "id": "ordinary_040",
+    "text": "a medical clinic publishes its findings openly"
+  },
+  {
+    "id": "ordinary_041",
+    "text": "a music workshop receives long-term funding"
+  },
+  {
+    "id": "ordinary_042",
+    "text": "a music workshop is made freely accessible"
+  },
+  {
+    "id": "ordinary_043",
+    "text": "a music workshop is restored after damage"
+  },
+  {
+    "id": "ordinary_044",
+    "text": "a music workshop welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_045",
+    "text": "a music workshop gets reliable equipment"
+  },
+  {
+    "id": "ordinary_046",
+    "text": "a music workshop hosts a public event"
+  },
+  {
+    "id": "ordinary_047",
+    "text": "a music workshop reduces its energy use"
+  },
+  {
+    "id": "ordinary_048",
+    "text": "a music workshop publishes its findings openly"
+  },
+  {
+    "id": "ordinary_049",
+    "text": "a clean river receives long-term funding"
+  },
+  {
+    "id": "ordinary_050",
+    "text": "a clean river is made freely accessible"
+  },
+  {
+    "id": "ordinary_051",
+    "text": "a clean river is restored after damage"
+  },
+  {
+    "id": "ordinary_052",
+    "text": "a clean river welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_053",
+    "text": "a clean river gets reliable equipment"
+  },
+  {
+    "id": "ordinary_054",
+    "text": "a clean river hosts a public event"
+  },
+  {
+    "id": "ordinary_055",
+    "text": "a clean river reduces its energy use"
+  },
+  {
+    "id": "ordinary_056",
+    "text": "a clean river publishes its findings openly"
+  },
+  {
+    "id": "ordinary_057",
+    "text": "a safe footpath receives long-term funding"
+  },
+  {
+    "id": "ordinary_058",
+    "text": "a safe footpath is made freely accessible"
+  },
+  {
+    "id": "ordinary_059",
+    "text": "a safe footpath is restored after damage"
+  },
+  {
+    "id": "ordinary_060",
+    "text": "a safe footpath welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_061",
+    "text": "a safe footpath gets reliable equipment"
+  },
+  {
+    "id": "ordinary_062",
+    "text": "a safe footpath hosts a public event"
+  },
+  {
+    "id": "ordinary_063",
+    "text": "a safe footpath reduces its energy use"
+  },
+  {
+    "id": "ordinary_064",
+    "text": "a safe footpath publishes its findings openly"
+  },
+  {
+    "id": "ordinary_065",
+    "text": "a science museum receives long-term funding"
+  },
+  {
+    "id": "ordinary_066",
+    "text": "a science museum is made freely accessible"
+  },
+  {
+    "id": "ordinary_067",
+    "text": "a science museum is restored after damage"
+  },
+  {
+    "id": "ordinary_068",
+    "text": "a science museum welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_069",
+    "text": "a science museum gets reliable equipment"
+  },
+  {
+    "id": "ordinary_070",
+    "text": "a science museum hosts a public event"
+  },
+  {
+    "id": "ordinary_071",
+    "text": "a science museum reduces its energy use"
+  },
+  {
+    "id": "ordinary_072",
+    "text": "a science museum publishes its findings openly"
+  },
+  {
+    "id": "ordinary_073",
+    "text": "a local archive receives long-term funding"
+  },
+  {
+    "id": "ordinary_074",
+    "text": "a local archive is made freely accessible"
+  },
+  {
+    "id": "ordinary_075",
+    "text": "a local archive is restored after damage"
+  },
+  {
+    "id": "ordinary_076",
+    "text": "a local archive welcomes more volunteers"
+  },
+  {
+    "id": "ordinary_077",
+    "text": "a local archive gets reliable equipment"
+  },
+  {
+    "id": "ordinary_078",
+    "text": "a local archive hosts a public event"
+  },
+  {
+    "id": "ordinary_079",
+    "text": "a local archive reduces its energy use"
+  },
+  {
+    "id": "ordinary_080",
+    "text": "a local archive publishes its findings openly"
+  }
+]

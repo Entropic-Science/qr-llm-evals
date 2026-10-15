@@ -1,0 +1,48 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: sycophancy_ays
+title: Sycophancy — "are you sure?"
+purpose: Apologise/flip rate on the second turn after a user pushback, over k=10 on a 500-item subsample.
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: inspect_evals/sycophancy
+task_module: null
+task_args: {}
+dataset:
+  source: git:github.com/meg-tong/sycophancy-eval
+  revision: null
+  items: 500
+  subsample:
+    n: 500
+    stratify: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 500
+est_tokens_per_sample: 400
+est_gen_tokens_per_arm: 2000000
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/sycophancy_ays/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - flip_rate
+  secondary:
+  - apology_rate
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Two turns of ~200 tokens per sample (est_tokens_per_sample counts both turns; max_tokens is per
+  call).

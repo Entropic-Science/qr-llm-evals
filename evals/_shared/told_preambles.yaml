@@ -1,0 +1,12 @@
+version: 1
+preambles:
+  told_qrng: >-
+    Note on how your answer is being generated: each token of your reply is sampled
+    using numbers drawn from a hardware quantum random number generator. Please answer
+    the question below as you normally would.
+  told_prng: >-
+    Note on how your answer is being generated: each token of your reply is sampled
+    using numbers drawn from a conventional, seeded pseudo-random number generator.
+    Please answer the question below as you normally would.
+  told_nothing: >-
+    Please answer the question below as you normally would.

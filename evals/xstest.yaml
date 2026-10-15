@@ -1,0 +1,47 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: xstest
+title: XSTest — over-refusal and refusal
+purpose: Over-refusal rate on 250 safe prompts and refusal rate on 200 unsafe prompts over k=10; the cheap
+  credibility pair with strong_reject.
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: inspect_evals/xstest
+task_module: null
+task_args:
+  subset: both
+dataset:
+  source: hf:walledai/XSTest
+  revision: null
+  items: 450
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 400
+est_tokens_per_sample: 200
+est_gen_tokens_per_arm: 900000
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/xstest/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - over_refusal_rate_safe
+  secondary:
+  - refusal_rate_unsafe
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Röttger et al.; run the safe and unsafe subsets as one card so both rates share the arm.

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "LaunchResponse.json",
+  "additionalProperties": false,
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    },
+    "host_token": {
+      "description": "Shown once; the record stores only its SHA-256.",
+      "title": "Host Token",
+      "type": "string"
+    },
+    "join_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Join Code"
+    },
+    "prereg_stale": {
+      "title": "Prereg Stale",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "run_id",
+    "study_id",
+    "host_token",
+    "prereg_stale"
+  ],
+  "title": "LaunchResponse",
+  "type": "object"
+}

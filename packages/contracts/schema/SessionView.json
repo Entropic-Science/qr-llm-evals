@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionView.json",
+  "$defs": {
+    "Intention": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Hash",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "hash",
+        "at"
+      ],
+      "title": "Intention",
+      "type": "object"
+    },
+    "ObserverPresence": {
+      "additionalProperties": false,
+      "properties": {
+        "observer_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Observer Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "observer_id",
+        "name"
+      ],
+      "title": "ObserverPresence",
+      "type": "object"
+    },
+    "Session": {
+      "additionalProperties": false,
+      "description": "``runs/<run_id>/sessions/<session_id>.json``.",
+      "properties": {
+        "session_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Session Id",
+          "type": "string"
+        },
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "index": {
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "display": {
+          "enum": [
+            "single",
+            "tiled"
+          ],
+          "title": "Display",
+          "type": "string"
+        },
+        "target_s": {
+          "description": "Planned session length in seconds.",
+          "minimum": 1,
+          "title": "Target S",
+          "type": "integer"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Started At"
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ended At"
+        },
+        "overrun_s": {
+          "default": 0.0,
+          "description": "Actual minus planned; may be negative.",
+          "title": "Overrun S",
+          "type": "number"
+        },
+        "intention": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Intention"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TargetDraw"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "windows": {
+          "items": {
+            "$ref": "#/$defs/Window"
+          },
+          "title": "Windows",
+          "type": "array"
+        },
+        "host_observer_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Host Observer Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "session_id",
+        "run_id",
+        "index",
+        "display",
+        "target_s",
+        "host_observer_id"
+      ],
+      "title": "Session",
+      "type": "object"
+    },
+    "TargetDraw": {
+      "additionalProperties": false,
+      "description": "T4-m target theme with decoys; shown to observers only (FR-5.8).",
+      "properties": {
+        "theme": {
+          "minLength": 1,
+          "title": "Theme",
+          "type": "string"
+        },
+        "decoys": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Decoys",
+          "type": "array"
+        },
+        "draw_source": {
+          "enum": [
+            "qrng_tier0",
+            "secrets"
+          ],
+          "title": "Draw Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "theme",
+        "decoys",
+        "draw_source"
+      ],
+      "title": "TargetDraw",
+      "type": "object"
+    },
+    "Window": {
+      "additionalProperties": false,
+      "properties": {
+        "window_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Window Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "supervised",
+            "break",
+            "refocus"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End"
+        },
+        "observers_present": {
+          "items": {
+            "$ref": "#/$defs/ObserverPresence"
+          },
+          "title": "Observers Present",
+          "type": "array"
+        }
+      },
+      "required": [
+        "window_id",
+        "kind",
+        "start"
+      ],
+      "title": "Window",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "session": {
+      "$ref": "#/$defs/Session"
+    },
+    "state": {
+      "title": "State",
+      "type": "string"
+    },
+    "join_code": {
+      "title": "Join Code",
+      "type": "string"
+    },
+    "questionnaires_hash": {
+      "title": "Questionnaires Hash",
+      "type": "string"
+    },
+    "target_pool_hash": {
+      "title": "Target Pool Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session",
+    "state",
+    "join_code",
+    "questionnaires_hash",
+    "target_pool_hash"
+  ],
+  "title": "SessionView",
+  "type": "object"
+}

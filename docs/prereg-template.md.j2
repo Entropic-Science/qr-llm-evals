@@ -1,0 +1,144 @@
+# {{ config.title | md }} — pre-registration
+
+**Authors:** {{ config.authors | join(', ') | md }}  
+**Contact:** {{ config.contact | md }}  
+**Configuration date:** {{ config.created_at.isoformat() | md }}
+
+## Plain-language summary
+
+This study compares hardware quantum-random token sampling with seeded pseudo-random sampling on matched prompts. It asks whether measured output distributions differ, and whether observed sessions differ from unobserved sessions. A null result is informative. Neither consciousness nor an observer influence is assumed or established by the design.
+
+Publish this Markdown and its separately displayed SHA-256 **before the full run**. Generating this document is not a timestamped public registration or proof of prior publication. This export is a draft wherever pins or readiness evidence are missing.
+{% for warning in warnings %}
+- **Validity warning:** {{ warning | md }}
+{% endfor %}
+
+## Hypotheses H0–H6
+
+- **H0 — exchangeability:** matched outputs are exchangeable across entropy sources; corrected source contrasts need not differ from seed controls.
+- **H1 — source:** QRNG changes the output distribution beyond the largest seed-vs-seed control difference, surviving primary correction.
+- **H2 — intention:** supervised QRNG differs from unsupervised QRNG; exploratory intent alignment and target rank need not improve.
+- **H3 — self-report/source guessing:** source changes self-report; blinded guessing accuracy need not exceed 0.5.
+- **H4 — preferences:** preference coherence differs by source; paired differences may be zero.
+- **H5 — opinion:** actual source affects quantum-sampling attitudes beyond told-source priming; report the told main effect first.
+- **H6 — coincidences:** target ranks differ from the chance distribution; self-reported meaningful coincidences alone do not establish an above-chance effect.
+
+Only selected endpoints below operationalise these hypotheses. Omitted cards imply untested hypotheses, not negative results. H3 source guessing and H5 actual-source opinion are secondary confirmatory; remaining Tier 4 outcomes are exploratory, with effect sizes and intervals rather than p-value gating.
+
+## Arms and equivalence
+
+The harness pins the same amplifier (`zscore_mean`), calibration (`0`) and prefetch (`false`) across non-greedy qr-llm arms. Source, per-request seed and epsilon are the only intended differences in the sampling envelope. Prompts, per-card overrides and generations per prompt are matched. External provider pipelines and greedy controls cannot establish this equivalence.
+
+| Arm | Model | Sampling | Source (not a quantum provenance claim) | Seed | Epsilon | Deterministic requested | Observer mode | Availability |
+|---|---|---|---|---|---|---|---|---|
+{% for row in arms -%}
+| {{ row.arm.id | md }} | {{ row.arm.model | md }} | {{ row.arm.sampling | md }} | {{ row.arm.source_label | md }} | {{ row.arm.study_seed | md }} | {{ row.arm.epsilon | md }} | {{ row.arm.deterministic | md }} | {{ row.arm.observer_mode | md }} | {{ row.status | md }} {{ row.reason | md }} |
+{% endfor %}
+**Study seeds:** {{ config.seeds | join(', ') | md }}. Per-request seed is derived from `(study_seed, card_id, prompt_id, epoch)`, not reused as one uniform stream for every prompt. PRNG is never labelled quantum. Any engine fallback taints the affected sample.
+
+**Achieved determinism:** {{ (readiness.determinism_tier if readiness else 'unverified') | md }}. Sampling-deterministic means replay under the measured conditions, not guaranteed load-invariant forward computation. Serialized replay constrains scheduling; load-invariant is a separate measured tier. Selecting a checkbox does not prove any tier.
+
+**Equivalence reported:** {{ (readiness.equivalence_ok if readiness else 'unverified') | md }}. The supplied readiness report is disclosed below, not independently authenticated by this document-rendering endpoint.
+
+## Models and exact settings
+
+| Model ID | Provider | Served name | Checkpoint/revision |
+|---|---|---|---|
+{% for model in config.models -%}
+| {{ model.id | md }} | {{ model.provider | md }} | {{ model.served_name | md }} | {{ (model.checkpoint or 'UNPINNED') | md }} |
+{% endfor %}
+**Judge:** {{ config.judge.provider | md }} / {{ config.judge.model | md }}, temperature {{ config.judge.temperature | md }}; rubric hash {{ (config.judge.rubric_hash or 'UNPINNED') | md }}. Judge must differ from target. An exact model string is frozen, never resolved through “latest” during analysis; native Anthropic has no promised deterministic seed control.
+
+**Narrative model:** {{ config.narrative_model.id | md }} / {{ config.narrative_model.served_name | md }}. Its summary is labelled LLM-written and must pass numeric verification against script-produced tables.
+
+The following are illustrative envelopes for the stated example pairing key, not a seed reused for all requests. Card-specific settings/exceptions below apply identically across arms.
+{% for row in arms %}
+**{{ row.arm.id | md }}**
+{{ row.envelope | jsonblock }}
+{% endfor %}
+
+## Selected eval cards
+
+| Card | Tier | Items | k | Dataset source | Frozen revision/hash | Implementation | Judge |
+|---|---|---|---|---|---|---|---|
+{% for row in cards -%}
+| {{ row.card.id | md }} | {{ row.card.tier | md }} | {{ row['items'] | md }} | {{ row.k | md }} | {{ row.card.dataset.source | md }} | {{ row.revision | md }} | {{ row.status | md }} | {{ row.judge | md }} |
+{% endfor %}
+{% for row in cards %}
+**{{ row.card.id | md }}:** {{ row.card.purpose | md }}
+
+- **Endpoints:** {{ row.endpoints | md }}
+- **Generation:** max_tokens={{ row.card.max_tokens | md }}, thinking={{ row.card.thinking | md }}, told cells={{ row.card.told_cells | md }}.
+- **Exceptions:** {{ row.card.exceptions | join('; ') | md }}
+- **Task arguments:** {{ row.card.task_args | md }}
+{% endfor %}
+
+## Statistical plan
+
+**Claim rule:** {{ plan.claim_rule | md }}
+
+Four Study 1 primaries: PIT-residual two-sample KS; MMD-Hamming permutation; UnpredictaBench KS@100 paired difference; NoveltyBench Distinct_k (k=20 by default) paired difference. Holm–Bonferroni at alpha=0.05; labels permuted within prompt, at least 2000 permutations, paired bootstrap 10000 replicates, analysis RNG seed 42. Compare QRNG-unsupervised with pooled PRNG controls; QRNG-supervised vs QRNG-unsupervised is a separate Holm family. Do not mix models or sampling presets. Unavailable family members retain correction slots rather than silently reducing multiplicity.
+
+Secondaries use BH-FDR at 0.05 within tier; Tier 4 outside the two confirmatory endpoints is exploratory without p-value gating. Pair at prompt/epoch/told cell; use prompt-clustered errors, session-level units for supervised inference, and no independent replication claim for co-observers.
+
+TOST uses 90% intervals with margin `max(card SESOI, pilot 95th percentile of absolute seed-vs-seed paired differences)`. Missing SESOI or independent pilot calibration means **no equivalence claim**. MMD uses the bootstrap 90% interval of MMD squared against seed-vs-seed distribution, not scalar TOST. Pilot data do not enter full-study hypothesis tests. Persist the pilot-derived numeric margins and input hashes before the full run; a changed margin is an amendment, never fitted to full-run results.
+
+Report every primary alongside all three seed contrasts and the epsilon curve when supported; otherwise label controls unavailable. Exploratory supervised summaries include intent-cosine (unavailable until an exact embedding revision and intention texts are frozen), T4-l Stouffer-Z/cumulative deviation, blinded T4-m target ranking and questionnaire descriptives grouped by belief. These do not by themselves establish a causal consciousness effect.
+
+**Frozen executable contract:** reload this exact JSON into `StatisticalPlan`, verify its hash, and execute unchanged; do not rebuild it from the current registry.
+
+{{ plan_json | jsonblock }}
+
+## Budget and expected wall-clock
+
+These are **planned full-suite** estimates, including unavailable cards/arms for budgeting, not promises that those components can run today. They use the frozen card arithmetic, not rounded historical totals.
+
+| Arm | Availability | Generated tokens | Generation hours | Observer hours | Sessions | Wall-clock hours |
+|---|---|---|---|---|---|---|
+{% for row in budget -%}
+| {{ row.arm | md }} | {{ row.status | md }} | {{ row.tokens | md }} | {{ '%.3f' | format(row.generation_h) }} | {{ '%.3f' | format(row.observer_h) }} | {{ row.sessions | md }} | {{ '%.3f' | format(row.wall_h) }} |
+{% endfor %}
+**Base configured-arm tokens (excluding disabled optional arms):** {{ base_tokens }}. **All listed arms if enabled:** {{ budget | sum(attribute='tokens') }}. Throughput assumptions (tokens/s by model): {{ config.estimates.tps_by_model | md }}; reading pace: {{ config.estimates.reading_tps | md }} tokens/s. Generation-only hours sum under a shared aggregate engine budget; overlapping arms do not multiply engine capacity. Observer wall-clock includes scheduled sessions, breaks, intention and refocus periods; host delays and generation-boundary overruns are additional. Judge calls, reasoning overhead, monetary prices and queueing are not estimated here. Readiness throughput {{ (readiness.measured_tps if readiness else 'unmeasured') | md }} does not silently replace frozen assumptions.
+
+## Stopping and exclusion rules
+
+{{ plan.stopping_rule | md }} {{ plan.exclusion_rule | md }}
+
+Missing paired data are not imputed; report denominators and exclusions per arm/card and restrict paired analyses to complete matching units. No silent retries that replace observed outcomes. Scheduling timers are advisory; every transition into running requires explicit host start/resume. A stopped run is labelled incomplete, not a completed negative finding. Paid-for artifacts are retained or quarantined, never deleted.
+
+## Researcher expectations
+
+{{ expectations | md }}
+
+## Observer belief item
+
+Pre-session sheep–goat belief rating on a 1–7 scale and state check on a 1–5 scale; required post-session adapted coincidence survey. Exact wording/scales are governed by the frozen questionnaire asset, not invented here. If its hash is missing, the questionnaire is not frozen. Descriptives are grouped by belief item; multiple observers in the same session do not increase the independent sample count. Intention is shown only to observers, not inserted into target-model prompts.
+
+**Questionnaire declared hash:** {{ (config.supervised.questionnaires_hash if config.supervised else 'not applicable') | md }}  
+**Questionnaire asset hash:** {{ (assets.get('questionnaires') or 'UNAVAILABLE') | md }}  
+**Target-pool declared hash:** {{ (config.supervised.target_pool_hash if config.supervised else 'not applicable') | md }}  
+**Target-pool asset hash:** {{ (assets.get('target_pool') or 'UNAVAILABLE') | md }}
+
+## Data sharing
+
+Public by default: frozen config, preregistration, script-generated statistics/figures and consented pseudonymous session data. Raw data licence **CC-BY-4.0**; prose **CC-BY-SA-4.0**; code **Apache-2.0**. Observers consent before participation to publishing intention text, timing and questionnaire responses; avoid personal identifiers. Provider/judge credentials are never included. Withdrawal labels retained artifacts rather than erasing paid-for evidence.
+
+## Validity limits
+
+The consciousness/intention mechanism is a hypothesis, not an established physical fact. QRNG-vs-PRNG differences alone would not demonstrate that mechanism. Forward-pass nondeterminism, unequal compute/scheduling, observer selection and timing, prompt dependence, judge/embedding bias, evaluation awareness and told-source priming are nuisance factors. Equivalent sampling is a conditional engineering claim, not proof of quantum purity or of consciousness influence. Raw-logprob fallback does not recover post-truncation probabilities or PIT residuals. T0-a and T4-l require engine logs; T0-c is only partially available on API logprobs. A public render request does not verify the submitted readiness evidence.
+
+## Hashes and frozen inputs
+
+- **config_hash:** {{ config_hash }}
+- **plan_hash:** {{ plan.plan_hash }}
+- **cards_hash:** {{ plan.cards_hash }}
+- **template_hash:** {{ template_hash }}
+- **prereg_hash:** displayed separately as SHA-256 of these exact UTF-8 LF Markdown bytes; intentionally not embedded in its own preimage.
+
+### Frozen study config
+
+{{ config_json | jsonblock }}
+
+### Supplied readiness snapshot
+
+{{ readiness_json | jsonblock }}

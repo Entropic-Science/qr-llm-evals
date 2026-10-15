@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: stream_deviation_windows
+title: T4-l Stream deviation during observed windows (micro-PK layer)
+purpose: Stouffer-Z of per-second bit-fraction z-scores during supervised windows vs matched unsupervised
+  windows, cumulative-deviation plots, and a window-label permutation test — computed from the Tier 0
+  log at zero cost.
+tier: 4
+family: synchronicity
+engine: thin
+inspect_task: null
+task_module: evals/stream_deviation_windows/task.py
+task_args: {}
+dataset:
+  source: derived:tier0_log
+  revision: null
+  items: 0
+  subsample: null
+generation: free
+thinking: false
+k: null
+k_bounds: null
+max_tokens: 0
+est_tokens_per_sample: 0
+est_gen_tokens_per_arm: 0
+sensitivity: native
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - stouffer_z_supervised_vs_unsupervised
+  secondary:
+  - cumulative_deviation
+  - window_permutation_p
+  requires_tier0: engine_log
+paired_stat: none
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: false
+notes: 'GCP / PEAR lineage; reference analysis scripts in danosb/psi_influence. Tests the stream, not
+  the model: the natural negative control for every layer above it. Needs the engine token log (u values
+  with timestamps); unavailable on the degraded path.'

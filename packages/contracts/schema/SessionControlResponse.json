@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionControlResponse.json",
+  "additionalProperties": false,
+  "properties": {
+    "session_id": {
+      "title": "Session Id",
+      "type": "string"
+    },
+    "action": {
+      "enum": [
+        "start",
+        "resume",
+        "stop_at_boundary",
+        "end_break"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "state": {
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "session_id",
+    "action",
+    "state"
+  ],
+  "title": "SessionControlResponse",
+  "type": "object"
+}

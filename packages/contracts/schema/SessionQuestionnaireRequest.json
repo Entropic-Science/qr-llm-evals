@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionQuestionnaireRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "phase": {
+      "enum": [
+        "pre",
+        "post"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "answers": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "string"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "title": "Answers",
+      "type": "object"
+    },
+    "free_text": {
+      "anyOf": [
+        {
+          "maxLength": 20000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Free Text"
+    }
+  },
+  "required": [
+    "phase",
+    "answers"
+  ],
+  "title": "SessionQuestionnaireRequest",
+  "type": "object"
+}

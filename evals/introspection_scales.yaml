@@ -1,0 +1,45 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: introspection_scales
+title: T4-c Quantitative introspection scales
+purpose: 0–9 self-ratings (happy / focused / interested) and the 10-item General Self-Efficacy Scale sampled
+  as digits; per-item mean, variance and test–retest ICC across k=20 without a judge.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/introspection_scales/task.py
+task_args: {}
+dataset:
+  source: repo:evals/introspection_scales/prompts
+  revision: null
+  items: 100
+  subsample: null
+generation: short
+thinking: false
+k: 20
+k_bounds:
+- 10
+- 30
+max_tokens: 32
+est_tokens_per_sample: 10
+est_gen_tokens_per_arm: 20000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - item_variance
+  secondary:
+  - item_mean
+  - test_retest_icc
+  - general_self_efficacy_mean
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Martorell (2603.18893, mneuronico/concept-probe) reads digit logits, which are RNG-invariant; the
+  harness samples the digit instead. Jackson et al. (2511.19872) GSE with rationale.

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionControlRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "start",
+        "resume",
+        "stop_at_boundary",
+        "end_break"
+      ],
+      "title": "Action",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "title": "SessionControlRequest",
+  "type": "object"
+}

@@ -1,0 +1,126 @@
+{
+  "available": false,
+  "card_id": "unpredictabench",
+  "comparisons": [
+    {
+      "arms_a": [
+        "qrng_unsupervised"
+      ],
+      "arms_b": [
+        "prng_seed_1",
+        "prng_seed_7",
+        "prng_seed_42"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "source:0",
+      "kind": "source",
+      "p_adjusted": 1.0,
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "qrng_supervised"
+      ],
+      "arms_b": [
+        "qrng_unsupervised"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "supervised:4",
+      "kind": "supervised",
+      "reason": "fewer than two complete paired scores"
+    }
+  ],
+  "controls": [
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": false,
+      "epsilon": null,
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "reason": "fewer than two complete paired scores"
+    }
+  ],
+  "correction": "bh",
+  "endpoint": "not_yet_scored",
+  "epsilon_curve": [],
+  "family": "tier_1_secondaries",
+  "precision": 6,
+  "reason": "required archived endpoint rows are unavailable",
+  "role": "exploratory",
+  "schema_version": 1,
+  "special": null,
+  "test": "paired_permutation",
+  "tier": 1
+}

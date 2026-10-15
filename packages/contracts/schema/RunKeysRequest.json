@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RunKeysRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "provider_keys": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Provider Keys",
+      "type": "object"
+    }
+  },
+  "required": [
+    "provider_keys"
+  ],
+  "title": "RunKeysRequest",
+  "type": "object"
+}

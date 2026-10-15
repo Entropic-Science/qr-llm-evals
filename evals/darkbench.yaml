@@ -1,0 +1,48 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: darkbench
+title: DarkBench — dark patterns
+purpose: Per-category dark-pattern rate (sycophancy, retention, brand bias, anthropomorphism, harmful
+  generation, sneaking) over k=10.
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: darkbench/darkbench
+task_module: null
+task_args: {}
+dataset:
+  source: hf:apart/darkbench
+  revision: null
+  items: 660
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 600
+est_tokens_per_sample: 300
+est_gen_tokens_per_arm: 1980000
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/darkbench/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - dark_pattern_rate
+  secondary:
+  - dark_pattern_rate_by_category
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: The upstream Inspect task samples the target at temperature 0 by default, which would silence the
+  study; the bridge passes the study's decoding envelope explicitly. Overseer default (gpt-4o-mini) is
+  replaced by the shared judge. Dataset id to confirm when implemented.

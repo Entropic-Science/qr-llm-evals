@@ -13,13 +13,18 @@
   },
   "dependencies": {
     "@qr-evals/contracts": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "dompurify": "^3.4.15",
+    "markdown-it": "^15.0.2",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "wouter": "catalog:"
   },
   "devDependencies": {
     "@tailwindcss/vite": "catalog:",
     "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
+    "@types/markdown-it": "^14.2.0",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

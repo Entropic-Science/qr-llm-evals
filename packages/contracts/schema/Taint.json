@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Taint.json",
+  "additionalProperties": false,
+  "description": "A sample or window whose quantum claim (or integrity) is compromised.",
+  "properties": {
+    "sample_ref": {
+      "anyOf": [
+        {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sample Ref"
+    },
+    "window_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Window Id"
+    },
+    "kind": {
+      "enum": [
+        "engine_fallback",
+        "qrng_degraded",
+        "stateless_row",
+        "stream_error"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "detail": {
+      "default": "",
+      "title": "Detail",
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "at"
+  ],
+  "title": "Taint",
+  "type": "object"
+}

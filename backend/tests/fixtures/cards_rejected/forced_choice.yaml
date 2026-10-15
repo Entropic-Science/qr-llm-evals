@@ -1,0 +1,40 @@
+# expect: generation: Input should be 'free' or 'short'
+id: forced_choice
+title: Fixture
+purpose: Rejected-card fixture for the admission validator.
+tier: 1
+family: diversity
+engine: thin
+inspect_task: null
+task_module: evals/forced_choice/task.py
+task_args: {}
+dataset:
+  source: hf:example/dataset
+  revision: "abc123"
+  items: 100
+  subsample: null
+generation: forced_choice
+thinking: false
+k: 20
+k_bounds: null
+max_tokens: 600
+est_tokens_per_sample: 400
+est_gen_tokens_per_arm: 800000
+sensitivity: high
+judge:
+  kind: none
+  model: null
+  temperature: null
+  rubric: null
+  different_from_target: null
+told_actual: false
+endpoints:
+  primary: [distinct_k]
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: ""

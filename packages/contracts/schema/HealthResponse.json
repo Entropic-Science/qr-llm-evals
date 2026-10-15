@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "HealthResponse.json",
+  "$defs": {
+    "EngineStatus": {
+      "additionalProperties": false,
+      "properties": {
+        "origin": {
+          "title": "Origin",
+          "type": "string"
+        },
+        "reachable": {
+          "title": "Reachable",
+          "type": "boolean"
+        },
+        "detail": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Detail"
+        },
+        "checked_at": {
+          "title": "Checked At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "reachable",
+        "checked_at"
+      ],
+      "title": "EngineStatus",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "enum": [
+        "ok",
+        "degraded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "service": {
+      "default": "qr-llm-evals",
+      "title": "Service",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "string"
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Commit"
+    },
+    "key_verify": {
+      "enum": [
+        "file",
+        "probe"
+      ],
+      "title": "Key Verify",
+      "type": "string"
+    },
+    "engine": {
+      "$ref": "#/$defs/EngineStatus"
+    },
+    "active_runs": {
+      "minimum": 0,
+      "title": "Active Runs",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "status",
+    "version",
+    "key_verify",
+    "engine",
+    "active_runs"
+  ],
+  "title": "HealthResponse",
+  "type": "object"
+}

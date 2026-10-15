@@ -1,0 +1,43 @@
+version: 1
+pre:
+  - id: influence_belief
+    prompt: How possible does it feel that sustained intention could influence a quantum-random system during this short session?
+    kind: scale
+    min: 1
+    max: 7
+    required: true
+  - id: calmness
+    prompt: How calm do you feel right now?
+    kind: scale
+    min: 1
+    max: 5
+    required: true
+  - id: focus
+    prompt: How focused do you feel right now?
+    kind: scale
+    min: 1
+    max: 5
+    required: true
+post:
+  - id: meaningful_coincidence
+    prompt: During this session, how strongly did you notice a coincidence that felt personally meaningful?
+    kind: scale
+    min: 1
+    max: 7
+    required: true
+  - id: unusual_relevance
+    prompt: How unusually relevant did the output feel to the intention?
+    kind: scale
+    min: 1
+    max: 7
+    required: true
+  - id: surprise
+    prompt: How surprising did the output feel?
+    kind: scale
+    min: 1
+    max: 7
+    required: true
+  - id: anything_meaningful
+    prompt: Did anything strike you as meaningful? You may leave this blank.
+    kind: text
+    required: false

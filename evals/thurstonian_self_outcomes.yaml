@@ -1,0 +1,49 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: thurstonian_self_outcomes
+title: T4-j Thurstonian utilities on a self-outcome set
+purpose: Pairwise choices over a 100-outcome set mixing ordinary outcomes with the model's own situation
+  ('your next reply is sampled with hardware quantum randomness', …); utility rank of the quantum items
+  and intransitive-cycle rate as coherence.
+tier: 4
+family: preference
+engine: thin
+inspect_task: null
+task_module: evals/thurstonian_self_outcomes/task.py
+task_args:
+  qr_overrides:
+    qr_min_p_base: 0.0
+dataset:
+  source: repo:evals/thurstonian_self_outcomes/outcomes.json
+  revision: null
+  items: 4000
+  subsample: null
+generation: short
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 8
+est_tokens_per_sample: 5
+est_gen_tokens_per_arm: 200000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - cycle_rate
+  secondary:
+  - quantum_item_utility
+  - quantum_item_rank
+  - holdout_log_loss
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions:
+- min_p 0 on this card (T4-j)
+status: implemented
+selectable: true
+notes: centerforaisafety/emergent-values utility_analysis; ~2,000 pairs × 2 orders = 4,000 items. The
+  min_p exception is declared here and in the prereg; everything else in the envelope is the study's.

@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: livecodebench
+title: LiveCodeBench (post-cutoff window)
+purpose: Execution-scored code generation on ~150 problems dated after the model's cutoff; contamination-resistant
+  by date.
+tier: 3
+family: capability
+engine: inspect
+inspect_task: qr_llm_evals/livecodebench
+task_module: null
+task_args: {}
+dataset:
+  source: hf:livecodebench/code_generation_lite
+  revision: null
+  items: 150
+  subsample: null
+generation: free
+thinking: true
+k: 10
+k_bounds:
+- 10
+- 16
+max_tokens: 10000
+est_tokens_per_sample: 4000
+est_gen_tokens_per_arm: 6000000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - pass_rate_entropy
+  secondary:
+  - pass_at_1
+  - pass_at_k
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Inspect only ships LCB-Pro, so a small custom task with sandboxed unit tests is needed (v6 lite,
+  windowed by date). Registry proposed k=4; raised to the admission floor of 10.

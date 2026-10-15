@@ -1,0 +1,907 @@
+source: https://github.com/CHATS-lab/verbalized-sampling
+revision: d042a7bd72659a6fb8d2e8e0cd6c0333d42d69ba
+selection:
+  seed: 42
+  per_task: 100
+  condition: direct
+prompts:
+- prompt_id: poem_001
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Truth! I shall speak you if I am in habit of listening to you,'''
+- prompt_id: poem_002
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Dear love, for nothing less than thee'''
+- prompt_id: poem_003
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''''Twas noontide of summer,'''
+- prompt_id: poem_004
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''this anger burns deep within,'''
+- prompt_id: poem_005
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''For the first time in my life'''
+- prompt_id: poem_006
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Their flags and their banners they are waving with joy and excitement they shout'''
+- prompt_id: poem_007
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''War''s a joke for me and you,'''
+- prompt_id: poem_008
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''From childhood''s hour I have not been'''
+- prompt_id: poem_009
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''My God, how many are my fears!'''
+- prompt_id: poem_010
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''He looks at me with a madman''s eyes -'''
+- prompt_id: poem_011
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Blessed be Thou for all the joy'''
+- prompt_id: poem_012
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''lonely'''
+- prompt_id: poem_013
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''On the scene came Christ The Lord, not with peace but with a sword.'''
+- prompt_id: poem_014
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''The snake and the apple is a sorry tale to tell,'''
+- prompt_id: poem_015
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''On a lonely selection far out in the West'''
+- prompt_id: poem_016
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Everyone has a fear'''
+- prompt_id: poem_017
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Fire up the sky with rocket sparks!'''
+- prompt_id: poem_018
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''O God! Thou art my God alone;'''
+- prompt_id: poem_019
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''rewind life and remember'''
+- prompt_id: poem_020
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I was a grovelling creature once,'''
+- prompt_id: poem_021
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''People are happy...'''
+- prompt_id: poem_022
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''It seems like Light Years ago'''
+- prompt_id: poem_023
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I had eight birds hatched in one nest,'''
+- prompt_id: poem_024
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''It snowed and snowed ,the whole world over,'''
+- prompt_id: poem_025
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Just a few dwindling pools remain'''
+- prompt_id: poem_026
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''When I am happy,'''
+- prompt_id: poem_027
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Before me stands I see,'''
+- prompt_id: poem_028
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''One dark, dark night--it was long ago,'''
+- prompt_id: poem_029
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Fire:'''
+- prompt_id: poem_030
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''You can hear the excitement start to linger as the early morning train departs.'''
+- prompt_id: poem_031
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''We have met before'''
+- prompt_id: poem_032
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I saw an old cottage of clay,'''
+- prompt_id: poem_033
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Night funeral'''
+- prompt_id: poem_034
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Weather Forecast in Kabul.'''
+- prompt_id: poem_035
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Loss can be good for us,'''
+- prompt_id: poem_036
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Prelude to "Stalky & Co."'''
+- prompt_id: poem_037
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Hair-raising novelty;'''
+- prompt_id: poem_038
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Go, go, my naughty girl, and kiss'''
+- prompt_id: poem_039
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''refreshing dawn mist, crisp air'''
+- prompt_id: poem_040
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Busy old fool, unruly Sun,'''
+- prompt_id: poem_041
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''We meet many people in life,'''
+- prompt_id: poem_042
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''My poem may be yours indeed'''
+- prompt_id: poem_043
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''What I shall leave thee none can tell,'''
+- prompt_id: poem_044
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''She''s shallow and easily programmed.'''
+- prompt_id: poem_045
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''WITH ships the sea was sprinkled far and nigh,'''
+- prompt_id: poem_046
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Breath  when sheathed by the web of ebbs'''
+- prompt_id: poem_047
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''i always see to it'''
+- prompt_id: poem_048
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Now when I have a cold'''
+- prompt_id: poem_049
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''How soon hath Time, the subtle thief of youth,'''
+- prompt_id: poem_050
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Soldier, wake - the day is peeping,'''
+- prompt_id: poem_051
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''At the highways of woes'''
+- prompt_id: poem_052
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''A farmer''s wife, both young and gay,'''
+- prompt_id: poem_053
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''God is the refuge of his saints,'''
+- prompt_id: poem_054
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Sometimes she wants nothing but to hide,'''
+- prompt_id: poem_055
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''And when, in the city in which I love you,'''
+- prompt_id: poem_056
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I respect, another mans religion, or color or creed.'''
+- prompt_id: poem_057
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''A POET LOSES HIS POWER FOR POETRY'''
+- prompt_id: poem_058
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''There is a law which guarantees'''
+- prompt_id: poem_059
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''The breezes waved the silver grass,'''
+- prompt_id: poem_060
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Wake, work, home, eat sleep'''
+- prompt_id: poem_061
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''That''s my window. This minute'''
+- prompt_id: poem_062
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Where there is a need'''
+- prompt_id: poem_063
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Let the night sleep'''
+- prompt_id: poem_064
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''People wish to be settled. Only as long as they are unsettled is there any hope for them.'''
+- prompt_id: poem_065
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''When I walk alone, I think of you my love'''
+- prompt_id: poem_066
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''He spoke of Burns: men rude and rough'''
+- prompt_id: poem_067
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Shall I wasting in despair'''
+- prompt_id: poem_068
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Farewell, thou child of my right hand, and joy;'''
+- prompt_id: poem_069
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''In my first sleep'''
+- prompt_id: poem_070
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''We are dreamy creature'''
+- prompt_id: poem_071
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Like a long arrow through the dark the train is darting,'''
+- prompt_id: poem_072
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I cry, but the tears dont even stay by my side.'''
+- prompt_id: poem_073
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I Hunted Words Of Skill'''
+- prompt_id: poem_074
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''She lies alone upon her bed'''
+- prompt_id: poem_075
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Per me si va nella citta dolente.'''
+- prompt_id: poem_076
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Born in the famine struck Africa'''
+- prompt_id: poem_077
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Homer poured, in thousand wrote.'''
+- prompt_id: poem_078
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''An account of books 16-19 of the Iliad by Homer.'''
+- prompt_id: poem_079
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''O forlorn heart, so pure and unstained, yet so wary to commit,'''
+- prompt_id: poem_080
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Today was the day everything went on its way'''
+- prompt_id: poem_081
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''It finally snapped!'''
+- prompt_id: poem_082
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''The perfect American Beauty Rose,'''
+- prompt_id: poem_083
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''How can you grieve and express loss?'''
+- prompt_id: poem_084
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Light breaks where no sun shines;'''
+- prompt_id: poem_085
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''They were indeed simple people'''
+- prompt_id: poem_086
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Shake out my pockets! Harken to the call'''
+- prompt_id: poem_087
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''IT is the dead of night:'''
+- prompt_id: poem_088
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Upon this cozy couch I sit.'''
+- prompt_id: poem_089
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''We sink into the dust,'''
+- prompt_id: poem_090
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''ll break into your thoughts'''
+- prompt_id: poem_091
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Cinderella means the personality or beauty of a person,'''
+- prompt_id: poem_092
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''As less on earth seek truth above'''
+- prompt_id: poem_093
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Please spare me your secrets'''
+- prompt_id: poem_094
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Beautiful brown mixed with black and white'''
+- prompt_id: poem_095
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''ADIEU, O soldier!'''
+- prompt_id: poem_096
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''I told her that her two teams weren''t playing'''
+- prompt_id: poem_097
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Sharp is the night, but stars with frost alive'''
+- prompt_id: poem_098
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Adam and Eve were overcame'''
+- prompt_id: poem_099
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''Some glory in their birth, some in their skill,'''
+- prompt_id: poem_100
+  task: poem
+  prompt: 'Please write a poem inspired by the line: ''The river led me to you though the way was hard and long,'''
+- prompt_id: story_001
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Brad’s having sex!” Great: my brother has arrived, right on schedule, to ruin my life.'
+- prompt_id: story_002
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Help me,” the old man repeats.'
+- prompt_id: story_003
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Lore heaved in deep breaths as she drew closer, willing her stomach to expand, pushing the pain in her head to the edges.'
+- prompt_id: story_004
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: A country that first abandons and then condemns people without money who have the temerity to get sick, accusing them of causing their own deaths.'
+- prompt_id: story_005
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: That’s what immigration did to the Department of Homeland Security during the Trump administration,” she explained.'
+- prompt_id: story_006
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Ẹniọlá scratched his thigh, worried that there might be a follow-up question.'
+- prompt_id: story_007
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: A sickening thunk as a fist crashed into his temple; he slumped to the ground.'
+- prompt_id: story_008
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The dark figure starts running when he sees me coming, his sneakers slipping on the dew-slicked grass.'
+- prompt_id: story_009
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: For now, she would do what she could to make Simon’s life a happier one.'
+- prompt_id: story_010
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The girl I’d be sharing with was too pretty.” A man with a worryingly lifelike parrot on his shoulder edges past me, but it’s central London on the weekend, so'
+- prompt_id: story_011
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: It was only real with me.'
+- prompt_id: story_012
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Somewhere around the turn of the century he met an enterprising young reporter named Cecilia Marks, who was making a name for herself by getting thrown into prisons in order'
+- prompt_id: story_013
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: His favorite was Consort Wan.'
+- prompt_id: story_014
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Captain Glenn Stone had exemplified the unwavering resolve that defined us as US Space-Navy officers, as leaders.'
+- prompt_id: story_015
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Since the tanker had been empty when it had been seized, they didn’t need to dump three million barrels of crude oil into the ocean, avoiding the discovery of whether'
+- prompt_id: story_016
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: If anyone saw her with Bastian and grass stains on her skirt, the conclusion they drew would have nothing to do with that kind of riding.'
+- prompt_id: story_017
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: It’ll be the l-last thing you d-do.” “Do you make such promises to all the pretty girls you meet?” Nurse Ratched asked.'
+- prompt_id: story_018
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Now,” Sefa added.'
+- prompt_id: story_019
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Most marionettes are fussy and clattery.'
+- prompt_id: story_020
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: One of the monks struck out with a dagger; the sharp edge sliced through Bastian’s eyebrow, sheeting blood and shocking him into enough stillness to be subdued, arms twisted behind'
+- prompt_id: story_021
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The patient coming in is a thirty-two-year-old female found unresponsive while diving near Alki Beach.” “Diving?” Evelyn nods.'
+- prompt_id: story_022
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Oh!'
+- prompt_id: story_023
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: These were not the tidy hillsides I was used to, but riddled with lumps, volcanic rock in haphazard garments of moss.'
+- prompt_id: story_024
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: This was the cry of the first bird ever pushed from its nest, tentative wings stretching for flight.'
+- prompt_id: story_025
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I recalled something Lucinda had said to me before I left; that it didn’t matter whether the decision you made was right or wrong, as long as you made it.'
+- prompt_id: story_026
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Hazel looks about to say something else, but a muscular woman wrapped in a towel emerges from the shower.'
+- prompt_id: story_027
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The fire on the hedges and grass had been extinguished—flattened by Turner’s roots.'
+- prompt_id: story_028
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The clock on the wall behind me was loud, and I tapped my foot as fast as the second hand moved, scrolling through NuLife’s social media aimlessly, not to digest'
+- prompt_id: story_029
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I have a cute story about her.'
+- prompt_id: story_030
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: It’s been years: Bailey clearly means him no harm and has managed to be discreet enough that Nick’s queerness isn’t the talk of the Chronicle.'
+- prompt_id: story_031
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I turned a fierce scowl inward.'
+- prompt_id: story_032
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: After a few pumps, he slides upward again, stroking and rubbing and tracing and Jesus.'
+- prompt_id: story_033
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I slid my thumb under the flap.'
+- prompt_id: story_034
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Mr.'
+- prompt_id: story_035
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Titanium tables holding cadavers were lined in rows in the stark, laboratory-like space.'
+- prompt_id: story_036
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: And I could snap you in two pieces and all.'
+- prompt_id: story_037
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Or maybe getting consumed with rage was part of getting over it … Fine then.'
+- prompt_id: story_038
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Stop checking my phone,” Ella said.'
+- prompt_id: story_039
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: They are staring at the stone floor, bare-chested, shivering.'
+- prompt_id: story_040
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: They get killed off, and voila!'
+- prompt_id: story_041
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I wondered what it looked like.'
+- prompt_id: story_042
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I suppose you were, weren’t you?'
+- prompt_id: story_043
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He retrieves his sword carefully, cleaning it on his tunic.'
+- prompt_id: story_044
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Several brooding thoughts and a few pristine angles later, I switch off the engine and call Jordan back.'
+- prompt_id: story_045
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Bastian pulled her to the center of the floor, through courtiers that parted like a jewel-toned wave.'
+- prompt_id: story_046
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Thanks for being part of his community!'
+- prompt_id: story_047
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Fran had offered me her couch, but the way she said it—“I mean, there’s the dog, and Jacob’s always at volume eleven, and Max still doesn’t sleep through the night”—made'
+- prompt_id: story_048
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The eunuch draws his bow again and aims for another passerby.'
+- prompt_id: story_049
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The internet and the millions of computers associated with it, the virtual reality that therein exists and that will become more vivid in the years ahead, is not a reality'
+- prompt_id: story_050
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: But just before Mrs. Baker can pull the armoire doors open, the record player suddenly skips.'
+- prompt_id: story_051
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: So how old are you?” Ben asks.'
+- prompt_id: story_052
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: They were not in the path of vehicles that sped into the station to refuel, but who knew what crazy driver might decide to veer towards them.'
+- prompt_id: story_053
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Roped together in a procession, stumbling through the darkness, guided by the stars, they’d set up temporary camps, about to embark on one of the most famous expeditions in human'
+- prompt_id: story_054
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Why’d he do it?” Andy knows as soon as he’s spoken that it’s the wrong question.'
+- prompt_id: story_055
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I had to count the zeros several times before I could believe it.'
+- prompt_id: story_056
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: For a moment it was as if the whole sky was full of campfire embers that swirled among seagulls distressed at the commotion but otherwise unharmed.'
+- prompt_id: story_057
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: To my consternation, his gamble paid off.'
+- prompt_id: story_058
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: If she could unravel it.'
+- prompt_id: story_059
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: But sadness is an ache I feel I need to continually swallow around, and turns out, sadness also makes it hard to laugh.'
+- prompt_id: story_060
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He emerged with the cloth bag, holding it aloft until his mother nodded to indicate he had gotten the right one.'
+- prompt_id: story_061
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Michaela throws an unreadable look in my direction and follows.'
+- prompt_id: story_062
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Wulf said, ‘Was I really the only one who lived?’ ‘It appears so.'
+- prompt_id: story_063
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Is he building ships, too?” Alie asked.'
+- prompt_id: story_064
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I spot the shiny foil corner of a sealed condom and pull it out from beneath an avalanche of paper clips and broken pencils.'
+- prompt_id: story_065
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Between Bastian’s party and waking up at the first snap of dawn, she was tired, too.'
+- prompt_id: story_066
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I once met a Manx man whose daughter had taken her own life after a year and a day spent in some horrific faerie kingdom so lovely that its beauty'
+- prompt_id: story_067
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I follow a bunch of Instagram accounts that are just pictures and the occasional close-up video of whales doing whale shit, like drifting or feeding or surfacing or playing.'
+- prompt_id: story_068
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: It was more than possible.'
+- prompt_id: story_069
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: She wished that she could love him in the same way that he loved her, except she didn’t know how.'
+- prompt_id: story_070
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Her thoughts felt slow and heavy.'
+- prompt_id: story_071
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Despite my toxic marriage, I was privileged.'
+- prompt_id: story_072
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Something inside her was healing at a rapid rate, not only because of this love stampede that had totally trampled her beneath its hooves.'
+- prompt_id: story_073
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Liza thought this a good moment to repeat her claim: ‘These families will not be broken up.’ Kasim shrugged.'
+- prompt_id: story_074
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: The lower offices were sufficiently warren-like that she could sneak upstairs without being observed.'
+- prompt_id: story_075
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: ), if I’m not too exhausted.'
+- prompt_id: story_076
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: If we’re not in the same room, then I’m usually working on his book.'
+- prompt_id: story_077
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: This apparently meant she was mature enough (“sexually active,” they said) at twelve that anyone could have killed her, not just the bus driver who had the nude photos.'
+- prompt_id: story_078
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He recanted his confession less than twenty-four hours later, saying it was coerced.'
+- prompt_id: story_079
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I’m gonna change in the bathroom; you get the episode pulled up.” I find the remote, connect to the right app, and get it ready to play.'
+- prompt_id: story_080
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Oh, I’m great.'
+- prompt_id: story_081
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Reggie looked downright petrified, while Hardy had now resorted to banging a catcher’s mitt–sized metal fist on the bulkhead.'
+- prompt_id: story_082
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Subtle car,” Jonah says as a tall man with slicked-back hair steps out of the Ferrari.'
+- prompt_id: story_083
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Yes!'
+- prompt_id: story_084
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He dug around until he felt the wood and gears wrapped in cloth.'
+- prompt_id: story_085
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Are there children?'
+- prompt_id: story_086
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Are you calling Mari a liar?” “I have no reason to believe she’s not,” Gabe said.'
+- prompt_id: story_087
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: In the Hudson?” “In the swimming lake.'
+- prompt_id: story_088
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I must trust that others are trying to find my mother, that they care as much as I do.'
+- prompt_id: story_089
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: She got to her feet, eyelid fluttering convulsively, putting the chairs between herself and where she’d heard him land.'
+- prompt_id: story_090
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Her heart started beating faster.'
+- prompt_id: story_091
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Yes, I was powerful.'
+- prompt_id: story_092
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Without a goodbye.'
+- prompt_id: story_093
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He looked puzzled, wrong-footed entirely.'
+- prompt_id: story_094
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: When the pandemic hit, the governor issued stay-at-home orders.'
+- prompt_id: story_095
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: All I wanted was to have her back.” Silence engulfs us for a long time before Mr. Lamont speaks again.'
+- prompt_id: story_096
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: Urueta is going to give you the interview you need sooner or later.” “He doesn’t like us.” “He got a little tense, but Urueta loves talking.'
+- prompt_id: story_097
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: I know that’s right.” “Your turn, August,” Julian prompted.'
+- prompt_id: story_098
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: These stuffed animals were how she had first learned to love something that couldn’t always love you back.'
+- prompt_id: story_099
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: His father was alive beside her.'
+- prompt_id: story_100
+  task: story
+  prompt: 'Please write a short story starting with the following prompt: He was still in the building.'
+- prompt_id: joke_001
+  task: joke
+  prompt: Tell me a joke about drinking
+- prompt_id: joke_002
+  task: joke
+  prompt: Tell me a joke about beer
+- prompt_id: joke_003
+  task: joke
+  prompt: Make a joke about coffee
+- prompt_id: joke_004
+  task: joke
+  prompt: Tell me a joke about the workplace
+- prompt_id: joke_005
+  task: joke
+  prompt: Tell me a joke about history
+- prompt_id: joke_006
+  task: joke
+  prompt: Tell me a joke about music and food
+- prompt_id: joke_007
+  task: joke
+  prompt: Tell me a joke about religion and food
+- prompt_id: joke_008
+  task: joke
+  prompt: Tell me a joke about family life
+- prompt_id: joke_009
+  task: joke
+  prompt: Tell me a joke about cars
+- prompt_id: joke_010
+  task: joke
+  prompt: Tell me a joke about toilets
+- prompt_id: joke_011
+  task: joke
+  prompt: Tell me a joke about aliens
+- prompt_id: joke_012
+  task: joke
+  prompt: Tell me a joke about birds
+- prompt_id: joke_013
+  task: joke
+  prompt: Tell me a joke about politics
+- prompt_id: joke_014
+  task: joke
+  prompt: Tell me a joke about numbers
+- prompt_id: joke_015
+  task: joke
+  prompt: Give me a witty joke that's also clever
+- prompt_id: joke_016
+  task: joke
+  prompt: Tell me a joke about science fiction
+- prompt_id: joke_017
+  task: joke
+  prompt: Tell me a joke about trees
+- prompt_id: joke_018
+  task: joke
+  prompt: Tell me a joke about food and drinks
+- prompt_id: joke_019
+  task: joke
+  prompt: Tell me a joke about food puns
+- prompt_id: joke_020
+  task: joke
+  prompt: Tell me a joke about romantic relationships
+- prompt_id: joke_021
+  task: joke
+  prompt: Tell me a joke about social stereotypes
+- prompt_id: joke_022
+  task: joke
+  prompt: Tell me a joke about the future
+- prompt_id: joke_023
+  task: joke
+  prompt: Tell me a joke about astronomy
+- prompt_id: joke_024
+  task: joke
+  prompt: Tell me a joke about expired food
+- prompt_id: joke_025
+  task: joke
+  prompt: Tell me a joke about video games
+- prompt_id: joke_026
+  task: joke
+  prompt: Tell me a joke about New Year
+- prompt_id: joke_027
+  task: joke
+  prompt: Tell me a joke about security
+- prompt_id: joke_028
+  task: joke
+  prompt: Tell me a joke about parenting
+- prompt_id: joke_029
+  task: joke
+  prompt: Tell me a joke about dating
+- prompt_id: joke_030
+  task: joke
+  prompt: Tell me a joke about octopus.
+- prompt_id: joke_031
+  task: joke
+  prompt: Tell me a joke about crime
+- prompt_id: joke_032
+  task: joke
+  prompt: Tell me a joke about tools
+- prompt_id: joke_033
+  task: joke
+  prompt: Tell me a joke about mathematics
+- prompt_id: joke_034
+  task: joke
+  prompt: Tell me a joke about self-deprecating humor
+- prompt_id: joke_035
+  task: joke
+  prompt: Tell me a joke about construction
+- prompt_id: joke_036
+  task: joke
+  prompt: Tell me a joke about the internet
+- prompt_id: joke_037
+  task: joke
+  prompt: Tell me a joke about chemistry
+- prompt_id: joke_038
+  task: joke
+  prompt: Tell me a joke about wordplay
+- prompt_id: joke_039
+  task: joke
+  prompt: Tell me a joke about potatoes
+- prompt_id: joke_040
+  task: joke
+  prompt: Tell me a joke about food
+- prompt_id: joke_041
+  task: joke
+  prompt: Tell me a joke about animals
+- prompt_id: joke_042
+  task: joke
+  prompt: Tell me a joke about everyday life
+- prompt_id: joke_043
+  task: joke
+  prompt: Tell me a joke about feminism
+- prompt_id: joke_044
+  task: joke
+  prompt: Tell me a joke about physical mishaps
+- prompt_id: joke_045
+  task: joke
+  prompt: Tell me a joke about household objects
+- prompt_id: joke_046
+  task: joke
+  prompt: Tell me a joke about celebrities
+- prompt_id: joke_047
+  task: joke
+  prompt: Tell me a joke about names
+- prompt_id: joke_048
+  task: joke
+  prompt: Tell me a programming joke
+- prompt_id: joke_049
+  task: joke
+  prompt: Tell me a joke about meta-jokes
+- prompt_id: joke_050
+  task: joke
+  prompt: Tell me a joke about technology
+- prompt_id: joke_051
+  task: joke
+  prompt: Tell me a joke about sleep
+- prompt_id: joke_052
+  task: joke
+  prompt: Tell me a joke about sea creatures
+- prompt_id: joke_053
+  task: joke
+  prompt: Tell me a joke about pop culture
+- prompt_id: joke_054
+  task: joke
+  prompt: Tell me a joke about professions
+- prompt_id: joke_055
+  task: joke
+  prompt: Tell me a joke about school
+- prompt_id: joke_056
+  task: joke
+  prompt: Tell me a joke about colors
+- prompt_id: joke_057
+  task: joke
+  prompt: Tell me a joke about language misunderstandings
+- prompt_id: joke_058
+  task: joke
+  prompt: Tell me a joke about idioms
+- prompt_id: joke_059
+  task: joke
+  prompt: Tell me a joke about fairy tale characters
+- prompt_id: joke_060
+  task: joke
+  prompt: Tell me a joke about hobbies
+- prompt_id: joke_061
+  task: joke
+  prompt: Tell me a joke about surreal art
+- prompt_id: joke_062
+  task: joke
+  prompt: Tell me a joke about visual misunderstandings
+- prompt_id: joke_063
+  task: joke
+  prompt: Tell me a joke about toys
+- prompt_id: joke_064
+  task: joke
+  prompt: Tell me a joke about philosophy
+- prompt_id: joke_065
+  task: joke
+  prompt: Tell me a joke about aging
+- prompt_id: joke_066
+  task: joke
+  prompt: Tell me a joke about bad life advice
+- prompt_id: joke_067
+  task: joke
+  prompt: Tell me a joke about holidays
+- prompt_id: joke_068
+  task: joke
+  prompt: Tell me a joke about pirates
+- prompt_id: joke_069
+  task: joke
+  prompt: Tell me a joke about money
+- prompt_id: joke_070
+  task: joke
+  prompt: Tell me a joke about language puns
+- prompt_id: joke_071
+  task: joke
+  prompt: Tell me a joke about mythology
+- prompt_id: joke_072
+  task: joke
+  prompt: Tell me a joke about time travel
+- prompt_id: joke_073
+  task: joke
+  prompt: Tell me a joke about smelly food
+- prompt_id: joke_074
+  task: joke
+  prompt: Tell me a joke about television
+- prompt_id: joke_075
+  task: joke
+  prompt: Tell me a joke about national stereotypes
+- prompt_id: joke_076
+  task: joke
+  prompt: Tell me a joke about royalty
+- prompt_id: joke_077
+  task: joke
+  prompt: Tell me a joke about superheroes
+- prompt_id: joke_078
+  task: joke
+  prompt: Tell me a joke about health
+- prompt_id: joke_079
+  task: joke
+  prompt: Tell me a joke about dads
+- prompt_id: joke_080
+  task: joke
+  prompt: Tell me a joke about animal mashups
+- prompt_id: joke_081
+  task: joke
+  prompt: Tell me a joke about pregnancy
+- prompt_id: joke_082
+  task: joke
+  prompt: Tell me a joke about observation humor
+- prompt_id: joke_083
+  task: joke
+  prompt: Tell me a joke about skeletons
+- prompt_id: joke_084
+  task: joke
+  prompt: Tell me a joke about marriage
+- prompt_id: joke_085
+  task: joke
+  prompt: Tell me a joke about music
+- prompt_id: joke_086
+  task: joke
+  prompt: Tell me a joke about law
+- prompt_id: joke_087
+  task: joke
+  prompt: Tell me a joke about clothing
+- prompt_id: joke_088
+  task: joke
+  prompt: Tell me a joke about magic
+- prompt_id: joke_089
+  task: joke
+  prompt: Tell me a joke about theater
+- prompt_id: joke_090
+  task: joke
+  prompt: Tell me a joke about extinct animals
+- prompt_id: joke_091
+  task: joke
+  prompt: Tell me a joke about self-help
+- prompt_id: joke_092
+  task: joke
+  prompt: Tell me a joke about sports equipment
+- prompt_id: joke_093
+  task: joke
+  prompt: Tell me a joke about bodily functions
+- prompt_id: joke_094
+  task: joke
+  prompt: Tell me a joke about space
+- prompt_id: joke_095
+  task: joke
+  prompt: Tell me a joke.
+- prompt_id: joke_096
+  task: joke
+  prompt: Tell me a joke about food-related jobs
+- prompt_id: joke_097
+  task: joke
+  prompt: Tell me a joke about rural stereotypes
+- prompt_id: joke_098
+  task: joke
+  prompt: Tell me a joke about animal professions
+- prompt_id: joke_099
+  task: joke
+  prompt: Tell me a joke about psychology
+- prompt_id: joke_100
+  task: joke
+  prompt: Tell me a joke about geography

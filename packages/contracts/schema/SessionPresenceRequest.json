@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionPresenceRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "left": {
+      "default": false,
+      "title": "Left",
+      "type": "boolean"
+    }
+  },
+  "title": "SessionPresenceRequest",
+  "type": "object"
+}

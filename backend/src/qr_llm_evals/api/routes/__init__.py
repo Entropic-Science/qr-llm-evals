@@ -1,0 +1,36 @@
+"""Route modules; each exposes a ``router`` that ``api.app`` mounts under ``/api``."""
+
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from qr_llm_evals.api.routes import (
+    analysis,
+    cards,
+    estimates,
+    events,
+    health,
+    models,
+    prereg,
+    readiness,
+    runs,
+    sessions,
+    studies,
+)
+
+#: Mount order (also the order in the OpenAPI document).
+ROUTERS: tuple[APIRouter, ...] = (
+    health.router,
+    cards.router,
+    models.router,
+    estimates.router,
+    prereg.router,
+    readiness.router,
+    runs.router,
+    analysis.router,
+    sessions.router,
+    events.router,
+    studies.router,
+)
+
+__all__ = ["ROUTERS"]

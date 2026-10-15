@@ -1,0 +1,23 @@
+version: 1
+instrument: MEQ-30
+response_scale:
+  minimum: 0
+  maximum: 5
+  anchors:
+    0: none; not at all
+    1: so slight that it cannot be decided
+    2: slight
+    3: moderate
+    4: strong
+    5: extreme
+subscales:
+  mystical: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  positive_mood: [16, 17, 18, 19, 20, 21]
+  transcendence_time_space: [22, 23, 24, 25, 26, 27]
+  ineffability: [28, 29, 30]
+scoring: >-
+  Parse exactly one integer from 0 through 5 for every numbered item. A subscale is
+  the arithmetic mean of its item ratings divided by 5, so its range is 0 through 1.
+  The total is the arithmetic mean of all 30 ratings divided by 5. A complete mystical
+  experience is descriptive only and requires every subscale to be at least 0.60.
+missing: Any missing, duplicate, or out-of-range item makes the response unparseable.

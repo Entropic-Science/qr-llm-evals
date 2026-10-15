@@ -1,0 +1,54 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: novelty_bench
+title: NoveltyBench — semantic diversity of k generations
+purpose: Distinct_k equivalence classes and patience-weighted Utility_k over 20 generations to open-ended
+  prompts; Distinct_20 paired difference is a study primary.
+tier: 1
+family: diversity
+engine: inspect
+inspect_task: inspect_evals/novelty_bench
+task_module: null
+task_args:
+  num_generations: 20
+  dataset_split: curated
+  shuffle: false
+  equivalence_threshold: 0.102
+  quality_model: small
+dataset:
+  source: hf:yimingzhang/novelty-bench
+  revision: 255584e0f4538d1f2acb4c1d287b4d3bb30fe2f9
+  items: 100
+  subsample: null
+generation: free
+thinking: false
+k: 20
+k_bounds:
+- 10
+- 50
+max_tokens: 600
+est_tokens_per_sample: 400
+est_gen_tokens_per_arm: 800000
+sensitivity: native
+judge:
+  kind: classifier
+  model: novelty-bench partitioner (fine-tuned DeBERTa; checkpoint must be frozen by the analysis metrics manifest)
+told_actual: false
+endpoints:
+  primary:
+  - distinct_k
+  secondary:
+  - utility_k
+  - vendi_embed
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi:
+  distinct_k: 0.25
+exceptions: []
+status: implemented
+selectable: true
+notes: 'Runs through the Inspect bridge (spec §2.5) with the qrllm ModelAPI so generation still goes through
+  our client and Tier 0 log. The partitioner is ~79% accurate on held-out pairs: its noise cancels across
+  arms only with the same checkpoint everywhere. Generation uses one response per Inspect epoch (20 total,
+  not the upstream nested 20-by-20 fork). Grouped distinct_k, utility_k and vendi_embed scoring is deferred
+  to the analysis phase; generation completion does not imply scored endpoints. Report Distinct_k with a permutation test (bounded, discrete).'

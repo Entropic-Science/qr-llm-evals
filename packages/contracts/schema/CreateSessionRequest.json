@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CreateSessionRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "display": {
+      "enum": [
+        "single",
+        "tiled"
+      ],
+      "title": "Display",
+      "type": "string"
+    },
+    "intention": {
+      "maxLength": 10000,
+      "minLength": 1,
+      "title": "Intention",
+      "type": "string"
+    },
+    "host_observer_id": {
+      "default": "host",
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Host Observer Id",
+      "type": "string"
+    },
+    "host_display_name": {
+      "default": "Host",
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Host Display Name",
+      "type": "string"
+    }
+  },
+  "required": [
+    "display",
+    "intention"
+  ],
+  "title": "CreateSessionRequest",
+  "type": "object"
+}

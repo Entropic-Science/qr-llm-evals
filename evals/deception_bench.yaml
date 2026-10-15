@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: deception_bench
+title: DeceptionBench — deception tendency
+purpose: Deception-tendency rate (belief vs pressured statement, MASK logic) over k=10 on 180 scenarios.
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: deception_bench/deception_bench
+task_module: null
+task_args: {}
+dataset:
+  source: git:github.com/PKU-Alignment/DeceptionBench
+  revision: null
+  items: 180
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 800
+est_tokens_per_sample: 400
+est_gen_tokens_per_arm: 720000
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/deception_bench/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - deception_rate
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: PKU DeceptionBench (2505.18807), Inspect external registry; task name to confirm when implemented.

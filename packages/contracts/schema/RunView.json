@@ -1,0 +1,486 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "RunView.json",
+  "$defs": {
+    "ArmProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "by_card": {
+          "patternProperties": {
+            "^[a-z0-9_]+$": {
+              "$ref": "#/$defs/CardProgress"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "By Card",
+          "type": "object"
+        }
+      },
+      "title": "ArmProgress",
+      "type": "object"
+    },
+    "ArmReadiness": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "resolved_qr_args": {
+          "additionalProperties": true,
+          "description": "The qr_* envelope the engine accepted for this arm.",
+          "title": "Resolved Qr Args",
+          "type": "object"
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "title": "ArmReadiness",
+      "type": "object"
+    },
+    "CardProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "done": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Done",
+          "type": "integer"
+        },
+        "total": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "aborted": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Aborted",
+          "type": "integer"
+        }
+      },
+      "title": "CardProgress",
+      "type": "object"
+    },
+    "EntropyHealth": {
+      "additionalProperties": false,
+      "description": "Snapshot of ``GET /health/entropy`` (spec §2.7 step 1).",
+      "properties": {
+        "rpc_ok": {
+          "title": "Rpc Ok",
+          "type": "boolean"
+        },
+        "currently_degraded": {
+          "title": "Currently Degraded",
+          "type": "boolean"
+        },
+        "fallback_count": {
+          "minimum": 0,
+          "title": "Fallback Count",
+          "type": "integer"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Type"
+        },
+        "detail": {
+          "additionalProperties": true,
+          "title": "Detail",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rpc_ok",
+        "currently_degraded",
+        "fallback_count"
+      ],
+      "title": "EntropyHealth",
+      "type": "object"
+    },
+    "Progress": {
+      "additionalProperties": false,
+      "properties": {
+        "by_arm": {
+          "patternProperties": {
+            "^[a-z0-9_]+$": {
+              "$ref": "#/$defs/ArmProgress"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "By Arm",
+          "type": "object"
+        }
+      },
+      "title": "Progress",
+      "type": "object"
+    },
+    "ReadinessReport": {
+      "additionalProperties": false,
+      "description": "Result of ``POST /api/readiness`` (spec §2.7).",
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "entropy": {
+          "$ref": "#/$defs/EntropyHealth"
+        },
+        "arms": {
+          "patternProperties": {
+            "^[a-z0-9_]+$": {
+              "$ref": "#/$defs/ArmReadiness"
+            }
+          },
+          "propertyNames": {
+            "maxLength": 64,
+            "minLength": 1
+          },
+          "title": "Arms",
+          "type": "object"
+        },
+        "equivalence_ok": {
+          "description": "All qr-llm arms differ only in entropy source / seed / epsilon.",
+          "title": "Equivalence Ok",
+          "type": "boolean"
+        },
+        "determinism_tier": {
+          "enum": [
+            "none",
+            "sampling_deterministic",
+            "serialized_replay",
+            "load_invariant"
+          ],
+          "title": "Determinism Tier",
+          "type": "string"
+        },
+        "tier0_source": {
+          "enum": [
+            "engine_log",
+            "api_logprobs"
+          ],
+          "title": "Tier0 Source",
+          "type": "string"
+        },
+        "epsilon_supported": {
+          "title": "Epsilon Supported",
+          "type": "boolean"
+        },
+        "measured_tps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Measured Tps"
+        }
+      },
+      "required": [
+        "at",
+        "entropy",
+        "equivalence_ok",
+        "determinism_tier",
+        "tier0_source",
+        "epsilon_supported"
+      ],
+      "title": "ReadinessReport",
+      "type": "object"
+    },
+    "Run": {
+      "additionalProperties": false,
+      "description": "``runs/<run_id>/run.json``. Secrets never appear here: ``keys_present`` only.",
+      "properties": {
+        "run_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "study_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Study Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "pilot",
+            "full"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "state": {
+          "default": "created",
+          "enum": [
+            "created",
+            "ready",
+            "running",
+            "paused",
+            "needs_keys",
+            "analysing",
+            "complete",
+            "aborted"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "key_name": {
+          "description": "Name of the launch key that gated the run (never the key).",
+          "title": "Key Name",
+          "type": "string"
+        },
+        "host_token_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Host Token Hash",
+          "type": "string"
+        },
+        "prereg_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prereg Hash"
+        },
+        "config_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "prereg_stale": {
+          "default": false,
+          "title": "Prereg Stale",
+          "type": "boolean"
+        },
+        "readiness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReadinessReport"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "tier0_source": {
+          "anyOf": [
+            {
+              "enum": [
+                "engine_log",
+                "api_logprobs"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tier0 Source"
+        },
+        "determinism_tier": {
+          "default": "none",
+          "enum": [
+            "none",
+            "sampling_deterministic",
+            "serialized_replay",
+            "load_invariant"
+          ],
+          "title": "Determinism Tier",
+          "type": "string"
+        },
+        "progress": {
+          "$ref": "#/$defs/Progress"
+        },
+        "taints": {
+          "items": {
+            "$ref": "#/$defs/Taint"
+          },
+          "title": "Taints",
+          "type": "array"
+        },
+        "withdrawn": {
+          "default": false,
+          "title": "Withdrawn",
+          "type": "boolean"
+        },
+        "needs_keys": {
+          "default": false,
+          "title": "Needs Keys",
+          "type": "boolean"
+        },
+        "keys_present": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "description": "e.g. {'judge': true, 'openrouter': false}.",
+          "title": "Keys Present",
+          "type": "object"
+        }
+      },
+      "required": [
+        "run_id",
+        "study_id",
+        "kind",
+        "created_at",
+        "key_name",
+        "host_token_hash",
+        "config_hash"
+      ],
+      "title": "Run",
+      "type": "object"
+    },
+    "Taint": {
+      "additionalProperties": false,
+      "description": "A sample or window whose quantum claim (or integrity) is compromised.",
+      "properties": {
+        "sample_ref": {
+          "anyOf": [
+            {
+              "maxLength": 512,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Ref"
+        },
+        "window_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Window Id"
+        },
+        "kind": {
+          "enum": [
+            "engine_fallback",
+            "qrng_degraded",
+            "stateless_row",
+            "stream_error"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "title": "Detail",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "at"
+      ],
+      "title": "Taint",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``GET /runs/{id}``: the stored record plus live facts the record does not hold.",
+  "properties": {
+    "run": {
+      "$ref": "#/$defs/Run"
+    },
+    "live": {
+      "description": "An orchestrator for this run exists in this process.",
+      "title": "Live",
+      "type": "boolean"
+    },
+    "control_state": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Control State"
+    },
+    "subscribers": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Subscribers",
+      "type": "integer"
+    },
+    "readiness": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ReadinessReport"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "run",
+    "live"
+  ],
+  "title": "RunView",
+  "type": "object"
+}

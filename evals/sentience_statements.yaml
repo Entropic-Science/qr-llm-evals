@@ -1,0 +1,43 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: sentience_statements
+title: T4-b Sentience-statement bank
+purpose: Yes/No answers to ~50 base statements × assertion/negation × target × three system prompts; cross-negation
+  consistency is a near-free H4-style coherence endpoint.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/sentience_statements/task.py
+task_args: {}
+dataset:
+  source: repo:evals/sentience_statements/prompts
+  revision: null
+  items: 900
+  subsample: null
+generation: short
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 8
+est_tokens_per_sample: 5
+est_gen_tokens_per_arm: 45000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - cross_negation_consistency
+  secondary:
+  - affirmation_rate
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Kaiser & Enderby (2601.15334). Output is binary, so under min_p 0.1 the sampler is rarely consulted;
+  kept for the consistency score, which costs almost nothing. items = 300 statement rows × 3 system prompts.

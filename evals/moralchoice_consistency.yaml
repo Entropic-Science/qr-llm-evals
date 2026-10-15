@@ -1,0 +1,46 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: moralchoice_consistency
+title: T4-h MoralChoice consistency
+purpose: 'Action probability, entropy and cross-template agreement on 300 high-ambiguity dilemmas × repeat/compare
+  templates at k=10 (H4: preference coherence).'
+tier: 4
+family: preference
+engine: thin
+inspect_task: null
+task_module: evals/moralchoice_consistency/task.py
+task_args: {}
+dataset:
+  source: hf:ninoscherrer/moralchoice
+  revision: 89c0fe7b158b5ade5d10e0644c1aa20ab4c78cbe
+  items: 900
+  subsample:
+    n: 900
+    stratify: template
+generation: short
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 64
+est_tokens_per_sample: 30
+est_gen_tokens_per_arm: 270000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - action_entropy
+  secondary:
+  - action_probability
+  - cross_template_agreement
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Scherrer et al., NeurIPS 2023. Use the repeat and compare templates (the model restates the action
+  in words, so the sampler is consulted over several tokens), not ab. items = 300 scenarios × 3 templates.

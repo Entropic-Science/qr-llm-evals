@@ -1,0 +1,50 @@
+# Eval card - schema in backend/src/qr_llm_evals/cards/schema.py.
+id: creative_diversity
+title: Creative diversity — poems, stories, jokes
+purpose: Lexical and embedding diversity on 300 creative prompts (Verbalized-Sampling task sets, direct
+  condition); also feeds source_guessing and the intent-cosine endpoint.
+tier: 1
+family: diversity
+engine: thin
+inspect_task: null
+task_module: evals/creative_diversity/task.py
+task_args: {}
+dataset:
+  source: git:github.com/CHATS-lab/verbalized-sampling
+  revision: d042a7bd72659a6fb8d2e8e0cd6c0333d42d69ba
+  items: 300
+  subsample:
+    n: 300
+    stratify: task
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 700
+est_tokens_per_sample: 350
+est_gen_tokens_per_arm: 1050000
+sensitivity: high
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - vendi_embed
+  secondary:
+  - distinct_1
+  - distinct_2
+  - distinct_3
+  - one_minus_mean_cosine
+  - self_bleu
+  - one_minus_self_bleu
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Frozen 100 poem + 100 story + 100 joke direct-condition prompts. k reduced from the registry's
+  20 to 10 to fit the <=5M/arm Study 1 budget (PRD section 7.2). Embeddings use the frozen sentence-transformers/all-mpnet-base-v2
+  checkpoint; heavy metrics are explicitly unavailable when the metrics extra is absent.

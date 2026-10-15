@@ -24,6 +24,7 @@ dependencies = [
     "jinja2>=3.1",
     "numpy>=1.26,<3",
     "scipy>=1.12",
+    "zstandard>=0.22",
 ]
 
 [project.optional-dependencies]
@@ -31,23 +32,29 @@ dependencies = [
 # `inspect-evals` is git-pinned to a commit by the step that wires novelty_bench.
 inspect = [
     "inspect-ai>=0.3.263",
+    "inspect-evals @ git+https://github.com/UKGovernmentBEIS/inspect_evals@360484a06383f9260279938262d78ed646ddbca1",
 ]
-# Statistics + figures for the analysis phase (spec §2.10). The MMD-Hamming
-# permutation test has a vendored fallback in analysis/mmd.py; the upstream
-# `model-equality-testing` git pin is added by the analysis step if it resolves on 3.11.
+# Statistics + figures for the analysis phase (spec §2.10). analysis/stats.py and
+# analysis/mmd.py are numpy/scipy leaves and run WITHOUT this extra; statsmodels
+# is kept for cross-checks. The MMD-Hamming statistic is vendored in analysis/mmd.py
+# (upstream `model-equality-testing` needs torch, so its git pin lives in [metrics]).
 analysis = [
     "statsmodels>=0.14",
     "matplotlib>=3.8",
 ]
 # Heavy text metrics — NEVER imported by the core package; only under
-# qr_llm_evals.analysis.metrics_heavy, lazily (spec §1.2).
+# qr_llm_evals.analysis.metrics_heavy, lazily (spec §1.2). `model_equality_testing`
+# is imported lazily by analysis/mmd.py only to cross-check the vendored statistic.
 metrics = [
     "torch>=2.2",
     "transformers>=4.40",
     "sentence-transformers>=3.0",
     "vendi-score>=0.0.3",
+    "model_equality_testing @ git+https://github.com/i-gao/model-equality-testing@fd2ee24d75c9fef87debff8caefa0c04d4a5d374#subdirectory=model_equality_testing",
 ]
 dev = [
+    # The mandatory smoke oracle renders SVGs; a fresh dev/CI install needs it.
+    "matplotlib>=3.8",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "hypothesis>=6.100",
@@ -68,7 +75,7 @@ Community = "https://github.com/Entropic-Science/community"
 where = ["backend/src"]
 
 [tool.setuptools.package-data]
-"qr_llm_evals" = ["py.typed"]
+"qr_llm_evals" = ["py.typed", "store/LICENSE-data"]
 
 [tool.ruff]
 target-version = "py311"
@@ -96,6 +103,16 @@ warn_unused_ignores = true
 warn_return_any = true
 no_implicit_optional = true
 
+# Optional Inspect bases/decorators are Any on core-only dev installations.
+# Their full third-party types are checked when the [inspect] extra is present.
+[[tool.mypy.overrides]]
+module = ["qr_llm_evals.inspect_bridge.provider", "qr_llm_evals.inspect_bridge.subprocess_runner"]
+disallow_subclassing_any = false
+
+[[tool.mypy.overrides]]
+module = ["qr_llm_evals.inspect_bridge.solver"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 # --basetemp keeps tmp_path under the repo instead of %TEMP%: sandboxed agent
@@ -104,6 +121,7 @@ addopts = "-q --basetemp=.pytest_tmp"
 asyncio_mode = "auto"
 markers = [
     "live: requires live on-box services (vLLM / Qbert0G / cloudflared); skipped unless --run-live is passed",
+    "metrics: requires the optional CPU-only text-metrics dependencies and frozen model checkpoints",
 ]
 
 [tool.bandit]

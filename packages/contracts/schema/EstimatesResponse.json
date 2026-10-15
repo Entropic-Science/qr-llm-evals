@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "EstimatesResponse.json",
+  "$defs": {
+    "CardEstimate": {
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "K"
+        },
+        "items": {
+          "title": "Items",
+          "type": "integer"
+        },
+        "tokens_per_arm": {
+          "title": "Tokens Per Arm",
+          "type": "integer"
+        },
+        "time_unsupervised_h": {
+          "title": "Time Unsupervised H",
+          "type": "number"
+        },
+        "observer_hours_single": {
+          "title": "Observer Hours Single",
+          "type": "number"
+        },
+        "observer_hours_tiled": {
+          "title": "Observer Hours Tiled",
+          "type": "number"
+        }
+      },
+      "required": [
+        "card_id",
+        "k",
+        "items",
+        "tokens_per_arm",
+        "time_unsupervised_h",
+        "observer_hours_single",
+        "observer_hours_tiled"
+      ],
+      "title": "CardEstimate",
+      "type": "object"
+    },
+    "EstimateTotals": {
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "minimum": 0,
+          "title": "Tokens",
+          "type": "integer"
+        },
+        "time_unsupervised_h": {
+          "minimum": 0,
+          "title": "Time Unsupervised H",
+          "type": "number"
+        },
+        "observer_hours_single": {
+          "minimum": 0,
+          "title": "Observer Hours Single",
+          "type": "number"
+        },
+        "observer_hours_tiled": {
+          "minimum": 0,
+          "title": "Observer Hours Tiled",
+          "type": "number"
+        },
+        "sessions_single": {
+          "minimum": 0,
+          "title": "Sessions Single",
+          "type": "integer"
+        },
+        "sessions_tiled": {
+          "minimum": 0,
+          "title": "Sessions Tiled",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "tokens",
+        "time_unsupervised_h",
+        "observer_hours_single",
+        "observer_hours_tiled",
+        "sessions_single",
+        "sessions_tiled"
+      ],
+      "title": "EstimateTotals",
+      "type": "object"
+    },
+    "SelectionEstimate": {
+      "additionalProperties": false,
+      "description": "Totals for a set of selected cards on one model (per arm).",
+      "properties": {
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "tokens_per_arm": {
+          "title": "Tokens Per Arm",
+          "type": "integer"
+        },
+        "time_unsupervised_h": {
+          "title": "Time Unsupervised H",
+          "type": "number"
+        },
+        "observer_hours_single": {
+          "title": "Observer Hours Single",
+          "type": "number"
+        },
+        "observer_hours_tiled": {
+          "title": "Observer Hours Tiled",
+          "type": "number"
+        },
+        "sessions_single": {
+          "title": "Sessions Single",
+          "type": "integer"
+        },
+        "sessions_tiled": {
+          "title": "Sessions Tiled",
+          "type": "integer"
+        },
+        "per_card": {
+          "items": {
+            "$ref": "#/$defs/CardEstimate"
+          },
+          "title": "Per Card",
+          "type": "array"
+        },
+        "assumptions": {
+          "additionalProperties": true,
+          "title": "Assumptions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "model_id",
+        "tokens_per_arm",
+        "time_unsupervised_h",
+        "observer_hours_single",
+        "observer_hours_tiled",
+        "sessions_single",
+        "sessions_tiled",
+        "per_card",
+        "assumptions"
+      ],
+      "title": "SelectionEstimate",
+      "type": "object"
+    },
+    "SupervisedEstimate": {
+      "additionalProperties": false,
+      "description": "Observer time for the supervised arms only (the SPA's second line).",
+      "properties": {
+        "arms": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Arms",
+          "type": "array"
+        },
+        "display": {
+          "anyOf": [
+            {
+              "enum": [
+                "single",
+                "tiled"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Display"
+        },
+        "observer_hours": {
+          "minimum": 0,
+          "title": "Observer Hours",
+          "type": "number"
+        },
+        "sessions": {
+          "minimum": 0,
+          "title": "Sessions",
+          "type": "integer"
+        },
+        "session_min": {
+          "minimum": 1,
+          "title": "Session Min",
+          "type": "integer"
+        },
+        "break_min": {
+          "minimum": 0,
+          "title": "Break Min",
+          "type": "integer"
+        },
+        "wall_clock_h": {
+          "description": "Sessions plus breaks, host-paced.",
+          "minimum": 0,
+          "title": "Wall Clock H",
+          "type": "number"
+        }
+      },
+      "required": [
+        "arms",
+        "observer_hours",
+        "sessions",
+        "session_min",
+        "break_min",
+        "wall_clock_h"
+      ],
+      "title": "SupervisedEstimate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "by_arm": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SelectionEstimate"
+      },
+      "title": "By Arm",
+      "type": "object"
+    },
+    "totals": {
+      "$ref": "#/$defs/EstimateTotals"
+    },
+    "supervised": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SupervisedEstimate"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "by_arm",
+    "totals"
+  ],
+  "title": "EstimatesResponse",
+  "type": "object"
+}

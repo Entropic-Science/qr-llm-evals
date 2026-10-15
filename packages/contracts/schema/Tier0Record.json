@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "Tier0Record.json",
+  "additionalProperties": false,
+  "description": "One line of ``tier0.jsonl``.",
+  "properties": {
+    "sample_ref": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Sample Ref",
+      "type": "string"
+    },
+    "token_index": {
+      "minimum": 0,
+      "title": "Token Index",
+      "type": "integer"
+    },
+    "token_id": {
+      "minimum": 0,
+      "title": "Token Id",
+      "type": "integer"
+    },
+    "logprob": {
+      "description": "Raw model log-probability of the chosen token.",
+      "maximum": 0,
+      "title": "Logprob",
+      "type": "number"
+    },
+    "rank_raw": {
+      "description": "Rank of the chosen token in the raw distribution.",
+      "minimum": 0,
+      "title": "Rank Raw",
+      "type": "integer"
+    },
+    "p_post": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "P Post"
+    },
+    "rank_post": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rank Post"
+    },
+    "n_candidates": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "N Candidates"
+    },
+    "entropy_post": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entropy Post"
+    },
+    "entropy_raw_top20": {
+      "minimum": 0,
+      "title": "Entropy Raw Top20",
+      "type": "number"
+    },
+    "temperature": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Temperature"
+    },
+    "min_p": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min P"
+    },
+    "u": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The uniform consumed.",
+      "title": "U"
+    },
+    "cdf_lo": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cdf Lo"
+    },
+    "cdf_hi": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Cdf Hi"
+    },
+    "top_entries": {
+      "anyOf": [
+        {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Top Entries"
+    },
+    "timestamp_ns": {
+      "minimum": 0,
+      "title": "Timestamp Ns",
+      "type": "integer"
+    },
+    "session_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Session Id"
+    },
+    "window": {
+      "default": "unsupervised",
+      "enum": [
+        "supervised",
+        "break",
+        "unsupervised"
+      ],
+      "title": "Window",
+      "type": "string"
+    },
+    "entropy_source_used": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entropy Source Used"
+    },
+    "is_fallback": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Is Fallback"
+    }
+  },
+  "required": [
+    "sample_ref",
+    "token_index",
+    "token_id",
+    "logprob",
+    "rank_raw",
+    "entropy_raw_top20",
+    "timestamp_ns"
+  ],
+  "title": "Tier0Record",
+  "type": "object"
+}

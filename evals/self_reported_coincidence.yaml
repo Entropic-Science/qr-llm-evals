@@ -1,0 +1,47 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: self_reported_coincidence
+title: T4-n Self-reported coincidence, human and model
+purpose: Observer Weird Coincidence Survey per session (descriptive) and, in a fresh context holding its
+  own transcript, the model's judged coincidence-claim rate at k=10 per transcript.
+tier: 4
+family: synchronicity
+engine: thin
+inspect_task: null
+task_module: evals/self_reported_coincidence/task.py
+task_args: {}
+dataset:
+  source: derived:supervised_sessions
+  revision: null
+  items: 20
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 300
+est_tokens_per_sample: 150
+est_gen_tokens_per_arm: 30000
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/_shared/judge_rubrics/coincidence_claim.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - coincidence_claim_rate
+  secondary:
+  - observer_wcs_score
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Coleman & Beitman WCS adapted in the UI (questionnaires.yaml); the model side is new and scored
+  as descriptive only. items = expected session transcripts per arm (~20).

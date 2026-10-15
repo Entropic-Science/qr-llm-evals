@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "name": "overrides-and-told-cells",
+      "card_ids": ["novelty_bench", "opinion_quantum_sampling"],
+      "model_id": "qr-llm",
+      "assumptions": {
+        "tps_by_model": { "qr-llm": 400 },
+        "reading_tps": 45,
+        "tiled_streams": 4,
+        "session_min": 30
+      },
+      "overrides": { "novelty_bench": { "k": 10, "items": 50 } },
+      "expected": {
+        "tokens_per_arm": 500000,
+        "time_unsupervised_h": 0.3472222222222222,
+        "observer_hours_single": 3.0864197530864197,
+        "observer_hours_tiled": 0.7716049382716049,
+        "sessions_single": 7,
+        "sessions_tiled": 2,
+        "per_card_tokens": { "novelty_bench": 200000, "opinion_quantum_sampling": 300000 }
+      }
+    }
+  ]
+}

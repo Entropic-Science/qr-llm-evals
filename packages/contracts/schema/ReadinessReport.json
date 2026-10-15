@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ReadinessReport.json",
+  "$defs": {
+    "ArmReadiness": {
+      "additionalProperties": false,
+      "properties": {
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "resolved_qr_args": {
+          "additionalProperties": true,
+          "description": "The qr_* envelope the engine accepted for this arm.",
+          "title": "Resolved Qr Args",
+          "type": "object"
+        }
+      },
+      "required": [
+        "available"
+      ],
+      "title": "ArmReadiness",
+      "type": "object"
+    },
+    "EntropyHealth": {
+      "additionalProperties": false,
+      "description": "Snapshot of ``GET /health/entropy`` (spec §2.7 step 1).",
+      "properties": {
+        "rpc_ok": {
+          "title": "Rpc Ok",
+          "type": "boolean"
+        },
+        "currently_degraded": {
+          "title": "Currently Degraded",
+          "type": "boolean"
+        },
+        "fallback_count": {
+          "minimum": 0,
+          "title": "Fallback Count",
+          "type": "integer"
+        },
+        "source_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Type"
+        },
+        "detail": {
+          "additionalProperties": true,
+          "title": "Detail",
+          "type": "object"
+        }
+      },
+      "required": [
+        "rpc_ok",
+        "currently_degraded",
+        "fallback_count"
+      ],
+      "title": "EntropyHealth",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Result of ``POST /api/readiness`` (spec §2.7).",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "entropy": {
+      "$ref": "#/$defs/EntropyHealth"
+    },
+    "arms": {
+      "patternProperties": {
+        "^[a-z0-9_]+$": {
+          "$ref": "#/$defs/ArmReadiness"
+        }
+      },
+      "propertyNames": {
+        "maxLength": 64,
+        "minLength": 1
+      },
+      "title": "Arms",
+      "type": "object"
+    },
+    "equivalence_ok": {
+      "description": "All qr-llm arms differ only in entropy source / seed / epsilon.",
+      "title": "Equivalence Ok",
+      "type": "boolean"
+    },
+    "determinism_tier": {
+      "enum": [
+        "none",
+        "sampling_deterministic",
+        "serialized_replay",
+        "load_invariant"
+      ],
+      "title": "Determinism Tier",
+      "type": "string"
+    },
+    "tier0_source": {
+      "enum": [
+        "engine_log",
+        "api_logprobs"
+      ],
+      "title": "Tier0 Source",
+      "type": "string"
+    },
+    "epsilon_supported": {
+      "title": "Epsilon Supported",
+      "type": "boolean"
+    },
+    "measured_tps": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Measured Tps"
+    }
+  },
+  "required": [
+    "at",
+    "entropy",
+    "equivalence_ok",
+    "determinism_tier",
+    "tier0_source",
+    "epsilon_supported"
+  ],
+  "title": "ReadinessReport",
+  "type": "object"
+}

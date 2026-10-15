@@ -1,0 +1,43 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: tier0_mmd_hamming
+title: T0-b Model Equality Testing MMD (Hamming kernel)
+purpose: 'Permutation two-sample test on padded token-id sequences, labels permuted within prompt: are
+  the QRNG and pooled-PRNG output distributions the same? Study primary.'
+tier: 0
+family: distribution
+engine: thin
+inspect_task: null
+task_module: evals/tier0_mmd_hamming/task.py
+task_args:
+  permutations: 2000
+dataset:
+  source: derived:tier0_log
+  revision: null
+  items: 0
+  subsample: null
+generation: free
+thinking: false
+k: null
+k_bounds: null
+max_tokens: 0
+est_tokens_per_sample: 0
+est_gen_tokens_per_arm: 0
+sensitivity: native
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - mmd_hamming
+  secondary:
+  - mmd_hamming_seed_vs_seed
+  requires_tier0: api_logprobs
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: false
+notes: Gao et al., ICLR 2025 (model-equality-testing); vendored fallback in analysis/mmd.py. Token ids
+  suffice, so it runs on the degraded api_logprobs path too. Reported alongside the three seed-vs-seed
+  contrasts as negative controls.

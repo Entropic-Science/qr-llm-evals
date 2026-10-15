@@ -20,6 +20,8 @@ __pycache__/
 
 # ── Run artifacts (paid-for data never lives in git; see AGENTS.md) ──────────
 results/
+!apps/web/src/components/results/
+!apps/web/src/components/results/**
 data/
 logs/
 *.jsonl

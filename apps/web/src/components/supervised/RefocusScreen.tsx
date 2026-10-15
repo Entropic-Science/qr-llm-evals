@@ -1,0 +1,2 @@
+import { Timer } from "./Timer";
+export function RefocusScreen({ remaining, intention }: { remaining: number; intention: string }) { return <section className="phase-screen phase-screen--refocus"><p className="eyebrow">Return to the intention</p><blockquote>{intention}</blockquote><Timer remaining={remaining} label="Refocus guide" /><p>When this guide reaches zero, generation still waits for an explicit Resume.</p></section>; }

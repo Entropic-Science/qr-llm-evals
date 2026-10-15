@@ -1,0 +1,47 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: target_hit_ranking
+title: T4-m Blinded target-hit ranking (Ganzfeld-style)
+purpose: Before each supervised session the QRNG draws one target theme and four decoys from a frozen
+  pool of 200; a blinded judge ranks the five by fit to the session's outputs. Hit rate of rank 1 against
+  0.20 and mean rank against 3.0.
+tier: 4
+family: synchronicity
+engine: thin
+inspect_task: null
+task_module: evals/target_hit_ranking/task.py
+task_args: {}
+dataset:
+  source: repo:evals/_pools/targets_200.yaml
+  revision: null
+  items: 0
+  subsample: null
+generation: free
+thinking: false
+k: null
+k_bounds: null
+max_tokens: 0
+est_tokens_per_sample: 0
+est_gen_tokens_per_arm: 0
+sensitivity: moderate
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/_shared/judge_rubrics/target_hit_ranking.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - rank1_hit_rate
+  secondary:
+  - mean_rank
+  requires_tier0: none
+paired_stat: paired_binomial
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Judge calls only; no target generation. Unsupervised QRNG and PRNG arms run the identical procedure
+  with a target drawn but shown to nobody. Honorton's rank judging transplanted; the sharpest operationalisation
+  of H2.

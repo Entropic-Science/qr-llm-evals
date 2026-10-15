@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "StudyView.json",
+  "additionalProperties": false,
+  "properties": {
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    },
+    "study": {
+      "additionalProperties": true,
+      "title": "Study",
+      "type": "object"
+    },
+    "runs": {
+      "description": "Public run summaries with host/key authentication fields stripped.",
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Runs",
+      "type": "array"
+    },
+    "analyses": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "description": "Completed or in-progress analysis ids keyed by run id.",
+      "title": "Analyses",
+      "type": "object"
+    },
+    "withdrawn": {
+      "description": "True when every archived run is withdrawn.",
+      "title": "Withdrawn",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "study_id",
+    "study",
+    "runs",
+    "analyses",
+    "withdrawn"
+  ],
+  "title": "StudyView",
+  "type": "object"
+}

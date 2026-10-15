@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SelectionEstimate.json",
+  "$defs": {
+    "CardEstimate": {
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "K"
+        },
+        "items": {
+          "title": "Items",
+          "type": "integer"
+        },
+        "tokens_per_arm": {
+          "title": "Tokens Per Arm",
+          "type": "integer"
+        },
+        "time_unsupervised_h": {
+          "title": "Time Unsupervised H",
+          "type": "number"
+        },
+        "observer_hours_single": {
+          "title": "Observer Hours Single",
+          "type": "number"
+        },
+        "observer_hours_tiled": {
+          "title": "Observer Hours Tiled",
+          "type": "number"
+        }
+      },
+      "required": [
+        "card_id",
+        "k",
+        "items",
+        "tokens_per_arm",
+        "time_unsupervised_h",
+        "observer_hours_single",
+        "observer_hours_tiled"
+      ],
+      "title": "CardEstimate",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Totals for a set of selected cards on one model (per arm).",
+  "properties": {
+    "model_id": {
+      "title": "Model Id",
+      "type": "string"
+    },
+    "tokens_per_arm": {
+      "title": "Tokens Per Arm",
+      "type": "integer"
+    },
+    "time_unsupervised_h": {
+      "title": "Time Unsupervised H",
+      "type": "number"
+    },
+    "observer_hours_single": {
+      "title": "Observer Hours Single",
+      "type": "number"
+    },
+    "observer_hours_tiled": {
+      "title": "Observer Hours Tiled",
+      "type": "number"
+    },
+    "sessions_single": {
+      "title": "Sessions Single",
+      "type": "integer"
+    },
+    "sessions_tiled": {
+      "title": "Sessions Tiled",
+      "type": "integer"
+    },
+    "per_card": {
+      "items": {
+        "$ref": "#/$defs/CardEstimate"
+      },
+      "title": "Per Card",
+      "type": "array"
+    },
+    "assumptions": {
+      "additionalProperties": true,
+      "title": "Assumptions",
+      "type": "object"
+    }
+  },
+  "required": [
+    "model_id",
+    "tokens_per_arm",
+    "time_unsupervised_h",
+    "observer_hours_single",
+    "observer_hours_tiled",
+    "sessions_single",
+    "sessions_tiled",
+    "per_card",
+    "assumptions"
+  ],
+  "title": "SelectionEstimate",
+  "type": "object"
+}

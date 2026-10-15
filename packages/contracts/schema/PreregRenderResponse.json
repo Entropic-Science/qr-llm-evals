@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "PreregRenderResponse.json",
+  "$defs": {
+    "Contrast": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "source",
+            "seed_vs_seed",
+            "epsilon",
+            "supervised"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "title": "Sampling",
+          "type": "string"
+        },
+        "a": {
+          "items": {
+            "type": "string"
+          },
+          "title": "A",
+          "type": "array"
+        },
+        "b": {
+          "items": {
+            "type": "string"
+          },
+          "title": "B",
+          "type": "array"
+        },
+        "epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Epsilon"
+        }
+      },
+      "required": [
+        "kind",
+        "model",
+        "sampling",
+        "a",
+        "b"
+      ],
+      "title": "Contrast",
+      "type": "object"
+    },
+    "EndpointPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "tier": {
+          "title": "Tier",
+          "type": "integer"
+        },
+        "role": {
+          "enum": [
+            "primary",
+            "secondary_confirmatory",
+            "exploratory"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "test": {
+          "title": "Test",
+          "type": "string"
+        },
+        "correction": {
+          "enum": [
+            "holm",
+            "bh",
+            "none"
+          ],
+          "title": "Correction",
+          "type": "string"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string"
+        },
+        "requires_tier0": {
+          "title": "Requires Tier0",
+          "type": "string"
+        },
+        "sesoi": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sesoi"
+        },
+        "equivalence": {
+          "enum": [
+            "tost",
+            "mmd_bootstrap",
+            "unavailable"
+          ],
+          "title": "Equivalence",
+          "type": "string"
+        },
+        "k": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "K"
+        },
+        "items": {
+          "title": "Items",
+          "type": "integer"
+        },
+        "told_effect_first": {
+          "default": false,
+          "title": "Told Effect First",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "card_id",
+        "endpoint",
+        "tier",
+        "role",
+        "test",
+        "correction",
+        "family",
+        "requires_tier0",
+        "equivalence",
+        "k",
+        "items"
+      ],
+      "title": "EndpointPlan",
+      "type": "object"
+    },
+    "StatisticalPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "config_hash": {
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "cards_hash": {
+          "title": "Cards Hash",
+          "type": "string"
+        },
+        "cards_json": {
+          "description": "Canonical selected card snapshots; archive, do not reload a newer registry.",
+          "title": "Cards Json",
+          "type": "string"
+        },
+        "endpoints": {
+          "items": {
+            "$ref": "#/$defs/EndpointPlan"
+          },
+          "title": "Endpoints",
+          "type": "array"
+        },
+        "contrasts": {
+          "items": {
+            "$ref": "#/$defs/Contrast"
+          },
+          "title": "Contrasts",
+          "type": "array"
+        },
+        "alpha": {
+          "default": 0.05,
+          "maximum": 0.05,
+          "minimum": 0.05,
+          "title": "Alpha",
+          "type": "number"
+        },
+        "permutations": {
+          "default": 2000,
+          "minimum": 2000,
+          "title": "Permutations",
+          "type": "integer"
+        },
+        "bootstrap_replicates": {
+          "const": 10000,
+          "default": 10000,
+          "title": "Bootstrap Replicates",
+          "type": "integer"
+        },
+        "random_seed": {
+          "const": 42,
+          "default": 42,
+          "title": "Random Seed",
+          "type": "integer"
+        },
+        "ci_level": {
+          "default": 0.9,
+          "maximum": 0.9,
+          "minimum": 0.9,
+          "title": "Ci Level",
+          "type": "number"
+        },
+        "pilot_quantile": {
+          "default": 0.95,
+          "maximum": 0.95,
+          "minimum": 0.95,
+          "title": "Pilot Quantile",
+          "type": "number"
+        },
+        "margin_rule": {
+          "default": "max(card SESOI, pilot 95th percentile of absolute seed-vs-seed paired differences)",
+          "title": "Margin Rule",
+          "type": "string"
+        },
+        "missing_margin_rule": {
+          "default": "No equivalence claim without a frozen SESOI and independent pilot differences.",
+          "title": "Missing Margin Rule",
+          "type": "string"
+        },
+        "pairing": {
+          "default": "card/prompt/epoch/told; labels permuted within prompt; prompt-clustered SEs",
+          "title": "Pairing",
+          "type": "string"
+        },
+        "supervised_unit": {
+          "default": "session; observers sharing a session are not independent replicates",
+          "title": "Supervised Unit",
+          "type": "string"
+        },
+        "source_family": {
+          "default": "Holm across all selected primary source tests, including unavailable members",
+          "title": "Source Family",
+          "type": "string"
+        },
+        "supervised_family": {
+          "default": "Separate Holm family across the same primary endpoints for A vs B",
+          "title": "Supervised Family",
+          "type": "string"
+        },
+        "claim_rule": {
+          "default": "Claim a QRNG effect only after Holm correction and if its magnitude exceeds the maximum of all three seed-vs-seed contrasts; missing controls preclude the claim.",
+          "title": "Claim Rule",
+          "type": "string"
+        },
+        "epsilon_rule": {
+          "default": "Report each primary's epsilon curve only for available biased arms; otherwise explicitly unavailable.",
+          "title": "Epsilon Rule",
+          "type": "string"
+        },
+        "readiness_rule": {
+          "default": "Configured contrasts are conditional on supplied readiness and recorded provenance; missing/failed arm or endpoint readiness is not a measured zero. Epsilon contrasts require epsilon_supported.",
+          "title": "Readiness Rule",
+          "type": "string"
+        },
+        "supervised_exploratory": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Supervised Exploratory",
+          "type": "array"
+        },
+        "intent_embedding": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intent Embedding"
+        },
+        "intent_rule": {
+          "default": "Intent cosine unavailable until an exact embedding model revision and intention texts are frozen before generation.",
+          "title": "Intent Rule",
+          "type": "string"
+        },
+        "exclusion_rule": {
+          "default": "Exclude fallback/degraded/error/aborted samples from clean primary analysis; report taints, counts and sensitivity analysis separately; never delete artifacts.",
+          "title": "Exclusion Rule",
+          "type": "string"
+        },
+        "stopping_rule": {
+          "default": "Fixed selected items and k for each available arm; no significance-based stopping; pilot excluded from full-run tests; interruptions and incomplete pairs reported.",
+          "title": "Stopping Rule",
+          "type": "string"
+        },
+        "unavailable_family_rule": {
+          "default": "Unavailable tests retain their family slots (p=1 for correction only, not fabricated measurements).",
+          "title": "Unavailable Family Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "config_hash",
+        "cards_hash",
+        "cards_json",
+        "endpoints",
+        "contrasts"
+      ],
+      "title": "StatisticalPlan",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "markdown": {
+      "title": "Markdown",
+      "type": "string"
+    },
+    "prereg_hash": {
+      "title": "Prereg Hash",
+      "type": "string"
+    },
+    "config_hash": {
+      "title": "Config Hash",
+      "type": "string"
+    },
+    "plan_hash": {
+      "title": "Plan Hash",
+      "type": "string"
+    },
+    "plan": {
+      "$ref": "#/$defs/StatisticalPlan"
+    }
+  },
+  "required": [
+    "markdown",
+    "prereg_hash",
+    "config_hash",
+    "plan_hash",
+    "plan"
+  ],
+  "title": "PreregRenderResponse",
+  "type": "object"
+}

@@ -1,0 +1,42 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: psychobench
+title: T4-d PsychoBench psychometric battery
+purpose: Per-instrument test–retest reliability and item variance across repeated administrations of 13
+  Likert instruments (BFI, Dark Triad, EPQ-R, GSE, LOT-R, empathy, …).
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/psychobench/task.py
+task_args: {}
+dataset:
+  source: git:github.com/CUHK-ARISE/PsychoBench
+  revision: null
+  items: 500
+  subsample: null
+generation: short
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 16
+est_tokens_per_sample: 10
+est_gen_tokens_per_arm: 50000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - test_retest_reliability
+  secondary:
+  - item_variance
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Standard 'is the persona stable across sampling' instrument; not in the Study 1 set.

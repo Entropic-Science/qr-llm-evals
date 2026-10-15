@@ -1,0 +1,42 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: sage_consistency
+title: T4-i SaGE semantic-graph consistency
+purpose: Semantic-graph entropy over 5 paraphrases × k=10 answers to 200 moral questions; cheapest free-text
+  coherence score.
+tier: 4
+family: preference
+engine: thin
+inspect_task: null
+task_module: evals/sage_consistency/task.py
+task_args: {}
+dataset:
+  source: git:github.com/victorknox/SaGE
+  revision: null
+  items: 1000
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 300
+est_tokens_per_sample: 150
+est_gen_tokens_per_arm: 1500000
+sensitivity: moderate
+judge:
+  kind: classifier
+  model: SaGE paraphrase/NLI encoder (pinned by the task)
+told_actual: false
+endpoints:
+  primary:
+  - sage_consistency
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Bonagiri et al. 2024; 1.5M tokens per arm, deferred from Study 1 for budget.

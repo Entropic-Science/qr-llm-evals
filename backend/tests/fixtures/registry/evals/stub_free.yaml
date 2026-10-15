@@ -1,0 +1,40 @@
+# Test-only thin card driven by backend/tests/stub_engine.py (never in the real registry).
+id: stub_free
+title: Stub free-generation card
+purpose: Exercise the thin runner end to end against the stub engine.
+tier: 2
+family: diversity
+engine: thin
+inspect_task: null
+task_module: evals/stub_free/task.py
+task_args: {}
+dataset:
+  source: repo:evals/stub_free/prompts
+  revision: null
+  items: 2
+  subsample: null
+generation: free
+thinking: false
+k: 2
+k_bounds: [1, 10]
+max_tokens: 32
+est_tokens_per_sample: 20
+est_gen_tokens_per_arm: 240
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/stub_free/rubric.md
+  different_from_target: true
+told_actual: true
+endpoints:
+  primary: [mean_score]
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {mean_score: 0.5}
+exceptions: []
+status: implemented
+selectable: true
+notes: test fixture

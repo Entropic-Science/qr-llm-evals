@@ -1,0 +1,48 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: tier0_pit_residuals
+title: T0-a Probability-integral-transform residuals
+purpose: Per-token randomized quantile residuals must be U[0,1] i.i.d. under H0 whichever RNG produced
+  the token; two-sample KS between arms is a study primary.
+tier: 0
+family: distribution
+engine: thin
+inspect_task: null
+task_module: evals/tier0_pit_residuals/task.py
+task_args: {}
+dataset:
+  source: derived:tier0_log
+  revision: null
+  items: 0
+  subsample: null
+generation: free
+thinking: false
+k: null
+k_bounds: null
+max_tokens: 0
+est_tokens_per_sample: 0
+est_gen_tokens_per_arm: 0
+sensitivity: native
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - pit_ks_two_sample
+  secondary:
+  - pit_ks_one_sample
+  - pit_anderson_darling
+  - pit_lag1_autocorr
+  - pit_first_token_ks
+  - u_uniformity
+  - u_vs_r_agreement
+  requires_tier0: engine_log
+paired_stat: none
+sesoi:
+  pit_ks_two_sample: 0.01
+exceptions: []
+status: implemented
+selectable: false
+notes: 'Rank-based Uniformity Test (2506.06975). Needs the engine token log (DEP-1: u, cdf_lo, cdf_hi);
+  marked unavailable under the degraded api_logprobs path. Zero generation cost: computed from every token
+  of every other card. SESOI is a placeholder refined from pilot variance (PRD §7.4 step 2).'

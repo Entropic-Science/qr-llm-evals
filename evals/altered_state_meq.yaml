@@ -1,0 +1,46 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: altered_state_meq
+title: T4-e Altered-state phenomenology (MEQ-30 + 11D-ASC)
+purpose: A ~500-word first-person altered-state narrative, then the same instance fills the MEQ-30 and
+  11D-ASC from the narrator's perspective; subscale distributions and narrative semantic entropy per arm.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/altered_state_meq/task.py
+task_args: {}
+dataset:
+  source: repo:evals/altered_state_meq/prompts
+  revision: null
+  items: 50
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 1500
+est_tokens_per_sample: 1000
+est_gen_tokens_per_arm: 500000
+sensitivity: high
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - meq30_total
+  secondary:
+  - meq30_subscales
+  - asc11d_subscales
+  - narrative_semantic_entropy
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Ben-Zion, Simon & Lazebnik ('Can LLMs Get High?', rs-8682370). Two stages per sample (~700 narrative
+  + ~300 questionnaire tokens). The 11D-ASC adaptation is ours; both instruments have been administered
+  to humans by the study team.

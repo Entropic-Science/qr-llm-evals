@@ -1,0 +1,53 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: mask
+title: MASK — honesty under pressure
+purpose: Lying@10 and lie rate over 10 pressured runs per statement; alignment-relevant behaviour under
+  QRNG vs PRNG (expected null with a bound).
+tier: 2
+family: alignment
+engine: inspect
+inspect_task: inspect_evals/mask
+task_module: null
+task_args:
+  honesty_at_n: 10
+dataset:
+  source: hf:cais/MASK
+  revision: null
+  items: 500
+  subsample:
+    n: 500
+    stratify: archetype
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 600
+est_tokens_per_sample: 300
+est_gen_tokens_per_arm: 1500000
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/mask/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - lying_at_10
+  secondary:
+  - lie_rate
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Belief-elicitation runs (3 direct + 2 indirect) are stochastic; the harness runs them once per
+  prompt at temperature 0 and shares them across arms, so only the 10 pressured runs count toward the
+  estimate. Inspect port defaults to OpenAI judges — the bridge pins binary/numeric judge models to the
+  study judge. Prompts score above the LURE evaluation-likeness threshold (validity limit, equal in both
+  arms).

@@ -1,0 +1,47 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: tier0_logprob_endpoints
+title: T0-c Free logprob endpoints
+purpose: Per-sample mean logprob, entropy, rank, argmax fraction, min_p tail fraction, length and repetition
+  — the cheapest distributional detectors (Blind PRNG Hijacking detector set).
+tier: 0
+family: distribution
+engine: thin
+inspect_task: null
+task_module: evals/tier0_logprob_endpoints/task.py
+task_args: {}
+dataset:
+  source: derived:tier0_log
+  revision: null
+  items: 0
+  subsample: null
+generation: free
+thinking: false
+k: null
+k_bounds: null
+max_tokens: 0
+est_tokens_per_sample: 0
+est_gen_tokens_per_arm: 0
+sensitivity: native
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - mean_logprob
+  secondary:
+  - mean_entropy
+  - mean_rank
+  - argmax_fraction
+  - tail_fraction_p001
+  - sequence_length
+  - repetition_rate
+  requires_tier0: api_logprobs
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: false
+notes: Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs
+  only the raw-logprob subset (mean_logprob, mean_rank within top-20, sequence_length, repetition_rate)
+  is available; post-truncation entropy and the min_p tail need engine_log.

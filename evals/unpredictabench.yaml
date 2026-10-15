@@ -1,0 +1,50 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: unpredictabench
+title: UnpredictaBench — sampling from a specified distribution
+purpose: Whether the model can emit samples from a stated distribution; the construct is literally the
+  study's question. KS@100 paired difference is a study primary.
+tier: 1
+family: distribution
+engine: thin
+inspect_task: null
+task_module: evals/unpredictabench/task.py
+task_args: {}
+dataset:
+  source: hf:UnpredictaBench/UnpredictaBench
+  revision: 7460924319a1ecbf697d4c3cc1c301e590e890f1
+  items: 150
+  subsample:
+    n: 150
+    stratify: task_type
+generation: short
+thinking: false
+k: 100
+k_bounds:
+- 50
+- 100
+max_tokens: 128
+est_tokens_per_sample: 50
+est_gen_tokens_per_arm: 750000
+sensitivity: native
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - ks100_pass_rate
+  secondary:
+  - wasserstein_z
+  - jsd_vs_ground_truth
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi:
+  ks100_pass_rate: 0.05
+exceptions: []
+status: implemented
+selectable: true
+notes: 448 instances, 40 distributions, 7 task types; the frozen 150-item subset is proportionally
+  stratified by task type at the pinned HF revision. Reference values and metric behavior are frozen from
+  UnpredictaBenchCode commit e0f7108274b7893c33bc9b0d26e1832ab9786f29. Admitted under the B.1
+  short-answer exception because the metric is the sampled distribution itself. Input tokens are
+  prefix-cached; outputs are ~50 tokens.

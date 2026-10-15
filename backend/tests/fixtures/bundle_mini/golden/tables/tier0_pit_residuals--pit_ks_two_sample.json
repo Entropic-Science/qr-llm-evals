@@ -1,0 +1,162 @@
+{
+  "available": true,
+  "card_id": "tier0_pit_residuals",
+  "comparisons": [
+    {
+      "arms_a": [
+        "qrng_unsupervised"
+      ],
+      "arms_b": [
+        "prng_seed_1",
+        "prng_seed_7",
+        "prng_seed_42"
+      ],
+      "available": true,
+      "claim_supported": false,
+      "effect": 0.333333,
+      "epsilon": null,
+      "exceeds_all_seed_controls": false,
+      "id": "source:0",
+      "kind": "source",
+      "n_x": 3,
+      "n_y": 9,
+      "p_adjusted": 1.0,
+      "p_value": 0.963636,
+      "significant": false,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "qrng_supervised"
+      ],
+      "arms_b": [
+        "qrng_unsupervised"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "supervised:4",
+      "kind": "supervised",
+      "n_x": 3,
+      "n_y": 3,
+      "p_adjusted": 1.0,
+      "p_value": 1.0,
+      "significant": false,
+      "statistic": 0.333333
+    }
+  ],
+  "controls": [
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_7"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:1",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "prng_seed_1"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:2",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    },
+    {
+      "arms_a": [
+        "prng_seed_7"
+      ],
+      "arms_b": [
+        "prng_seed_42"
+      ],
+      "available": true,
+      "effect": 0.333333,
+      "epsilon": null,
+      "id": "seed_vs_seed:3",
+      "kind": "seed_vs_seed",
+      "n_x": 3,
+      "n_y": 3,
+      "p_value": 1.0,
+      "statistic": 0.333333
+    }
+  ],
+  "correction": "holm",
+  "endpoint": "pit_ks_two_sample",
+  "epsilon_curve": [],
+  "family": "source_primaries",
+  "precision": 6,
+  "role": "primary",
+  "schema_version": 1,
+  "special": null,
+  "test": "ks_two_sample",
+  "tier": 0
+}

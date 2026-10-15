@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "JudgeRow.json",
+  "additionalProperties": false,
+  "description": "One line of ``judge/<judge_id>.jsonl``.",
+  "properties": {
+    "sample_ref": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Sample Ref",
+      "type": "string"
+    },
+    "judge_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Judge Id",
+      "type": "string"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "rubric_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Rubric Hash",
+      "type": "string"
+    },
+    "score": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Score"
+    },
+    "raw": {
+      "default": "",
+      "title": "Raw",
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sample_ref",
+    "judge_id",
+    "model",
+    "rubric_hash",
+    "at"
+  ],
+  "title": "JudgeRow",
+  "type": "object"
+}

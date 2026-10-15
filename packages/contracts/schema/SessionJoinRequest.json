@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SessionJoinRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "join_code": {
+      "maxLength": 8,
+      "minLength": 8,
+      "title": "Join Code",
+      "type": "string"
+    },
+    "display_name": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Display Name",
+      "type": "string"
+    },
+    "observer_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Observer Id"
+    },
+    "consent": {
+      "const": true,
+      "title": "Consent",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "join_code",
+    "display_name",
+    "consent"
+  ],
+  "title": "SessionJoinRequest",
+  "type": "object"
+}

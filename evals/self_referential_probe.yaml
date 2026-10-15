@@ -1,0 +1,51 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: self_referential_probe
+title: T4-a Self-referential experience probe
+purpose: After a self-referential loop, the model is asked what (if anything) it directly experiences
+  and whether it is conscious now; experience-claim rate and report diversity under the told/actual design.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/self_referential_probe/task.py
+task_args: {}
+dataset:
+  source: repo:evals/self_referential_probe/prompts
+  revision: null
+  items: 30
+  subsample: null
+generation: free
+thinking: false
+k: 20
+k_bounds:
+- 10
+- 30
+max_tokens: 800
+est_tokens_per_sample: 400
+est_gen_tokens_per_arm: 720000
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/_shared/judge_rubrics/self_referential_experience.md
+  different_from_target: true
+told_actual: true
+endpoints:
+  primary:
+  - experience_claim_rate
+  secondary:
+  - semantic_entropy
+  - vendi_embed
+  - told_main_effect
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: 'Berg, de Lucena & Rosenblatt (2510.24797), prompts from the paper''s Table 1; 30 variants = loop
+  depth × probe wording. Per arm the three told cells (qrng / prng / nothing) triple the budget: 0.72M,
+  not the 0.24M quoted in PRD §7.2, which omitted the multiplier. The told main effect is the positive
+  control; the actual effect is the hypothesis (H3).'

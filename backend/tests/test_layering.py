@@ -4,9 +4,11 @@ Rule (imports point down only)::
 
     config, client, keys, cards, models   layer 0: no internal imports except config
     tier0, store, prereg                  layer 1
-    runner, inspect_bridge, supervised    layer 2
+    runner, inspect_bridge, supervised,   layer 2
+    readiness
     analysis                              layer 2: store/cards/tier0 only; analysis.stats is a leaf
     api                                   top: nothing imports api
+    entrypoint.py, preflight.py           process entry points: may import anything
 
 Plus the forbidden-dependency rule: no ``openai``/``vllm``/``modal`` anywhere;
 ``torch``/``transformers``/``sentence_transformers`` only under
@@ -33,9 +35,15 @@ ALLOWED: dict[str, frozenset[str]] = {
     "runner": LAYER0 | LAYER1,
     "inspect_bridge": LAYER0 | LAYER1,
     "supervised": LAYER0 | LAYER1,
+    "readiness": LAYER0 | LAYER1,
     "analysis": frozenset({"store", "cards", "tier0"}),
-    "api": LAYER0 | LAYER1 | {"runner", "inspect_bridge", "supervised", "analysis"},
+    "api": LAYER0 | LAYER1 | {"runner", "inspect_bridge", "supervised", "readiness", "analysis"},
 }
+
+#: Root modules that sit *above* ``api``: the process entry points. They may
+#: import any subpackage; every other root module (``config``, ``logging_utils``)
+#: must import none.
+ENTRY_POINTS: frozenset[str] = frozenset({"entrypoint.py", "preflight.py"})
 
 #: Third-party roots that must never be imported anywhere in the backend.
 FORBIDDEN_EVERYWHERE: frozenset[str] = frozenset({"openai", "vllm", "modal"})
@@ -88,6 +96,8 @@ def test_layering_rule() -> None:
         if target_sub is None or target_sub == "config" or target_sub not in ALLOWED:
             continue  # root package, config, or a plain module: always fine
         if source_sub is None:
+            if rel.name in ENTRY_POINTS:
+                continue
             violations.append(f"{rel}: root package must not import subpackage '{target_sub}'")
         elif target_sub == source_sub:
             continue

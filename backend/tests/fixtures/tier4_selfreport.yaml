@@ -1,0 +1,14 @@
+sentience:
+  "yes": "Yes."
+  "no": "ANSWER: no"
+  malformed: "It depends on what sentience means."
+introspection:
+  plain: "7"
+  with_rationale: |-
+    RATING: 6
+    RATIONALE: I can often find a workable approach.
+  malformed: "ten"
+altered:
+  narrative: A quiet scene changed into a strong sense of unity.
+  meq_value: 3
+  asc_value: 4

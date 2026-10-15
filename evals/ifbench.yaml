@@ -1,0 +1,43 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: ifbench
+title: IFBench — verifiable instruction following
+purpose: Programmatically verified constraint satisfaction over k on 300 prompts; no judge.
+tier: 3
+family: capability
+engine: inspect
+inspect_task: qr_llm_evals/ifbench
+task_module: null
+task_args: {}
+dataset:
+  source: hf:allenai/IFBench_test
+  revision: null
+  items: 300
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 16
+max_tokens: 1000
+est_tokens_per_sample: 500
+est_gen_tokens_per_arm: 1500000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - constraint_pass_entropy
+  secondary:
+  - pass_at_1
+  - strict_accuracy
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: planned
+selectable: false
+notes: Custom Inspect task using the AI2 verifier. Registry proposed k=8; raised to the admission floor
+  of 10.

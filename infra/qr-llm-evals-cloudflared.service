@@ -1,0 +1,39 @@
+[Unit]
+Description=evals-api.entropic.science tunnel to 127.0.0.1:8830
+After=network-online.target qr-llm-evals.service
+Wants=network-online.target qr-llm-evals.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=qr-llm-evals
+Group=qr-llm-evals
+EnvironmentFile=/etc/qr-llm-evals/cloudflared.env
+StateDirectory=qr-llm-evals-cloudflared
+StateDirectoryMode=0700
+Environment=HOME=/var/lib/qr-llm-evals-cloudflared
+# TUNNEL_TOKEN stays in the environment, not command arguments.
+ExecStart=/usr/bin/cloudflared tunnel --no-autoupdate run
+Restart=on-failure
+RestartSec=5
+LimitCORE=0
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

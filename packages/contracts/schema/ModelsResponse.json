@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ModelsResponse.json",
+  "$defs": {
+    "ModelEntryView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string"
+        },
+        "provider": {
+          "title": "Provider",
+          "type": "string"
+        },
+        "served_name": {
+          "title": "Served Name",
+          "type": "string"
+        },
+        "checkpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checkpoint"
+        },
+        "tps": {
+          "exclusiveMinimum": 0,
+          "title": "Tps",
+          "type": "number"
+        },
+        "pipeline_pinned": {
+          "title": "Pipeline Pinned",
+          "type": "boolean"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "key_slot": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Which ``provider_keys`` slot this target needs, if any.",
+          "title": "Key Slot"
+        }
+      },
+      "required": [
+        "id",
+        "family",
+        "provider",
+        "served_name",
+        "tps",
+        "pipeline_pinned"
+      ],
+      "title": "ModelEntryView",
+      "type": "object"
+    },
+    "ProviderProfileView": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Url"
+        },
+        "accepted_params": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Accepted Params",
+          "type": "array"
+        },
+        "seed_honoured": {
+          "title": "Seed Honoured",
+          "type": "boolean"
+        },
+        "logprobs_honoured": {
+          "title": "Logprobs Honoured",
+          "type": "boolean"
+        },
+        "top_logprobs_cap": {
+          "minimum": 0,
+          "title": "Top Logprobs Cap",
+          "type": "integer"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Notes"
+        }
+      },
+      "required": [
+        "id",
+        "accepted_params",
+        "seed_honoured",
+        "logprobs_honoured",
+        "top_logprobs_cap"
+      ],
+      "title": "ProviderProfileView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "models": {
+      "items": {
+        "$ref": "#/$defs/ModelEntryView"
+      },
+      "title": "Models",
+      "type": "array"
+    },
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/ProviderProfileView"
+      },
+      "title": "Providers",
+      "type": "array"
+    },
+    "default_tps_by_model": {
+      "additionalProperties": {
+        "type": "number"
+      },
+      "title": "Default Tps By Model",
+      "type": "object"
+    },
+    "reading_tps": {
+      "exclusiveMinimum": 0,
+      "title": "Reading Tps",
+      "type": "number"
+    }
+  },
+  "required": [
+    "models",
+    "providers",
+    "default_tps_by_model",
+    "reading_tps"
+  ],
+  "title": "ModelsResponse",
+  "type": "object"
+}

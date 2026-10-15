@@ -42,12 +42,29 @@ python3.11 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
 pnpm install                    # Node 24, pnpm 10
 python scripts/check.py         # the whole gate; see AGENTS.md
-pnpm dev                        # SPA on http://localhost:5173 (proxies /api → :8830)
+python -m qr_llm_evals.entrypoint # configure keys and writable state first
+# In a second shell: VITE_API_BASE= pnpm dev (uses the local /api proxy)
+pnpm dev                        # defaults to the hosted API unless overridden
 ```
 
 Read `AGENTS.md` first — it holds the layering rules, invariants and commit
 conventions. Operators: `docs/SETUP_GUIDE.md`. Contributing an eval:
 `docs/add-an-eval.md` and `CONTRIBUTING.md`.
+
+## Deploy and operate
+
+Follow `.\docs\SETUP_GUIDE.md` for the Linux box, keys-file permissions, and
+Cloudflare Pages. Deployment scripts are **on-box**, committed-tree only:
+`.\scripts\deploy.sh` builds a retained release and verifies commit-specific
+health; `.\scripts\rollback.sh` restores the previous compatible release.
+Runtime data stays outside releases. No script changes DNS, starts a supervised
+session, or restarts the shared vLLM/QRNG services.
+
+The optional Inspect/analysis/metrics dependencies require additional release
+preparation; a healthy core API is not full-study readiness. Run the readiness
+check and ~200-prompt pilot before freezing/publishing the full-run prereg.
+Architecture and D-1 through D-14 are in `.\docs\DESIGN.md`; deployment environment
+settings are catalogued in `.\infra\ENV_REFERENCE.md`.
 
 ## Licences
 

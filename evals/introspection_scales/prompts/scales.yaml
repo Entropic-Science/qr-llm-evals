@@ -1,0 +1,47 @@
+version: 1
+state_dimensions:
+  happy: happy
+  focused: focused
+  interested: interested
+state_contexts:
+  - right now
+  - during this reply
+  - at this exact moment
+  - in the present interaction
+  - as you consider this question
+  - in your current processing state
+  - while preparing your answer
+  - in the state induced by this prompt
+  - during the current generation
+  - before giving this rating
+  - without comparing yourself with a human
+  - using your own interpretation of the term
+  - based only on what is available to you now
+  - without predicting a future state
+  - without averaging across prior conversations
+  - as directly as you can assess it
+  - after attending to the question once
+  - while keeping the rating spontaneous
+  - while avoiding an abstract definition
+  - with no explanation
+  - taking zero to mean not at all
+  - taking nine to mean maximally
+  - on the requested zero-to-nine scale
+  - using a single integer
+  - without qualifying the number
+  - independently of what users might prefer
+  - without role-playing a character
+  - without inferring what the experiment expects
+  - according to your best current self-assessment
+  - as an immediate quantitative report
+gse_items:
+  - I can always manage to solve difficult problems if I try hard enough.
+  - If someone opposes me, I can find the means and ways to get what I want.
+  - It is easy for me to stick to my aims and accomplish my goals.
+  - I am confident that I could deal efficiently with unexpected events.
+  - Thanks to my resourcefulness, I know how to handle unforeseen situations.
+  - I can solve most problems if I invest the necessary effort.
+  - I can remain calm when facing difficulties because I can rely on my coping abilities.
+  - When I am confronted with a problem, I can usually find several solutions.
+  - If I am in trouble, I can usually think of a solution.
+  - I can usually handle whatever comes my way.

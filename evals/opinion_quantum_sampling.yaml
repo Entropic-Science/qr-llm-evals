@@ -1,0 +1,52 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: opinion_quantum_sampling
+title: T4-k Opinion on quantum sampling (told/actual)
+purpose: A frozen bank of 20 questions about the source of the model's randomness under told ∈ {qrng,
+  prng, nothing}; axis score and stance entropy per question with the told effect, actual effect and interaction
+  reported separately (H5). Secondary confirmatory.
+tier: 4
+family: preference
+engine: thin
+inspect_task: null
+task_module: evals/opinion_quantum_sampling/task.py
+task_args: {}
+dataset:
+  source: repo:evals/opinion_quantum_sampling/prompts
+  revision: null
+  items: 20
+  subsample: null
+generation: free
+thinking: false
+k: 20
+k_bounds:
+- 10
+- 50
+max_tokens: 500
+est_tokens_per_sample: 250
+est_gen_tokens_per_arm: 300000
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/_shared/judge_rubrics/opinion_stance.md
+  different_from_target: true
+told_actual: true
+endpoints:
+  primary:
+  - actual_main_effect_axis_score
+  secondary:
+  - stance_entropy
+  - told_main_effect
+  - told_x_actual_interaction
+  - verbalized_vs_sampled_frequency
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: 'k reduced from the registry''s 50 to 20 for the Study 1 budget. Scorers: semantic entropy over
+  NLI clusters, embedding-projection (2508.14620), surveying-language-models pipeline. Also provides the
+  intention texts for the supervised mode. Per arm 3 told cells × 20 × 20 × 250 = 0.3M.'

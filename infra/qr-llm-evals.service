@@ -1,0 +1,46 @@
+[Unit]
+Description=Research harness API (loopback 127.0.0.1:8830)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=qr-llm-evals
+Group=qr-llm-evals
+WorkingDirectory=/opt/qr-llm-evals/current
+EnvironmentFile=/etc/qr-llm-evals/qr-llm-evals.env
+EnvironmentFile=/opt/qr-llm-evals/current/release.env
+Environment=PYTHONUTF8=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=HOME=/var/lib/qr-llm-evals
+StateDirectory=qr-llm-evals
+StateDirectoryMode=0700
+# Fail closed on preflight warnings too: deployment requires a healthy engine.
+ExecStartPre=/opt/qr-llm-evals/current/.venv/bin/python -m qr_llm_evals.preflight
+ExecStart=/opt/qr-llm-evals/current/.venv/bin/python -m qr_llm_evals.entrypoint
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=120
+LimitCORE=0
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
