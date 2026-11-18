@@ -100,7 +100,7 @@ export interface StudyConfig {
 export interface ModelRef {
   id: string;
   family: "qr_llm" | "external";
-  provider: "qr_server" | "openrouter" | "openai" | "anthropic_compat" | "custom";
+  provider: "qr_server" | "openai" | "anthropic_compat" | "custom";
   served_name: string;
   /**
    * e.g. HF id + revision, frozen at readiness.
@@ -446,7 +446,7 @@ export interface Run {
   withdrawn?: boolean;
   needs_keys?: boolean;
   /**
-   * e.g. {'judge': true, 'openrouter': false}.
+   * e.g. {'judge': true, 'openai': false}.
    */
   keys_present?: {
     [k: string]: boolean | undefined;
@@ -1021,7 +1021,7 @@ export interface LaunchRequest {
    */
   prereg_hash?: string | null;
   /**
-   * BYO keys (openrouter, openai, anthropic, custom); memory only.
+   * BYO keys (openai, anthropic, custom); memory only.
    */
   provider_keys?: {
     [k: string]: string | null | undefined;

@@ -565,7 +565,7 @@ async def test_missing_judge_key_parks_run_in_needs_keys_then_resumes(
     assert supplied.status_code == 200, supplied.text
     assert supplied.json() == {
         "run_id": run_id,
-        "keys_present": {"openrouter": False, "openai": False, "anthropic": True, "custom": False},
+        "keys_present": {"openai": False, "anthropic": True, "custom": False},
         "state": "paused",
         "needs_keys": False,
     }

@@ -358,7 +358,7 @@
           "additionalProperties": {
             "type": "boolean"
           },
-          "description": "e.g. {'judge': true, 'openrouter': false}.",
+          "description": "e.g. {'judge': true, 'openai': false}.",
           "title": "Keys Present",
           "type": "object"
         }

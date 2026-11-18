@@ -78,7 +78,7 @@ Run states: `created → running ⇄ paused → complete`, plus `needs_keys`
   "config": { "...": "StudyConfig, see packages/contracts/schema/StudyConfig.json" },
   "kind": "full",
   "prereg_hash": "…64 hex from the exported prereg…",
-  "provider_keys": { "anthropic": "sk-ant-…", "openrouter": null }
+  "provider_keys": { "anthropic": "sk-ant-…", "openai": null }
 }
 ```
 

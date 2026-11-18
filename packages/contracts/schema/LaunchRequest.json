@@ -384,7 +384,6 @@
         "provider": {
           "enum": [
             "qr_server",
-            "openrouter",
             "openai",
             "anthropic_compat",
             "custom"
@@ -772,7 +771,7 @@
           }
         ]
       },
-      "description": "BYO keys (openrouter, openai, anthropic, custom); memory only.",
+      "description": "BYO keys (openai, anthropic, custom); memory only.",
       "title": "Provider Keys",
       "type": "object"
     }

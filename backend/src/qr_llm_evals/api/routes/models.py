@@ -12,7 +12,6 @@ router = APIRouter(tags=["models"])
 #: Which BYO key slot a provider draws on (``qr_server`` needs none: it is on loopback).
 KEY_SLOT_BY_PROVIDER: dict[str, str | None] = {
     "qr_server": None,
-    "openrouter": "openrouter",
     "openai": "openai",
     "anthropic_compat": "anthropic",
     "custom": "custom",

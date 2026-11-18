@@ -76,7 +76,7 @@ never appear in this unit's environment:
 * `QR_ENTROPY_SOURCE_TYPE` — the entropy source is an **arm** property, never a process default.
 * `QR_FALLBACK_MODE` — refused per-request key; engine-owned.
 * `QR_GRPC_SERVER_ADDRESS` / `QR_GRPC_API_KEY` — Qbert0G is never called directly (spec §1.3).
-* `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` — BYO keys arrive in the launch body and live only in the run's `SecretBag` (spec D-14); never in the environment.
+* `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — BYO keys arrive in the launch body and live only in the run's `SecretBag` (spec D-14); never in the environment.
 
 
 ## Deployment and frontend-only settings

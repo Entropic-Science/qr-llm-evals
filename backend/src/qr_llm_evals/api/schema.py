@@ -181,7 +181,7 @@ class LaunchRequest(_Strict):
     )
     provider_keys: dict[str, str | None] = Field(
         default_factory=dict,
-        description="BYO keys (openrouter, openai, anthropic, custom); memory only.",
+        description="BYO keys (openai, anthropic, custom); memory only.",
     )
 
 

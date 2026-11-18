@@ -4,7 +4,6 @@
 box); dynamic ids are parsed at run time::
 
     qr-llm                                  catalogue row (family qr_llm, provider qr_server)
-    openrouter:<vendor>/<model>             external, provider openrouter
     openai:<model>                          external, provider openai
     anthropic_compat:<model>                external, provider anthropic_compat
     custom:<base_url>#<model>               external, provider custom
@@ -34,7 +33,6 @@ DEFAULT_READING_TPS = 45.0
 
 #: ``<prefix>:`` forms understood by :func:`parse_model_id`.
 DYNAMIC_PREFIXES: dict[str, Provider] = {
-    "openrouter": "openrouter",
     "openai": "openai",
     "anthropic_compat": "anthropic_compat",
     "custom": "custom",

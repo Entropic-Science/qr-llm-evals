@@ -309,7 +309,6 @@
         "provider": {
           "enum": [
             "qr_server",
-            "openrouter",
             "openai",
             "anthropic_compat",
             "custom"

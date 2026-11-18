@@ -36,7 +36,7 @@ const steps = [
 const ACK_KEY = "qr-evals.determinism-briefing.acknowledged";
 
 function modelRef(model: { id: string; family: string; provider: string; served_name: string; checkpoint?: string | null }): ModelRef | null {
-  if ((model.family !== "qr_llm" && model.family !== "external") || !["qr_server", "openrouter", "openai", "anthropic_compat", "custom"].includes(model.provider)) return null;
+  if ((model.family !== "qr_llm" && model.family !== "external") || !["qr_server", "openai", "anthropic_compat", "custom"].includes(model.provider)) return null;
   return { id: model.id, family: model.family, provider: model.provider as ModelRef["provider"], served_name: model.served_name, checkpoint: model.checkpoint ?? null };
 }
 
@@ -96,7 +96,11 @@ export function Configure() {
   const stepProps: WizardStepProps = { config, updateConfig: setConfig, cards, modelOptions, onDeterministic: showDeterminism, keys, setKeys, hash, launchState, onLaunch: launch };
   const providerKeys: Record<string, string> = {};
   if (keys.anthropic) providerKeys.anthropic = keys.anthropic;
-  if (keys.external) providerKeys.openrouter = keys.external;
+  if (keys.external) {
+    // The one external key goes to the slot of each external provider the study uses.
+    const slots = config.models.map((model) => model.provider).filter((provider) => provider === "openai" || provider === "custom");
+    for (const slot of slots.length > 0 ? slots : ["custom"]) providerKeys[slot] = keys.external;
+  }
 
   return <div className="configure-page">
     <header className="configure-header"><div><p className="eyebrow">Study configuration · editable protocol</p><h1>Build the comparison.</h1></div><button className="button button--secondary" type="button" onClick={() => { setConfig(studyOneTemplate()); setCurrent(0); }}>Load Study 1 template</button></header>

@@ -37,12 +37,12 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 Slug = Annotated[str, Field(pattern=r"^[a-z0-9_]+$", min_length=1, max_length=64)]
 CardId = Slug
 ArmId = Slug
-#: ``"qr-llm"`` | ``"openrouter:anthropic/claude-…"`` | ``"custom:<base_url>#<model>"``.
+#: ``"qr-llm"`` | ``"openai:gpt-…"`` | ``"custom:<base_url>#<model>"``.
 ModelId = Annotated[str, Field(min_length=1, max_length=256)]
 Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 ModelFamily = Literal["qr_llm", "external"]
-Provider = Literal["qr_server", "openrouter", "openai", "anthropic_compat", "custom"]
+Provider = Literal["qr_server", "openai", "anthropic_compat", "custom"]
 Sampling = Literal["creative", "t1_minp", "greedy"]
 Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "provider"]
 ObserverMode = Literal["supervised", "unsupervised"]
