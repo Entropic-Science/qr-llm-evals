@@ -16,7 +16,7 @@ flowchart LR
     SPA[Static React SPA on Cloudflare Pages<br/>evals.entropic.science]
   end
   subgraph box [qr-server]
-    CF[Dedicated cloudflared token-mode tunnel<br/>evals-api.entropic.science]
+    CF[qr-llm-api's cloudflared tunnel<br/>public hostname evals-api.entropic.science]
     API[FastAPI harness<br/>127.0.0.1:8830]
     RUN[Runner: arms x cards x prompts x epochs]
     INS[Inspect AI subprocess<br/>qrllm provider]
@@ -55,7 +55,7 @@ comparisons and cannot promise the identical pinned local pipeline.
 |---|---|---|
 | D-1 | Shared vLLM on loopback `:8000` directly; edge keys gate launch only. | [Serving contract](#serving-contract) |
 | D-2 | Python 3.11 FastAPI plus pnpm/TypeScript React SPA in one repository. | [Layering](#layering) |
-| D-3 | Static Cloudflare Pages frontend; own cloudflared tunnel to loopback `:8830`. | [Deployment](#deployment) |
+| D-3 | Static Cloudflare Pages frontend; a public hostname on qr-llm-api's cloudflared tunnel to loopback `:8830`. | [Deployment](#deployment) |
 | D-4 | SQLite index plus append-only JSONL artifacts; no Postgres. | [Storage and secrets](#storage-and-secrets) |
 | D-5 | Thin runner primary; custom Inspect `qrllm` provider for Inspect cards. | [Execution](#execution) |
 | D-6 | Per-request derived seed `H(study_seed, card_id, prompt_id, epoch)`; study seeds 1, 7, 42. | [Equivalence](#equivalence-and-provenance) |
@@ -181,14 +181,14 @@ consciousness claim; the empirical hypotheses do not establish metaphysics.
 ## Deployment
 
 Dedicated non-login service identity; one backend process; only loopback
-listening; root-owned release code; restricted writable state; separate tunnel
-secret. `.\scripts\deploy.sh` archives committed bytes only, preflights before
+listening; root-owned release code; restricted writable state; no tunnel
+secret of its own. `.\scripts\deploy.sh` archives committed bytes only, preflights before
 activation, atomically flips `current`, and checks commit-specific health.
 `.\scripts\rollback.sh` restores a retained compatible release without touching
 data. Supervised start/resume is always manual, including after maintenance.
 
 Cloudflare Pages publishes the static workspace build with a narrow CSP. The
-separate API tunnel terminates at `127.0.0.1:8830`; no SSR, extra router, engine
+API hostname is routed by qr-llm-api's tunnel to `127.0.0.1:8830`; no SSR, extra router, engine
 installation, or database service is introduced. See `.\docs\SETUP_GUIDE.md` for
 unit installation, group-read permissions, DNS, dependencies, pilot, and backup
 procedures. The required development verification is `python scripts/check.py`;
