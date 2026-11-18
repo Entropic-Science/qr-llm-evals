@@ -217,7 +217,7 @@ class Run(_Record):
     withdrawn: bool = False
     needs_keys: bool = False
     keys_present: dict[str, bool] = Field(
-        default_factory=dict, description="e.g. {'judge': true, 'openrouter': false}."
+        default_factory=dict, description="e.g. {'judge': true, 'openai': false}."
     )
 
 

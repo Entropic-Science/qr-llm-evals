@@ -231,18 +231,17 @@ def test_build_verifier_follows_settings(keys_file: Path) -> None:
 # ── SecretBag ─────────────────────────────────────────────────────────────────
 
 ANTHROPIC = "sk-ant-" + "api03-bagsecret-ABCDEFGHIJKLMNOP"
-OPENROUTER = "sk-or-v1-bagsecret-0123456789abcdef"
+SK_OR_SHAPED = "sk-or-v1-bagsecret-0123456789abcdef"
 
 
 def test_secret_bag_basic_semantics() -> None:
-    bag = SecretBag({"anthropic": ANTHROPIC, "openai": None, "openrouter": ""})
+    bag = SecretBag({"anthropic": ANTHROPIC, "openai": None, "custom": ""})
     assert bag.get("anthropic") == ANTHROPIC
     assert bag.require("anthropic") == ANTHROPIC
     assert bag.get("openai") is None
     assert "anthropic" in bag and "openai" not in bag
     assert len(bag) == 1 and list(bag) == ["anthropic"] and bag.names() == ("anthropic",)
     assert bag.keys_present() == {
-        "openrouter": False,
         "openai": False,
         "anthropic": True,
         "custom": False,
@@ -251,7 +250,7 @@ def test_secret_bag_basic_semantics() -> None:
         bag.require("openai")
     with pytest.raises(ValueError):
         bag.set("openai", "  ")
-    bag.set("mycloud", OPENROUTER)
+    bag.set("mycloud", SK_OR_SHAPED)
     assert bag.keys_present()["mycloud"] is True
     bag.remove("mycloud")
     assert "mycloud" not in bag
@@ -322,10 +321,10 @@ def test_secret_filter_scrubs_known_token_shapes_even_when_unregistered(
         log.info(
             "launch with %s and %s and Authorization: Bearer %s",
             GOOD,
-            OPENROUTER,
+            SK_OR_SHAPED,
             "tok_" + "x" * 20,
         )
-    assert GOOD not in caplog.text and OPENROUTER not in caplog.text
+    assert GOOD not in caplog.text and SK_OR_SHAPED not in caplog.text
     assert "tok_xxxx" not in caplog.text
     assert caplog.text.count(REDACTED) == 3
 

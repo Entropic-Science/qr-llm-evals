@@ -35,12 +35,6 @@ CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 QR_SERVER_ID = "qr_server"
 CUSTOM_ID = "custom"
 
-#: Headers OpenRouter asks apps to send (attribution; harmless elsewhere, sent only there).
-OPENROUTER_HEADERS: Mapping[str, str] = {
-    "HTTP-Referer": "https://evals.entropic.science",
-    "X-Title": "qr-llm-evals",
-}
-
 
 @dataclass(frozen=True, slots=True)
 class ProviderTarget:
@@ -61,7 +55,7 @@ class ProviderTarget:
 
 
 def _origin(url: str) -> str:
-    """``https://openrouter.ai/api/v1/`` → ``https://openrouter.ai/api`` (no ``/v1``)."""
+    """``https://api.openai.com/v1/`` → ``https://api.openai.com`` (no ``/v1``)."""
     url = "".join(url.split()).rstrip("/")
     if url.endswith("/v1"):
         url = url[: -len("/v1")]
@@ -70,7 +64,6 @@ def _origin(url: str) -> str:
 
 #: profile id → (SecretBag slot, extra headers). Ids match ``config/providers.yaml``.
 _TRANSPORT_FACTS: dict[str, tuple[str, Mapping[str, str]]] = {
-    "openrouter": ("openrouter", OPENROUTER_HEADERS),
     "openai": ("openai", {}),
     "anthropic_compat": ("anthropic", {}),
 }
@@ -91,7 +84,7 @@ def load_profile_base_urls(path: Path | None = None) -> dict[str, str]:
 
 
 def known_targets(path: Path | None = None) -> dict[str, ProviderTarget]:
-    """The shipped external targets (openrouter / openai / anthropic_compat)."""
+    """The shipped external targets (openai / anthropic_compat)."""
     targets: dict[str, ProviderTarget] = {}
     for pid, base in load_profile_base_urls(path).items():
         secret, headers = _TRANSPORT_FACTS.get(pid, (CUSTOM_ID, {}))
@@ -144,7 +137,6 @@ __all__ = [
     "CHAT_COMPLETIONS_PATH",
     "CUSTOM_ID",
     "DEFAULT_PROVIDERS_FILE",
-    "OPENROUTER_HEADERS",
     "QR_SERVER_ID",
     "ProviderTarget",
     "known_targets",

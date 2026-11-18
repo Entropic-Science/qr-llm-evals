@@ -179,6 +179,6 @@ def test_external_model_cannot_claim_pinned() -> None:
 def test_catalogue_pins_only_the_loopback_target() -> None:
     cat = load_catalogue()
     assert cat.is_pinned("qr-llm") is True
-    assert cat.is_pinned("openrouter:anthropic/claude-sonnet-4") is False
+    assert cat.is_pinned("openai:gpt-4o") is False
     for entry in cat.entries:
         assert entry.pipeline_pinned == (entry.provider == "qr_server")

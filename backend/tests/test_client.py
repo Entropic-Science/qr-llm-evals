@@ -17,7 +17,6 @@ from qr_llm_evals.client.cancel import CancelToken, GenerationCancelled
 from qr_llm_evals.client.openai_client import Completion, OpenAIClient, UpstreamError, prepare_body
 from qr_llm_evals.client.profiles import (
     CUSTOM_ID,
-    OPENROUTER_HEADERS,
     ProviderTarget,
     known_targets,
     qr_server_target,
@@ -321,14 +320,14 @@ def test_cancel_token_is_one_shot() -> None:
 
 def test_upstream_error_carries_status_and_body_excerpt_not_key() -> None:
     rec = _Recorder(status=503)
-    client = rec.client(api_key="sk-or-secret-value-1234567890")
+    client = rec.client(api_key="sk-test-secret-value-1234567890")
     with pytest.raises(UpstreamError) as err:
         client.generate(BODY)
     assert err.value.status == 503
     assert "nope" in err.value.excerpt
-    assert "sk-or-secret" not in str(err.value)
-    assert rec.requests[0].headers["authorization"] == "Bearer sk-or-secret-value-1234567890"
-    assert "sk-or-secret" not in repr(client)
+    assert "sk-test-secret" not in str(err.value)
+    assert rec.requests[0].headers["authorization"] == "Bearer sk-test-secret-value-1234567890"
+    assert "sk-test-secret" not in repr(client)
 
 
 async def test_async_upstream_error() -> None:
@@ -361,10 +360,12 @@ def test_chat_completion_non_streaming_and_complete() -> None:
 
 def test_extra_headers_and_key_are_sent() -> None:
     rec = _Recorder()
-    client = rec.client(api_key="sk-or-abcdefghijklmnop", extra_headers=OPENROUTER_HEADERS)
+    client = rec.client(
+        api_key="sk-test-abcdefghijklmnop", extra_headers={"X-Title": "qr-llm-evals"}
+    )
     client.generate(BODY)
     headers = rec.requests[0].headers
-    assert headers["authorization"] == "Bearer sk-or-abcdefghijklmnop"
+    assert headers["authorization"] == "Bearer sk-test-abcdefghijklmnop"
     assert headers["x-title"] == "qr-llm-evals"
 
 
@@ -373,10 +374,10 @@ def test_extra_headers_and_key_are_sent() -> None:
 
 def test_known_targets_come_from_providers_yaml() -> None:
     targets = known_targets()
-    assert {"openrouter", "openai", "anthropic_compat"} <= set(targets)
-    assert targets["openrouter"].base_url == "https://openrouter.ai/api"
-    assert targets["openrouter"].secret_name == "openrouter"
-    assert targets["openrouter"].extra_headers == dict(OPENROUTER_HEADERS)
+    assert {"openai", "anthropic_compat"} <= set(targets)
+    assert "openrouter" not in targets  # archived: archive/openrouter/RESTORE.md
+    assert targets["openai"].base_url == "https://api.openai.com"
+    assert targets["openai"].secret_name == "openai"
     assert targets["anthropic_compat"].secret_name == "anthropic"
     assert targets["openai"].chat_url == "https://api.openai.com/v1/chat/completions"
 
@@ -387,8 +388,8 @@ def test_target_for_resolution() -> None:
     with pytest.raises(ValueError):
         target_for("qr_server")
 
-    by_url = target_for("custom", "https://openrouter.ai/api/v1")
-    assert by_url.id == "openrouter" and by_url.secret_name == "openrouter"
+    by_url = target_for("custom", "https://api.openai.com/v1")
+    assert by_url.id == "openai" and by_url.secret_name == "openai"
 
     unknown = target_for("custom", "https://llm.example.org/v1/")
     assert unknown == ProviderTarget(

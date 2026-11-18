@@ -44,10 +44,10 @@ NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 H = "b" * 64
 MODEL = {"id": "qr-llm", "family": "qr_llm", "provider": "qr_server", "served_name": "qr-llm"}
 EXTERNAL = {
-    "id": "openrouter:anthropic/claude",
+    "id": "openai:gpt-4o",
     "family": "external",
-    "provider": "openrouter",
-    "served_name": "anthropic/claude",
+    "provider": "openai",
+    "served_name": "gpt-4o",
 }
 
 

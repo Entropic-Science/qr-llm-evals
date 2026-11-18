@@ -7,14 +7,6 @@
 # pipeline_pinned=false — nothing here is quantum and nothing here is ours.
 
 profiles:
-  openrouter:
-    base_url: https://openrouter.ai/api/v1
-    accepted_params: [temperature, top_p, min_p, seed, max_tokens, stop]
-    seed_honoured: false        # forwarded to the upstream vendor; not guaranteed
-    logprobs_honoured: false    # vendor-dependent; assume absent
-    top_logprobs_cap: 0
-    notes: min_p is passed through to vendors that support it; others ignore it.
-
   openai:
     base_url: https://api.openai.com/v1
     accepted_params: [temperature, top_p, seed, max_tokens, stop, logprobs, top_logprobs]

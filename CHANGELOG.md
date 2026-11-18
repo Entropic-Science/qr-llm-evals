@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Archive the OpenRouter provider profile. It is no longer a selectable
+  provider, a `provider_keys` slot or a `keys_present` entry; the removed
+  pieces and the steps to restore them are in `archive/openrouter/RESTORE.md`.
+  The configure wizard now sends the external provider key to the `openai` or
+  `custom` slot the study actually uses.
+
 - Give every readiness dispatch a unique engine request ID without changing
   its sampling seed, and require the matching fresh capability-log path.
   Reject unfinished readiness completions, stop SSE reads at `[DONE]`, and

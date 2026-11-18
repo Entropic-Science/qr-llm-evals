@@ -362,9 +362,6 @@ def test_provider_body_uses_profile() -> None:
     # unknown profile: plain surface, no logprobs
     plain = build_request_body(arm, ext, CTX, MESSAGES)
     assert "logprobs" not in plain and plain["temperature"] == 1.0
-    # openrouter forwards min_p
-    orr = build_request_body(arm, ext, CTX, MESSAGES, profile=profiles["openrouter"])
-    assert orr["min_p"] == 0.10 and "logprobs" not in orr
 
 
 def test_provider_top_logprobs_capped() -> None:

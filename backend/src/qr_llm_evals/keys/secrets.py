@@ -12,8 +12,8 @@ form. Guarantees (AGENTS.md invariant 3):
 * **Scoped to a run.** :meth:`SecretBag.clear` unregisters the values; a backend
   restart loses the bag, which is exactly why a restarted run is ``needs_keys``.
 
-The provider names are the launch-body keys (``provider_keys: {openrouter?,
-openai?, anthropic?, custom?}``); the bag is otherwise an opaque mapping.
+The provider names are the launch-body keys (``provider_keys: {openai?,
+anthropic?, custom?}``); the bag is otherwise an opaque mapping.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from qr_llm_evals.logging_utils import (
 )
 
 #: The launch-body provider slots (spec §2.4). Others are accepted but reported too.
-KNOWN_PROVIDERS: tuple[str, ...] = ("openrouter", "openai", "anthropic", "custom")
+KNOWN_PROVIDERS: tuple[str, ...] = ("openai", "anthropic", "custom")
 
 
 class SecretBag:

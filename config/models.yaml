@@ -2,7 +2,7 @@
 #
 # Loaded by qr_llm_evals.models.catalogue. `id` is the ModelRef.id the SPA
 # shows and arms reference; `served_name` is the exact string sent on the wire.
-# Dynamic ids ("openrouter:<vendor>/<model>", "custom:<base_url>#<model>") are
+# Dynamic ids ("openai:<model>", "custom:<base_url>#<model>") are
 # parsed at run time and need no row here.
 #
 # `pipeline_pinned` is true only where THIS harness owns the full qr_* envelope

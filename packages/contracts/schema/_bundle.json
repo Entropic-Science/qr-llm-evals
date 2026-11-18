@@ -1802,7 +1802,7 @@
               }
             ]
           },
-          "description": "BYO keys (openrouter, openai, anthropic, custom); memory only.",
+          "description": "BYO keys (openai, anthropic, custom); memory only.",
           "title": "Provider Keys",
           "type": "object"
         }
@@ -1946,7 +1946,6 @@
         "provider": {
           "enum": [
             "qr_server",
-            "openrouter",
             "openai",
             "anthropic_compat",
             "custom"
@@ -2747,7 +2746,7 @@
           "additionalProperties": {
             "type": "boolean"
           },
-          "description": "e.g. {'judge': true, 'openrouter': false}.",
+          "description": "e.g. {'judge': true, 'openai': false}.",
           "title": "Keys Present",
           "type": "object"
         }
