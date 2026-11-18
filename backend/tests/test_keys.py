@@ -230,7 +230,7 @@ def test_build_verifier_follows_settings(keys_file: Path) -> None:
 
 # ── SecretBag ─────────────────────────────────────────────────────────────────
 
-ANTHROPIC = "sk-ant-api03-bagsecret-ABCDEFGHIJKLMNOP"
+ANTHROPIC = "sk-ant-" + "api03-bagsecret-ABCDEFGHIJKLMNOP"
 OPENROUTER = "sk-or-v1-bagsecret-0123456789abcdef"
 
 

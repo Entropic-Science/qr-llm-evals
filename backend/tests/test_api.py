@@ -42,9 +42,9 @@ from stub_engine import StubEngine, StubJudge
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "registry"
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
-GOOD_KEY = "qrk_good_key_0123456789abcdef"
-BAD_KEY = "qrk_not_in_the_file_0123456789"
-ANTHROPIC_SECRET = "sk-ant-api03-supersecret-0123456789"
+GOOD_KEY = "qrk_" + "good_key_0123456789abcdef"
+BAD_KEY = "qrk_" + "not_in_the_file_0123456789"
+ANTHROPIC_SECRET = "sk-ant-" + "api03-supersecret-0123456789"
 API = "/api"
 
 

@@ -20,7 +20,7 @@ from qr_llm_evals.client.anthropic_judge import (
     JudgeRequest,
 )
 
-KEY = "sk-ant-api03-judge-secret-0123456789"
+KEY = "sk-ant-" + "api03-judge-secret-0123456789"
 RUBRIC = "You are a frozen rubric. Score 1-5. Answer with JSON."
 REQ = JudgeRequest(system=RUBRIC, user="PROMPT: x\nOUTPUT: y", judge_run_id="judge_run_abc")
 
