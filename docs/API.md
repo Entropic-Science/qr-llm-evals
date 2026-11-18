@@ -18,7 +18,7 @@ and the `/studies/*` results routes are documented as they land.
 | Header | Who | Used by |
 |---|---|---|
 | `Authorization: Bearer qrs_…` | A signed-in account: the session token returned by `POST /auth/signup` or `POST /auth/login`; the server stores only its SHA-256 | `POST /auth/logout`, `GET /me`, `POST /me/key`, `POST /readiness`, `POST /runs` |
-| `Authorization: Bearer qrk_…` | Bare launch key (an api.entropic.science key, verified against the same keys file or by an edge probe — `QR_EVALS_KEY_VERIFY`). Still accepted until the web app signs users in | `POST /readiness`, `POST /runs` |
+| `Authorization: Bearer qrk_…` | Bare launch key (an api.entropic.science key, verified against the same keys file or by an edge probe — `QR_EVALS_KEY_VERIFY`). Accepted only when `QR_EVALS_ALLOW_KEY_LAUNCH=1`, for operator tooling: such a run has no owner, is not metered and bypasses token quotas. Off by default, in which case these routes answer `401` and ask for a session | `POST /readiness`, `POST /runs` |
 | `X-Host-Token: host_…` | The run's host: the random token returned **once** by `POST /runs`; the record stores only its SHA-256 | `POST /runs/{id}/control`, `POST /runs/{id}/keys` |
 | `X-Observer-Id` | A self-chosen observer id (localStorage; no account behind it) | observer routes (supervised mode) |
 
@@ -33,7 +33,7 @@ moment it was linked. Accounts live in `<QR_EVALS_DATA_DIR>/accounts.sqlite`.
 
 The launch key only gates: it is never stored. `run.key_name` keeps the key's
 name (file mode) or fingerprint (probe mode) for quota accounting, and
-`run.owner_id` the launching account (`null` for a bare-key launch). BYO
+`run.owner_id` the launching account (`null` for an operator's bare-key launch). BYO
 provider/judge keys travel in the launch body, live in the run's in-memory
 `SecretBag`, and surface only as `keys_present: {provider: bool}`.
 
@@ -73,7 +73,7 @@ validation, has the OpenAI-style shape:
 | POST | `/auth/logout` | session | → `{ok: true}` | Revokes the presented token only. |
 | GET | `/me` | session | → `UserView {user_id, username, key_name, key_fingerprint, key_linked_at, is_admin, created_at}` | |
 | POST | `/me/key` | session | `LinkKeyRequest {api_key}` → `UserView` | Links a different key, verified the same way as at signup. |
-| GET | `/me/usage` | session | → `UsageResponse {quota, totals, by_kind, by_source, by_day, by_run}` | Token totals for the account's runs. `by_kind` splits generation / judge / narrative; `by_source` splits generations by provenance source label; `by_day` is the last 30 UTC days and `by_run` the last 20 runs. Only `charged_tokens` count against `quota`. Runs launched with a bare key are not metered. |
+| GET | `/me/usage` | session | → `UsageResponse {quota, totals, by_kind, by_source, by_day, by_run}` | Token totals for the account's runs. `by_kind` splits generation / judge / narrative; `by_source` splits generations by provenance source label; `by_day` is the last 30 UTC days and `by_run` the last 20 runs. Only `charged_tokens` count against `quota`. An operator's bare-key runs are not metered. |
 | GET | `/admin/users` | admin session | → `AdminUsersResponse {default_token_quota, users[]}` | Every account with its totals and quota. Admin is a flag set with the operator CLI. |
 | POST | `/admin/users/{id}` | admin session | `AdminUserUpdate {token_quota?, disabled?, is_admin?}` → `AdminUserView` | Only fields present in the body change. `token_quota: null` returns the account to the default, `0` is unlimited. An admin cannot disable or demote their own account (`409`). |
 | GET | `/cards` | none | → `CardsResponse` | Every registry card with a headline `estimate` on the default `qr-llm` target at catalogue throughput. |

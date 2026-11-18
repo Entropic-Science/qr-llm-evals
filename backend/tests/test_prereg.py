@@ -248,7 +248,11 @@ async def test_route_open_rate_limited_and_export_launch_hash_parity(tmp_path: P
         encoding="utf-8",
     )
     settings = load_settings(
-        {"QR_EVALS_DATA_DIR": str(tmp_path / "data"), "QR_EVALS_KEYS_FILE": str(keys)}
+        {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
+            "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
+            "QR_EVALS_KEYS_FILE": str(keys),
+        }
     )
     app = create_app(
         settings,
@@ -286,7 +290,9 @@ async def test_route_open_rate_limited_and_export_launch_hash_parity(tmp_path: P
 
 async def test_route_rejects_unknown_cards_and_mismatched_expectations(tmp_path: Path) -> None:
     app = create_app(
-        load_settings({"QR_EVALS_DATA_DIR": str(tmp_path / "data")}),
+        load_settings(
+            {"QR_EVALS_ALLOW_KEY_LAUNCH": "1", "QR_EVALS_DATA_DIR": str(tmp_path / "data")}
+        ),
         limiter=TokenBucketLimiter(burst=10),
     )
     async with (

@@ -48,6 +48,7 @@ def _narrative(request: httpx.Request) -> httpx.Response:
 def _setup(tmp_path: Path) -> tuple[Store, Run, object]:
     settings = load_settings(
         {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
             "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
             "QR_EVALS_KEYS_FILE": str(tmp_path / "keys.json"),
             "QR_EVALS_VLLM_ORIGIN": "http://narrative",

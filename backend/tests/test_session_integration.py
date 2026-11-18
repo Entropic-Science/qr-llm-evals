@@ -88,6 +88,7 @@ class Harness:
 async def harness(tmp_path: Path) -> AsyncIterator[Harness]:
     settings = load_settings(
         {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
             "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
             "QR_EVALS_VLLM_ORIGIN": "http://stub",
             "QR_EVALS_MAX_INFLIGHT": "3",

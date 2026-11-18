@@ -5,6 +5,9 @@ import { StudyPrereg } from "./routes/studies/StudyPrereg";
 import { StudyData } from "./routes/studies/StudyData";
 
 import { Layout } from "./components/Layout";
+import { Account } from "./routes/Account";
+import { Admin } from "./routes/Admin";
+import { Login, Signup } from "./routes/Auth";
 import { Docs } from "./routes/Docs";
 import { Evals } from "./routes/Evals";
 import { EvalsAdd } from "./routes/EvalsAdd";
@@ -31,5 +34,5 @@ function Home() {
 }
 
 export function App() {
-  return <Layout><Switch><Route path="/" component={Configure} /><Route path="/home" component={Home} /><Route path="/prereg" component={Prereg} /><Route path="/runs/:runId/live" component={Live} /><Route path="/runs/:runId" component={Run} /><Route path="/s/:joinCode" component={Join} /><Route path="/studies/:studyId/prereg" component={StudyPrereg} /><Route path="/studies/:studyId/data" component={StudyData} /><Route path="/studies/:studyId" component={Study} /><Route path="/evals/add" component={EvalsAdd} /><Route path="/evals" component={Evals} /><Route path="/docs/:rest*" component={Docs} /><Route path="/docs" component={Docs} /><Route component={NotFound} /></Switch></Layout>;
+  return <Layout><Switch><Route path="/" component={Configure} /><Route path="/home" component={Home} /><Route path="/login" component={Login} /><Route path="/signup" component={Signup} /><Route path="/account" component={Account} /><Route path="/admin" component={Admin} /><Route path="/prereg" component={Prereg} /><Route path="/runs/:runId/live" component={Live} /><Route path="/runs/:runId" component={Run} /><Route path="/s/:joinCode" component={Join} /><Route path="/studies/:studyId/prereg" component={StudyPrereg} /><Route path="/studies/:studyId/data" component={StudyData} /><Route path="/studies/:studyId" component={Study} /><Route path="/evals/add" component={EvalsAdd} /><Route path="/evals" component={Evals} /><Route path="/docs/:rest*" component={Docs} /><Route path="/docs" component={Docs} /><Route component={NotFound} /></Switch></Layout>;
 }

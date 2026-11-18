@@ -25,7 +25,8 @@ describe("configure wizard", () => {
     render(<Configure />);
     fireEvent.click(screen.getByRole("button", { name: "Load Study 1 template" }));
     fireEvent.click(screen.getByRole("button", { name: /06Keys/ }));
-    fireEvent.change(screen.getByLabelText("api.entropic.science launch key"), { target: { value: "qrk_secret" } });
+    expect(screen.queryByLabelText("api.entropic.science launch key")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?next=/");
     fireEvent.change(screen.getByLabelText("Anthropic judge key"), { target: { value: "sk-ant-secret" } });
     await waitFor(() => expect(window.localStorage.getItem("qr-evals.study-config.v1")).not.toContain("secret"));
   });

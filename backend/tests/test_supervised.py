@@ -241,6 +241,7 @@ async def test_session_routes_enforce_host_and_observer_gates(tmp_path: Path) ->
     key_file.write_text("[]", encoding="utf-8")
     settings = load_settings(
         {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
             "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
             "QR_EVALS_KEYS_FILE": str(key_file),
             "QR_EVALS_VLLM_ORIGIN": "http://stub",

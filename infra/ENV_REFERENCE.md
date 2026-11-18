@@ -31,6 +31,7 @@ Each row gives **name / required / example / source**.
 | `QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY` | no (default `1`) | `1` | Active runs per launch key; over it ⇒ `429` + `Retry-After`. |
 | `QR_EVALS_MAX_INFLIGHT` | no (default `3`) | `3` | Global in-flight generation cap; keep ≤ engine `--max-num-seqs` minus a reserve for other tenants. |
 | `QR_EVALS_SIGNUP_ENABLED` | no (default `1`) | `1` | Whether `POST /api/auth/signup` accepts new accounts. `0` closes registration; existing users can still log in. |
+| `QR_EVALS_ALLOW_KEY_LAUNCH` | no (default `0`) | `0` | Accept a bare `qrk_` key on `POST /api/runs` and `/api/readiness`. Such a run has no owner, is not metered and bypasses token quotas, so leave it off in production; switch it on only for operator tooling such as `scripts/smoke.py --live`. With it off, launching needs a signed-in account. |
 | `QR_EVALS_DEFAULT_TOKEN_QUOTA` | no (default `2000000`) | `2000000` | Lifetime budget of qr-server generation tokens (prompt + completion) per account. `0` = unlimited. An admin can set a per-account value that overrides it. Judge, narrative and external-provider tokens are recorded but never charged. |
 | `QR_EVALS_SESSION_TTL_HOURS` | no (default `168`) | `168` | Lifetime of a login session token. Accounts live in `<QR_EVALS_DATA_DIR>/accounts.sqlite`, which cannot be rebuilt: back it up, never delete it. |
 

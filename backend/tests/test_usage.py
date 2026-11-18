@@ -366,13 +366,14 @@ async def test_judge_tokens_are_recorded_but_not_charged(site: Site) -> None:
     assert judge["completion_tokens"] == 5 * judge["calls"]
 
 
-async def test_bare_key_runs_are_not_metered(site: Site) -> None:
-    alice, _ = await site.signup()
-    resp = await site.launch({"Authorization": f"Bearer {KEY_B}"})
-    assert resp.status_code == 201, resp.text
-    await site.run_to(resp.json(), {"complete"})
-    assert site.h.state.ledger.totals_by_user() == {}
-    assert (await site.usage(alice))["totals"]["calls"] == 0
+async def test_operator_key_runs_are_not_metered(tmp_path: Path) -> None:
+    async with _site(_settings(tmp_path, QR_EVALS_ALLOW_KEY_LAUNCH="1")) as site:
+        alice, _ = await site.signup()
+        resp = await site.launch({"Authorization": f"Bearer {KEY_B}"})
+        assert resp.status_code == 201, resp.text
+        await site.run_to(resp.json(), {"complete"})
+        assert site.h.state.ledger.totals_by_user() == {}
+        assert (await site.usage(alice))["totals"]["calls"] == 0
 
 
 async def test_quota_pauses_the_run_and_blocks_resume_until_raised(tmp_path: Path) -> None:

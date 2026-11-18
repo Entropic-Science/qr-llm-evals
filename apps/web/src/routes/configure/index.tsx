@@ -7,6 +7,7 @@ import { LaunchDialog } from "../../components/run/LaunchDialog";
 import { api } from "../../lib/api";
 import { configHash, loadConfig, saveConfig, studyOneTemplate, type WizardStudyConfig } from "../../lib/config-store";
 import { estimateSelection } from "../../lib/estimates";
+import { getSession } from "../../lib/session";
 import { Evals } from "./Evals";
 import { Judge } from "./Judge";
 import { Keys } from "./Keys";
@@ -15,7 +16,7 @@ import { Review } from "./Review";
 import { Sampling } from "./Sampling";
 import { Supervised } from "./Supervised";
 
-export interface VolatileKeys { launch: string; anthropic: string; external: string }
+export interface VolatileKeys { anthropic: string; external: string }
 export interface WizardStepProps {
   config: WizardStudyConfig;
   updateConfig: (config: WizardStudyConfig) => void;
@@ -47,7 +48,7 @@ export function Configure() {
   const [cards, setCards] = useState<readonly EvalCard[]>(registryCards);
   const [modelOptions, setModelOptions] = useState<ModelRef[]>(config.models);
   const [briefingOpen, setBriefingOpen] = useState(false);
-  const [keys, setKeys] = useState<VolatileKeys>({ launch: "", anthropic: "", external: "" });
+  const [keys, setKeys] = useState<VolatileKeys>({ anthropic: "", external: "" });
   const [hash, setHash] = useState("");
   const [launchState, setLaunchState] = useState("");
   const [launchOpen, setLaunchOpen] = useState(false);
@@ -89,7 +90,7 @@ export function Configure() {
   };
   const closeBriefing = () => { window.sessionStorage.setItem(ACK_KEY, "yes"); setBriefingOpen(false); };
   const launch = () => {
-    if (!keys.launch) { setLaunchState("Enter a launch key in step 06 before launching."); return; }
+    if (!getSession()) { setLaunchState("Sign in before launching (step 06 has the link). Your configuration is kept."); return; }
     setLaunchState("");
     setLaunchOpen(true);
   };
@@ -110,6 +111,6 @@ export function Configure() {
       <EstimateTotals estimate={estimate} armCount={availableArms} supervisedDisplay={config.supervised?.display ?? "single"} />
     </div>
     <DeterminismBriefing open={briefingOpen} onClose={closeBriefing} />
-    <LaunchDialog open={launchOpen} config={config} launchKey={keys.launch} providerKeys={providerKeys} onClose={() => setLaunchOpen(false)} onClearKeys={() => setKeys({ launch: "", anthropic: "", external: "" })} onLaunched={(runId) => navigate(`/runs/${encodeURIComponent(runId)}`)} />
+    <LaunchDialog open={launchOpen} config={config} providerKeys={providerKeys} onClose={() => setLaunchOpen(false)} onClearKeys={() => setKeys({ anthropic: "", external: "" })} onLaunched={(runId) => navigate(`/runs/${encodeURIComponent(runId)}`)} />
   </div>;
 }

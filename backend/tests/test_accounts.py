@@ -219,6 +219,7 @@ def _write_keys(path: Path, *, a_disabled: bool = False, with_a: bool = True) ->
 
 
 def _settings(tmp_path: Path, **extra: str) -> Settings:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     keys_file = tmp_path / "api-keys.json"
     _write_keys(keys_file)
     return load_settings(
@@ -380,16 +381,26 @@ async def test_session_launch_records_the_owner(client: httpx.AsyncClient) -> No
     # the per-key cap is the per-account cap: a second active run is refused
     again = await client.post(f"{API}/runs", json=body, headers=_bearer(data["session_token"]))
     _error(again, 429)
-    # and the bare key shares that bucket
-    _error(await client.post(f"{API}/runs", json=body, headers=_bearer(KEY_A)), 429)
 
 
-async def test_bare_key_launch_still_works_without_an_owner(client: httpx.AsyncClient) -> None:
+async def test_bare_key_launch_is_refused_unless_the_operator_allows_it(
+    client: httpx.AsyncClient, tmp_path: Path
+) -> None:
     body = {"config": _study_dict(), "kind": "pilot"}
-    resp = await client.post(f"{API}/runs", json=body, headers=_bearer(KEY_B))
-    assert resp.status_code == 201, resp.text
-    run = (await client.get(f"{API}/runs/{resp.json()['run_id']}")).json()["run"]
-    assert run["owner_id"] is None and run["key_name"] == "bob"
+    refused = await client.post(f"{API}/runs", json=body, headers=_bearer(KEY_B))
+    assert "sign in" in _error(refused, 401)["message"]
+    _error(await client.post(f"{API}/readiness", json=body, headers=_bearer(KEY_B)), 401)
+    _error(await client.post(f"{API}/runs", json=body), 401)
+
+    app = _app(_settings(tmp_path / "operator", QR_EVALS_ALLOW_KEY_LAUNCH="1"))
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        resp = await c.post(f"{API}/runs", json=body, headers=_bearer(KEY_B))
+        assert resp.status_code == 201, resp.text
+        run = (await c.get(f"{API}/runs/{resp.json()['run_id']}")).json()["run"]
+        assert run["owner_id"] is None and run["key_name"] == "bob"
 
 
 @pytest.mark.parametrize(("change", "status"), [("disabled", 403), ("removed", 403)])

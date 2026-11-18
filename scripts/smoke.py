@@ -127,6 +127,7 @@ async def offline_smoke(temporary: Path) -> None:
     )
     settings = load_settings(
         {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
             "QR_EVALS_DATA_DIR": str(temporary / "data"),
             "QR_EVALS_KEYS_FILE": str(keys_path),
             "QR_EVALS_VLLM_ORIGIN": "http://stub",
