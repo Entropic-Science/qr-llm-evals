@@ -11,9 +11,12 @@ run from disk.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+import logging
+from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 from qr_llm_evals.config import Settings
 from qr_llm_evals.models.schema import StudyConfig
@@ -46,7 +49,28 @@ from qr_llm_evals.store.schema import (
     ReadinessReport,
     Run,
     Taint,
+    Usage,
 )
+
+log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class UsageNote:
+    """Token usage of one persisted generation or judge row (for accounting)."""
+
+    run_id: str
+    kind: Literal["generation", "judge"]
+    arm_id: str
+    card_id: str
+    model: str
+    source_label: str | None
+    pipeline_pinned: bool
+    usage: Usage
+    at: datetime
+
+
+UsageHook = Callable[[UsageNote], None]
 
 
 class RunStore:
@@ -98,12 +122,38 @@ class RunStore:
 
     def append_generation(self, row: GenerationRow) -> None:
         append_jsonl(self.arm_card(row.arm_id, row.card_id).generations_jsonl, row)
+        self.store.notify_usage(
+            UsageNote(
+                run_id=self.run_id,
+                kind="generation",
+                arm_id=row.arm_id,
+                card_id=row.card_id,
+                model=row.provenance.served_name,
+                source_label=row.provenance.source_label,
+                pipeline_pinned=row.provenance.pipeline_pinned,
+                usage=row.usage,
+                at=row.timing.finished or row.timing.started,
+            )
+        )
 
     def append_tier0(self, arm_id: str, card_id: str, records: Iterable[RowLike]) -> int:
         return append_jsonl(self.arm_card(arm_id, card_id).tier0_jsonl, records)
 
     def append_judge(self, arm_id: str, card_id: str, row: JudgeRow) -> None:
         append_jsonl(self.arm_card(arm_id, card_id).judge_jsonl(row.judge_id), row)
+        self.store.notify_usage(
+            UsageNote(
+                run_id=self.run_id,
+                kind="judge",
+                arm_id=arm_id,
+                card_id=card_id,
+                model=row.model,
+                source_label=None,
+                pipeline_pinned=False,
+                usage=row.usage,
+                at=row.at,
+            )
+        )
 
     def append_score(self, arm_id: str, card_id: str, scorer: str, row: RowLike) -> None:
         append_jsonl(self.arm_card(arm_id, card_id).scores_jsonl(scorer), row)
@@ -195,6 +245,24 @@ class Store:
     def __init__(self, data_dir: str | Path) -> None:
         self.root = DataRoot(Path(data_dir))
         self._index: Index | None = None
+        #: Called after every generation / judge row is appended (token accounting).
+        self.usage_hook: UsageHook | None = None
+
+    def notify_usage(self, note: UsageNote) -> None:
+        """Tell the hook about a row that was just persisted; never raises.
+
+        The row is already on disk and is the record of truth. A failing
+        accounting hook must not fail, or roll back, a paid-for generation.
+        """
+        hook = self.usage_hook
+        if hook is None:
+            return
+        try:
+            hook(note)
+        except Exception:
+            log.exception(
+                "usage hook failed", extra={"event": "store.usage_hook", "run_id": note.run_id}
+            )
 
     @classmethod
     def from_settings(cls, settings: Settings) -> Store:
@@ -336,4 +404,4 @@ class Store:
         return rs.withdraw(reason, now=now)
 
 
-__all__ = ["RunStore", "Store"]
+__all__ = ["RunStore", "Store", "UsageHook", "UsageNote"]

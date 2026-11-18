@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from qr_llm_evals.api.routes import (
+    admin,
     analysis,
     auth,
     cards,
@@ -23,6 +24,7 @@ from qr_llm_evals.api.routes import (
 ROUTERS: tuple[APIRouter, ...] = (
     health.router,
     auth.router,
+    admin.router,
     cards.router,
     models.router,
     estimates.router,

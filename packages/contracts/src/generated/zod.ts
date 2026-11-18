@@ -50,6 +50,10 @@ import LoginRequestJson from "../../schema/LoginRequest.json";
 import LinkKeyRequestJson from "../../schema/LinkKeyRequest.json";
 import UserViewJson from "../../schema/UserView.json";
 import AuthResponseJson from "../../schema/AuthResponse.json";
+import UsageResponseJson from "../../schema/UsageResponse.json";
+import AdminUserViewJson from "../../schema/AdminUserView.json";
+import AdminUsersResponseJson from "../../schema/AdminUsersResponse.json";
+import AdminUserUpdateJson from "../../schema/AdminUserUpdate.json";
 
 type Schema = z.core.JSONSchema.BaseSchema;
 
@@ -98,6 +102,10 @@ export const LoginRequestSchema = z.fromJSONSchema(LoginRequestJson as unknown a
 export const LinkKeyRequestSchema = z.fromJSONSchema(LinkKeyRequestJson as unknown as Schema) as unknown as z.ZodType<T.LinkKeyRequest>;
 export const UserViewSchema = z.fromJSONSchema(UserViewJson as unknown as Schema) as unknown as z.ZodType<T.UserView>;
 export const AuthResponseSchema = z.fromJSONSchema(AuthResponseJson as unknown as Schema) as unknown as z.ZodType<T.AuthResponse>;
+export const UsageResponseSchema = z.fromJSONSchema(UsageResponseJson as unknown as Schema) as unknown as z.ZodType<T.UsageResponse>;
+export const AdminUserViewSchema = z.fromJSONSchema(AdminUserViewJson as unknown as Schema) as unknown as z.ZodType<T.AdminUserView>;
+export const AdminUsersResponseSchema = z.fromJSONSchema(AdminUsersResponseJson as unknown as Schema) as unknown as z.ZodType<T.AdminUsersResponse>;
+export const AdminUserUpdateSchema = z.fromJSONSchema(AdminUserUpdateJson as unknown as Schema) as unknown as z.ZodType<T.AdminUserUpdate>;
 
 /** Every contract name → its zod validator, in registration order. */
 export const schemas = {
@@ -146,6 +154,10 @@ export const schemas = {
   LinkKeyRequest: LinkKeyRequestSchema,
   UserView: UserViewSchema,
   AuthResponse: AuthResponseSchema,
+  UsageResponse: UsageResponseSchema,
+  AdminUserView: AdminUserViewSchema,
+  AdminUsersResponse: AdminUsersResponseSchema,
+  AdminUserUpdate: AdminUserUpdateSchema,
 } as const;
 
 export type ContractName = keyof typeof schemas;

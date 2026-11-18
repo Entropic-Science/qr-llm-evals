@@ -37,11 +37,12 @@ from typing import Annotated, Protocol
 import httpx
 from fastapi import Depends, Header, Request
 
-from qr_llm_evals.accounts import SESSION_PREFIX, Accounts, User
+from qr_llm_evals.accounts import SESSION_PREFIX, Accounts, UsageLedger, User
 from qr_llm_evals.api.errors import ApiError
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
 from qr_llm_evals.api.registry import LiveRun, OrchestratorFactory, RunRegistry
 from qr_llm_evals.api.session_runtime import restore_sessions
+from qr_llm_evals.api.usage import UsageRecorder
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.config import Settings
 from qr_llm_evals.keys.verify import (
@@ -96,6 +97,8 @@ class AppState:
     store: Store
     verifier: KeyVerifier
     accounts: Accounts
+    ledger: UsageLedger
+    usage: UsageRecorder
     cards: dict[str, EvalCard]
     catalogue: ModelCatalogue
     providers: dict[str, ProviderProfile]
@@ -203,6 +206,15 @@ async def require_user(
 CurrentUser = Annotated[User, Depends(require_user)]
 
 
+async def require_admin(user: CurrentUser) -> User:
+    if not user.is_admin:
+        raise ApiError(403, "this route needs an admin account")
+    return user
+
+
+AdminUser = Annotated[User, Depends(require_admin)]
+
+
 @dataclass(frozen=True, slots=True)
 class Launcher:
     """Who may launch: the quota bucket and the account behind it (if any)."""
@@ -299,6 +311,7 @@ def request_headers_without_secrets(headers: Mapping[str, str]) -> dict[str, str
 __all__ = [
     "HOST_TOKEN_HEADER",
     "OBSERVER_HEADER",
+    "AdminUser",
     "AppState",
     "CurrentUser",
     "HostRun",
@@ -313,6 +326,7 @@ __all__ = [
     "host_token_matches",
     "new_host_token",
     "recheck_linked_key",
+    "require_admin",
     "request_headers_without_secrets",
     "require_host",
     "require_launch_key",

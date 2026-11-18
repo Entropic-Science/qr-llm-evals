@@ -193,6 +193,7 @@ class JudgeRow(_Record):
     rubric_hash: Sha256Hex
     score: float | None = None
     raw: str = ""
+    usage: Usage = Field(default_factory=Usage)
     at: AwareDatetime
 
 

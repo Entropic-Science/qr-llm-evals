@@ -142,6 +142,10 @@ describe("run-time records", () => {
       "LinkKeyRequest",
       "UserView",
       "AuthResponse",
+      "UsageResponse",
+      "AdminUserView",
+      "AdminUsersResponse",
+      "AdminUserUpdate",
     ]);
   });
 });

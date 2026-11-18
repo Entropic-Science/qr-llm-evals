@@ -9,6 +9,8 @@ opens the same ``<QR_EVALS_DATA_DIR>/accounts.sqlite``::
     make-admin <username>
     revoke-admin <username>
     reset-password <username>    prompts for the new password; signs the user out
+    set-quota <username> <n>     lifetime token budget: a number, 0 = unlimited,
+                                 'default' = follow QR_EVALS_DEFAULT_TOKEN_QUOTA
 
 There is no ``delete``: runs keep their ``owner_id``, so accounts are disabled,
 never removed.
@@ -40,6 +42,9 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("list")
     for name in ("disable", "enable", "make-admin", "revoke-admin", "reset-password"):
         sub.add_parser(name).add_argument("username")
+    quota = sub.add_parser("set-quota")
+    quota.add_argument("username")
+    quota.add_argument("tokens", help="a non-negative integer, or 'default'")
     return parser
 
 
@@ -80,6 +85,13 @@ def run(argv: Sequence[str] | None = None, *, prompt: PasswordPrompt = getpass.g
             accounts.set_admin(user.user_id, True)
         elif args.command == "revoke-admin":
             accounts.set_admin(user.user_id, False)
+        elif args.command == "set-quota":
+            if args.tokens == "default":
+                accounts.set_quota(user.user_id, None)
+            elif args.tokens.isdigit():
+                accounts.set_quota(user.user_id, int(args.tokens))
+            else:
+                raise AccountError("tokens must be a non-negative integer or 'default'")
         else:
             first = prompt("New password: ")
             if first != prompt("Repeat: "):

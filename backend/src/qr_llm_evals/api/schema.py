@@ -368,8 +368,74 @@ class LogoutResponse(_Strict):
     ok: bool = True
 
 
+# ── usage and quota: /me/usage, /admin/users ─────────────────────────────────
+
+
+class UsageTotalsView(_Strict):
+    calls: int = Field(ge=0)
+    prompt_tokens: int = Field(ge=0)
+    completion_tokens: int = Field(ge=0)
+    reasoning_tokens: int = Field(ge=0)
+    charged_tokens: int = Field(
+        ge=0, description="Tokens counted against the quota (qr-server generations only)."
+    )
+
+
+class UsageBucketView(_Strict):
+    key: str
+    totals: UsageTotalsView
+
+
+class QuotaView(_Strict):
+    limit: int = Field(ge=0, description="Lifetime token budget; 0 = unlimited.")
+    used: int = Field(ge=0)
+    remaining: int | None = Field(description="None when unlimited.")
+    exhausted: bool
+
+
+class UsageResponse(_Strict):
+    quota: QuotaView
+    totals: UsageTotalsView
+    by_kind: list[UsageBucketView] = Field(description="generation / judge / narrative.")
+    by_source: list[UsageBucketView] = Field(
+        description="Generations by provenance source label (quantum vs the PRNG arms)."
+    )
+    by_day: list[UsageBucketView] = Field(description="UTC days, newest first (30 at most).")
+    by_run: list[UsageBucketView] = Field(description="Most recent runs first (20 at most).")
+
+
+class AdminUserView(_Strict):
+    user: UserView
+    disabled: bool
+    token_quota: int | None = Field(description="Per-account override; None = the default.")
+    quota: QuotaView
+    totals: UsageTotalsView
+
+
+class AdminUsersResponse(_Strict):
+    default_token_quota: int = Field(ge=0)
+    users: list[AdminUserView]
+
+
+class AdminUserUpdate(_Strict):
+    """Only the fields present in the body are changed."""
+
+    token_quota: int | None = Field(
+        default=None, ge=0, description="null = back to the default; 0 = unlimited."
+    )
+    disabled: bool | None = None
+    is_admin: bool | None = None
+
+
 __all__ = [
+    "AdminUserUpdate",
+    "AdminUserView",
+    "AdminUsersResponse",
     "AuthResponse",
+    "QuotaView",
+    "UsageBucketView",
+    "UsageResponse",
+    "UsageTotalsView",
     "LinkKeyRequest",
     "LoginRequest",
     "LogoutResponse",

@@ -91,6 +91,7 @@ def _generate_narrative(
             "max_tokens": NARRATIVE_MAX_TOKENS,
         }
     )
+    state.usage.record_narrative(live.run_id, model.served_name, completion.usage)
     if not completion.text.strip():
         raise RuntimeError("narrative model returned an empty response")
     return completion.text

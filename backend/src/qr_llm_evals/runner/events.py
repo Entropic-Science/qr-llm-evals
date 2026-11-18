@@ -44,6 +44,7 @@ EVENT_TYPES: Final[frozenset[str]] = frozenset(
         "session.timer",
         "observer.presence",
         "analysis.progress",
+        "quota.exhausted",
         "error",
         "resync",
     }
