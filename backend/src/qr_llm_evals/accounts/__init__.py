@@ -22,6 +22,14 @@ from qr_llm_evals.accounts.service import (
     User,
     UsernameTaken,
 )
+from qr_llm_evals.accounts.usage import (
+    Quota,
+    UsageBucket,
+    UsageEvent,
+    UsageLedger,
+    UsageSummary,
+    UsageTotals,
+)
 
 __all__ = [
     "ACCOUNTS_DB_NAME",
@@ -34,7 +42,13 @@ __all__ = [
     "InvalidUsername",
     "IssuedSession",
     "KeyAlreadyLinked",
+    "Quota",
     "UnknownUser",
+    "UsageBucket",
+    "UsageEvent",
+    "UsageLedger",
+    "UsageSummary",
+    "UsageTotals",
     "User",
     "UsernameTaken",
 ]

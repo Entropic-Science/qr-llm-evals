@@ -20,7 +20,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from importlib import metadata
 from pathlib import Path
 
@@ -28,13 +28,14 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from qr_llm_evals.accounts import ACCOUNTS_DB_NAME, Accounts
+from qr_llm_evals.accounts import ACCOUNTS_DB_NAME, Accounts, UsageLedger
 from qr_llm_evals.api.deps import AppState, PreregRenderer, TargetUniformDrawer
 from qr_llm_evals.api.errors import install_handlers
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
 from qr_llm_evals.api.registry import OrchestratorFactory, Runnable, RunRegistry, mark_orphans
 from qr_llm_evals.api.routes import ROUTERS
 from qr_llm_evals.api.session_runtime import SessionDispatch, SessionOrchestratorFactory
+from qr_llm_evals.api.usage import UsageRecorder
 from qr_llm_evals.cards.loader import REPO_ROOT, load_cards
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.client.anthropic_judge import AnthropicJudgeClient, JudgeRequest
@@ -195,16 +196,24 @@ def create_app(
         if orchestrator_factory is not None
         else default_orchestrator_factory(settings, the_store, the_cards, repo_root=root)
     )
+    the_registry = RunRegistry()
+    the_ledger = UsageLedger(the_accounts, default_quota=settings.default_token_quota)
+    recorder = UsageRecorder(
+        the_store, the_accounts, the_ledger, the_registry, lambda: datetime.now(UTC)
+    )
+    the_store.usage_hook = recorder.on_row
     state = AppState(
         settings=settings,
         store=the_store,
         verifier=the_verifier,
         accounts=the_accounts,
+        ledger=the_ledger,
+        usage=recorder,
         cards=the_cards,
         catalogue=the_catalogue,
         providers=the_providers,
         orchestrator_factory=factory,
-        registry=RunRegistry(),
+        registry=the_registry,
         sessions=factory.sessions
         if isinstance(factory, SessionOrchestratorFactory)
         else SessionRegistry(),

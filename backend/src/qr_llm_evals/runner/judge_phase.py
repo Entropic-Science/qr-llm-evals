@@ -39,7 +39,7 @@ from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.schema import JudgeSpec, ModelRef, StudyConfig
 from qr_llm_evals.runner.events import EventSink, NullEventSink, RunEvent
 from qr_llm_evals.runner.tasks import LoadedTask
-from qr_llm_evals.store.schema import GenerationRow, JudgeRow
+from qr_llm_evals.store.schema import GenerationRow, JudgeRow, Usage
 from qr_llm_evals.store.store import RunStore
 
 JUDGE_MAX_TOKENS = 1024
@@ -95,12 +95,25 @@ def judge_id_for(card: EvalCard, spec: JudgeSpec) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class JudgeReply:
+    """What a judge call returns: its text and the tokens it cost."""
+
+    text: str
+    usage: Usage
+
+
+def _count(value: object) -> int:
+    """A provider's token count, or 0 when it is missing or not a non-negative int."""
+    return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else 0
+
+
+@dataclass(frozen=True, slots=True)
 class JudgeCall:
     """A judge, resolved: how to call it and what to record."""
 
     judge_id: str
     model: str
-    call: Callable[[str, str], str]  # (system, user) -> text
+    call: Callable[[str, str], JudgeReply]  # (system, user) -> text + usage
 
 
 def _anthropic_call(
@@ -111,10 +124,17 @@ def _anthropic_call(
         raise NeedsKeysError("anthropic")
     client = AnthropicJudgeClient(key, model=spec.model, transport=transport, sleep=False)
 
-    def call(system: str, user: str) -> str:
-        return client.judge(
+    def call(system: str, user: str) -> JudgeReply:
+        resp = client.judge(
             JudgeRequest(system=system, user=user, judge_run_id=run_id, max_tokens=JUDGE_MAX_TOKENS)
-        ).text
+        )
+        return JudgeReply(
+            resp.text,
+            Usage(
+                prompt_tokens=_count(resp.usage.get("input_tokens")),
+                completion_tokens=_count(resp.usage.get("output_tokens")),
+            ),
+        )
 
     return JudgeCall(judge_id=STUDY_JUDGE, model=spec.model, call=call)
 
@@ -154,14 +174,22 @@ def _provider_call(
         target.base_url, api_key=api_key, extra_headers=target.extra_headers, transport=transport
     )
 
-    def call(system: str, user: str) -> str:
+    def call(system: str, user: str) -> JudgeReply:
         body = {
             "model": ref.served_name,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             "temperature": 0.0,
             "max_tokens": JUDGE_MAX_TOKENS,
         }
-        return client.complete(body).text
+        completion = client.complete(body)
+        raw = completion.usage or {}
+        return JudgeReply(
+            completion.text,
+            Usage(
+                prompt_tokens=_count(raw.get("prompt_tokens")),
+                completion_tokens=_count(raw.get("completion_tokens")),
+            ),
+        )
 
     return JudgeCall(judge_id=judge_id_for(card, spec), model=ref.served_name, call=call)
 
@@ -250,8 +278,10 @@ class JudgePhase:
                 sample = sample_for_judge(row, items.get(row.prompt_id))
                 user = task.judge_prompt(sample)
                 score: float | None = None
+                usage = Usage()
                 try:
-                    text = judge.call(system, user)
+                    reply = judge.call(system, user)
+                    text, usage = reply.text, reply.usage
                     score = parse_score(text)
                 except (JudgeError, UpstreamError, httpx.HTTPError) as err:
                     text = f"error: {type(err).__name__}: {err}"
@@ -270,6 +300,7 @@ class JudgePhase:
                             rubric_hash=r_hash,
                             score=score,
                             raw=text,
+                            usage=usage,
                             at=self._clock(),
                         ),
                     )

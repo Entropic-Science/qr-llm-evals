@@ -60,6 +60,7 @@ validation, has the OpenAI-style shape:
 |---|---|---|
 | `QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY` (default 1) active (not `complete`/`aborted`) runs | per launch key, which is also per account (one key links to one account) | `429` + `Retry-After: 60` |
 | Token bucket, 10 burst / 30 per minute sustained | per client IP (`X-Forwarded-For` first hop, else peer) on the open `POST` routes (`/estimates`, later `/prereg/render`, `/sessions/{id}/join`), and separately on `/auth/signup` and `/auth/login` | `429` + `Retry-After` |
+| `QR_EVALS_DEFAULT_TOKEN_QUOTA` (default 2 000 000; `0` = unlimited), or the per-account value an admin set | per account, lifetime, counting prompt + completion tokens of generations on the qr-server engine only | `403` on `POST /runs` when the budget is spent, or when a `full` run's estimate exceeds what is left; `403` on `start` / `resume`; a running run is paused when the budget reaches zero (`quota.exhausted` event) |
 | `QR_EVALS_MAX_INFLIGHT` (default 3) | global in-flight generations | enforced by the runner, not by HTTP |
 
 ## Routes
@@ -72,6 +73,9 @@ validation, has the OpenAI-style shape:
 | POST | `/auth/logout` | session | → `{ok: true}` | Revokes the presented token only. |
 | GET | `/me` | session | → `UserView {user_id, username, key_name, key_fingerprint, key_linked_at, is_admin, created_at}` | |
 | POST | `/me/key` | session | `LinkKeyRequest {api_key}` → `UserView` | Links a different key, verified the same way as at signup. |
+| GET | `/me/usage` | session | → `UsageResponse {quota, totals, by_kind, by_source, by_day, by_run}` | Token totals for the account's runs. `by_kind` splits generation / judge / narrative; `by_source` splits generations by provenance source label; `by_day` is the last 30 UTC days and `by_run` the last 20 runs. Only `charged_tokens` count against `quota`. Runs launched with a bare key are not metered. |
+| GET | `/admin/users` | admin session | → `AdminUsersResponse {default_token_quota, users[]}` | Every account with its totals and quota. Admin is a flag set with the operator CLI. |
+| POST | `/admin/users/{id}` | admin session | `AdminUserUpdate {token_quota?, disabled?, is_admin?}` → `AdminUserView` | Only fields present in the body change. `token_quota: null` returns the account to the default, `0` is unlimited. An admin cannot disable or demote their own account (`409`). |
 | GET | `/cards` | none | → `CardsResponse` | Every registry card with a headline `estimate` on the default `qr-llm` target at catalogue throughput. |
 | GET | `/cards/{id}` | none | → `CardView` | `404` for unknown ids. |
 | GET | `/models` | none | → `ModelsResponse` | Catalogue rows (`pipeline_pinned`, `tps`, `key_slot`) + provider profiles + `default_tps_by_model`. |
@@ -113,6 +117,7 @@ keys.
 | `sample.finished` | `{sample_ref, finish_reason, tokens, tps, provenance}` |
 | `taint` | a `Taint` record |
 | `session.state`, `session.timer`, `observer.presence` | supervised mode |
+| `quota.exhausted` | `{run_id, limit, used}` — the owner's token quota ran out and the run was paused; resuming needs a higher quota |
 | `analysis.progress` | analysis phase |
 | `error` | `{sample_ref?, message, code?}` |
 | `resync` | `{dropped}` — the per-subscriber queue (2 000 events, drop-oldest) overflowed; refetch `GET /runs/{id}` |

@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "UsageResponse.json",
+  "$defs": {
+    "QuotaView": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "Lifetime token budget; 0 = unlimited.",
+          "minimum": 0,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "used": {
+          "minimum": 0,
+          "title": "Used",
+          "type": "integer"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when unlimited.",
+          "title": "Remaining"
+        },
+        "exhausted": {
+          "title": "Exhausted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "limit",
+        "used",
+        "remaining",
+        "exhausted"
+      ],
+      "title": "QuotaView",
+      "type": "object"
+    },
+    "UsageBucketView": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotalsView"
+        }
+      },
+      "required": [
+        "key",
+        "totals"
+      ],
+      "title": "UsageBucketView",
+      "type": "object"
+    },
+    "UsageTotalsView": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "minimum": 0,
+          "title": "Reasoning Tokens",
+          "type": "integer"
+        },
+        "charged_tokens": {
+          "description": "Tokens counted against the quota (qr-server generations only).",
+          "minimum": 0,
+          "title": "Charged Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "prompt_tokens",
+        "completion_tokens",
+        "reasoning_tokens",
+        "charged_tokens"
+      ],
+      "title": "UsageTotalsView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "quota": {
+      "$ref": "#/$defs/QuotaView"
+    },
+    "totals": {
+      "$ref": "#/$defs/UsageTotalsView"
+    },
+    "by_kind": {
+      "description": "generation / judge / narrative.",
+      "items": {
+        "$ref": "#/$defs/UsageBucketView"
+      },
+      "title": "By Kind",
+      "type": "array"
+    },
+    "by_source": {
+      "description": "Generations by provenance source label (quantum vs the PRNG arms).",
+      "items": {
+        "$ref": "#/$defs/UsageBucketView"
+      },
+      "title": "By Source",
+      "type": "array"
+    },
+    "by_day": {
+      "description": "UTC days, newest first (30 at most).",
+      "items": {
+        "$ref": "#/$defs/UsageBucketView"
+      },
+      "title": "By Day",
+      "type": "array"
+    },
+    "by_run": {
+      "description": "Most recent runs first (20 at most).",
+      "items": {
+        "$ref": "#/$defs/UsageBucketView"
+      },
+      "title": "By Run",
+      "type": "array"
+    }
+  },
+  "required": [
+    "quota",
+    "totals",
+    "by_kind",
+    "by_source",
+    "by_day",
+    "by_run"
+  ],
+  "title": "UsageResponse",
+  "type": "object"
+}

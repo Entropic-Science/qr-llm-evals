@@ -1,6 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "JudgeRow.json",
+  "$defs": {
+    "Usage": {
+      "additionalProperties": false,
+      "properties": {
+        "prompt_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reasoning Tokens"
+        }
+      },
+      "title": "Usage",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
   "description": "One line of ``judge/<judge_id>.jsonl``.",
   "properties": {
@@ -41,6 +75,9 @@
       "default": "",
       "title": "Raw",
       "type": "string"
+    },
+    "usage": {
+      "$ref": "#/$defs/Usage"
     },
     "at": {
       "format": "date-time",

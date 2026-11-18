@@ -35,6 +35,9 @@ from pydantic import BaseModel
 from pydantic.json_schema import GenerateJsonSchema, models_json_schema
 
 from qr_llm_evals.api.schema import (
+    AdminUsersResponse,
+    AdminUserUpdate,
+    AdminUserView,
     AnalyseResponse,
     AuthResponse,
     CardsResponse,
@@ -65,6 +68,7 @@ from qr_llm_evals.api.schema import (
     SessionView,
     SignupRequest,
     StudyView,
+    UsageResponse,
     UserView,
     WithdrawRequest,
     WithdrawResponse,
@@ -140,6 +144,10 @@ EXPORTS: tuple[type[BaseModel], ...] = (
     LinkKeyRequest,
     UserView,
     AuthResponse,
+    UsageResponse,
+    AdminUserView,
+    AdminUsersResponse,
+    AdminUserUpdate,
 )
 
 #: Hand-written files that live next to the generated ones and must survive ``--check``.

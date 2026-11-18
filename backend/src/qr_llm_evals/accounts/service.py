@@ -70,6 +70,29 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX sessions_user_id ON sessions(user_id);
         """,
     ),
+    (
+        2,
+        """
+        ALTER TABLE users ADD COLUMN token_quota INTEGER;
+        CREATE TABLE usage_events (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id            TEXT NOT NULL REFERENCES users(user_id),
+            run_id             TEXT NOT NULL,
+            kind               TEXT NOT NULL,
+            arm_id             TEXT,
+            card_id            TEXT,
+            source_label       TEXT,
+            model              TEXT NOT NULL,
+            prompt_tokens      INTEGER NOT NULL,
+            completion_tokens  INTEGER NOT NULL,
+            reasoning_tokens   INTEGER NOT NULL DEFAULT 0,
+            charged            INTEGER NOT NULL DEFAULT 0,
+            at                 TEXT NOT NULL
+        );
+        CREATE INDEX usage_events_user_at ON usage_events(user_id, at);
+        CREATE INDEX usage_events_run ON usage_events(run_id);
+        """,
+    ),
 )
 
 
@@ -116,6 +139,8 @@ class User:
     disabled: bool
     created_at: datetime
     key_linked_at: datetime
+    #: Lifetime token budget; ``None`` = the configured default, ``0`` = unlimited.
+    token_quota: int | None = None
 
     @property
     def quota_id(self) -> str:
@@ -165,6 +190,7 @@ def _user(row: sqlite3.Row) -> User:
         disabled=bool(row["disabled"]),
         created_at=datetime.fromisoformat(row["created_at"]),
         key_linked_at=datetime.fromisoformat(row["key_linked_at"]),
+        token_quota=row["token_quota"],
     )
 
 
@@ -344,6 +370,17 @@ class Accounts:
         with self._tx() as conn:
             conn.execute(
                 "UPDATE users SET is_admin = ? WHERE user_id = ?", (int(is_admin), user_id)
+            )
+        return self.get_user(user_id)
+
+    def set_quota(self, user_id: str, token_quota: int | None) -> User:
+        """Set the lifetime token budget: ``None`` = configured default, ``0`` = unlimited."""
+        if token_quota is not None and token_quota < 0:
+            raise AccountError("token quota cannot be negative")
+        self.get_user(user_id)
+        with self._tx() as conn:
+            conn.execute(
+                "UPDATE users SET token_quota = ? WHERE user_id = ?", (token_quota, user_id)
             )
         return self.get_user(user_id)
 

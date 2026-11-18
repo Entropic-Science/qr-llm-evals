@@ -11,6 +11,8 @@
     The signed-in account.
 ``POST /me/key``
     Link a different key (verified the same way).
+``GET /me/usage``
+    Token totals and the quota for the signed-in account.
 
 Signup and login are rate-limited per client address. Login failures do not
 say whether the username exists.
@@ -41,8 +43,10 @@ from qr_llm_evals.api.schema import (
     LoginRequest,
     LogoutResponse,
     SignupRequest,
+    UsageResponse,
     UserView,
 )
+from qr_llm_evals.api.usage_views import usage_response
 from qr_llm_evals.keys.verify import (
     KeyIdentity,
     KeyRefused,
@@ -146,6 +150,11 @@ async def logout(request: Request, user: CurrentUser, state: State) -> LogoutRes
 @router.get("/me", response_model=UserView)
 async def me(user: CurrentUser) -> UserView:
     return user_view(user)
+
+
+@router.get("/me/usage", response_model=UsageResponse)
+async def my_usage(user: CurrentUser, state: State) -> UsageResponse:
+    return usage_response(state.ledger, user)
 
 
 @router.post("/me/key", response_model=UserView)

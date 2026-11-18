@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Meter token usage per account and enforce a token quota. Every generation,
+  judge call and narrative call of an account's runs is recorded
+  (`GET /api/me/usage`). Generations on the qr-server engine count against a
+  lifetime quota (`QR_EVALS_DEFAULT_TOKEN_QUOTA`, default 2 000 000; `0` =
+  unlimited): a spent budget refuses new launches, and a running run is paused
+  when it reaches zero. Admins see every account and set quotas with
+  `GET /api/admin/users` and `POST /api/admin/users/{id}`, or
+  `python -m qr_llm_evals.accounts.cli set-quota`. Judge rows now carry
+  `usage`.
+
 - Add user accounts. `POST /api/auth/signup` creates an account from a
   username, a password and a working api.entropic.science key; `/auth/login`,
   `/auth/logout`, `GET /me` and `POST /me/key` manage the session and the

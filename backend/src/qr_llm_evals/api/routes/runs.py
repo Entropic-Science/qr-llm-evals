@@ -21,8 +21,17 @@ import secrets as _secrets
 
 from fastapi import APIRouter
 
-from qr_llm_evals.api.deps import AppState, HostRun, LaunchAuth, State, new_host_token, sha256_hex
+from qr_llm_evals.api.deps import (
+    AppState,
+    HostRun,
+    LaunchAuth,
+    Launcher,
+    State,
+    new_host_token,
+    sha256_hex,
+)
 from qr_llm_evals.api.errors import ApiError
+from qr_llm_evals.api.routes.estimates import estimate_study
 from qr_llm_evals.api.schema import (
     LaunchRequest,
     LaunchResponse,
@@ -72,6 +81,54 @@ def _check_quota(state: AppState, quota_id: str) -> None:
         )
 
 
+def _quota_message(used: int, limit: int) -> str:
+    return (
+        f"this account's token quota is used up ({used:,} of {limit:,} qr-server generation "
+        "tokens); ask an admin to raise it"
+    )
+
+
+def _check_token_quota(state: AppState, launcher: Launcher, body: LaunchRequest) -> None:
+    """Refuse a launch the owner's remaining token budget cannot cover.
+
+    Only qr-server arms are charged. A full run is checked against the study
+    estimate; a pilot is much smaller than that estimate, so it only needs a
+    budget that is not already spent. A run that outgrows the budget anyway is
+    paused when it reaches zero (:mod:`qr_llm_evals.api.usage`).
+    """
+    if launcher.owner_id is None:
+        return
+    quota = state.usage.quota_for(launcher.owner_id)
+    if quota is None or quota.unlimited:
+        return
+    if quota.exhausted:
+        raise ApiError(403, _quota_message(quota.used, quota.limit))
+    if body.kind != "full":
+        return
+    by_arm = estimate_study(state, body.config).by_arm
+    needed = sum(
+        by_arm[arm.id].tokens_per_arm
+        for arm in body.config.arms
+        if state.catalogue.is_pinned(arm.model)
+    )
+    remaining = quota.remaining or 0
+    if needed > remaining:
+        raise ApiError(
+            403,
+            f"this study is estimated at {needed:,} qr-server generation tokens but the "
+            f"account has {remaining:,} left of {quota.limit:,}; reduce the study or ask an "
+            "admin to raise the quota",
+        )
+
+
+def _check_owner_can_generate(state: AppState, owner_id: str | None) -> None:
+    if owner_id is None:
+        return
+    quota = state.usage.quota_for(owner_id)
+    if quota is not None and quota.exhausted:
+        raise ApiError(403, _quota_message(quota.used, quota.limit))
+
+
 def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
     cleaned: dict[str, str | None] = {}
     for name, value in provider_keys.items():
@@ -86,6 +143,7 @@ def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
 async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> LaunchResponse:
     _check_cards(state, body.config)
     _check_quota(state, key.quota_id)
+    _check_token_quota(state, key, body)
 
     try:
         prereg_md = state.prereg_renderer(body.config, body.readiness)
@@ -158,6 +216,8 @@ async def get_run(run_id: str, state: State) -> RunView:
 async def control_run(
     run_id: str, body: RunControlRequest, live: HostRun, state: State
 ) -> RunControlResponse:
+    if body.action in ("start", "resume"):
+        _check_owner_can_generate(state, live.read().owner_id)
     try:
         if body.action == "start":
             run = live.start(state.orchestrator_factory)

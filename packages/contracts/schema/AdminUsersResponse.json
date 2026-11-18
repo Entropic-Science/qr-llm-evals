@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AdminUsersResponse.json",
+  "$defs": {
+    "AdminUserView": {
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/UserView"
+        },
+        "disabled": {
+          "title": "Disabled",
+          "type": "boolean"
+        },
+        "token_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-account override; None = the default.",
+          "title": "Token Quota"
+        },
+        "quota": {
+          "$ref": "#/$defs/QuotaView"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotalsView"
+        }
+      },
+      "required": [
+        "user",
+        "disabled",
+        "token_quota",
+        "quota",
+        "totals"
+      ],
+      "title": "AdminUserView",
+      "type": "object"
+    },
+    "QuotaView": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "Lifetime token budget; 0 = unlimited.",
+          "minimum": 0,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "used": {
+          "minimum": 0,
+          "title": "Used",
+          "type": "integer"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when unlimited.",
+          "title": "Remaining"
+        },
+        "exhausted": {
+          "title": "Exhausted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "limit",
+        "used",
+        "remaining",
+        "exhausted"
+      ],
+      "title": "QuotaView",
+      "type": "object"
+    },
+    "UsageTotalsView": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "minimum": 0,
+          "title": "Reasoning Tokens",
+          "type": "integer"
+        },
+        "charged_tokens": {
+          "description": "Tokens counted against the quota (qr-server generations only).",
+          "minimum": 0,
+          "title": "Charged Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "prompt_tokens",
+        "completion_tokens",
+        "reasoning_tokens",
+        "charged_tokens"
+      ],
+      "title": "UsageTotalsView",
+      "type": "object"
+    },
+    "UserView": {
+      "additionalProperties": false,
+      "description": "What the API says about an account. No password hash, no key, no key digest.",
+      "properties": {
+        "user_id": {
+          "title": "User Id",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        },
+        "key_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The linked key's name in the keys file, if known.",
+          "title": "Key Name"
+        },
+        "key_fingerprint": {
+          "description": "First 8 hex of the linked key's SHA-256.",
+          "title": "Key Fingerprint",
+          "type": "string"
+        },
+        "key_linked_at": {
+          "format": "date-time",
+          "title": "Key Linked At",
+          "type": "string"
+        },
+        "is_admin": {
+          "title": "Is Admin",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id",
+        "username",
+        "key_name",
+        "key_fingerprint",
+        "key_linked_at",
+        "is_admin",
+        "created_at"
+      ],
+      "title": "UserView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "default_token_quota": {
+      "minimum": 0,
+      "title": "Default Token Quota",
+      "type": "integer"
+    },
+    "users": {
+      "items": {
+        "$ref": "#/$defs/AdminUserView"
+      },
+      "title": "Users",
+      "type": "array"
+    }
+  },
+  "required": [
+    "default_token_quota",
+    "users"
+  ],
+  "title": "AdminUsersResponse",
+  "type": "object"
+}

@@ -139,6 +139,18 @@
     },
     "AuthResponse": {
       "$ref": "#/$defs/AuthResponse"
+    },
+    "UsageResponse": {
+      "$ref": "#/$defs/UsageResponse"
+    },
+    "AdminUserView": {
+      "$ref": "#/$defs/AdminUserView"
+    },
+    "AdminUsersResponse": {
+      "$ref": "#/$defs/AdminUsersResponse"
+    },
+    "AdminUserUpdate": {
+      "$ref": "#/$defs/AdminUserUpdate"
     }
   },
   "required": [
@@ -186,10 +198,122 @@
     "LoginRequest",
     "LinkKeyRequest",
     "UserView",
-    "AuthResponse"
+    "AuthResponse",
+    "UsageResponse",
+    "AdminUserView",
+    "AdminUsersResponse",
+    "AdminUserUpdate"
   ],
   "additionalProperties": false,
   "$defs": {
+    "AdminUserUpdate": {
+      "additionalProperties": false,
+      "description": "Only the fields present in the body are changed.",
+      "properties": {
+        "token_quota": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "null = back to the default; 0 = unlimited.",
+          "title": "Token Quota"
+        },
+        "disabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Disabled"
+        },
+        "is_admin": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Is Admin"
+        }
+      },
+      "title": "AdminUserUpdate",
+      "type": "object"
+    },
+    "AdminUserView": {
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/UserView"
+        },
+        "disabled": {
+          "title": "Disabled",
+          "type": "boolean"
+        },
+        "token_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Per-account override; None = the default.",
+          "title": "Token Quota"
+        },
+        "quota": {
+          "$ref": "#/$defs/QuotaView"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotalsView"
+        }
+      },
+      "required": [
+        "user",
+        "disabled",
+        "token_quota",
+        "quota",
+        "totals"
+      ],
+      "title": "AdminUserView",
+      "type": "object"
+    },
+    "AdminUsersResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "default_token_quota": {
+          "minimum": 0,
+          "title": "Default Token Quota",
+          "type": "integer"
+        },
+        "users": {
+          "items": {
+            "$ref": "#/$defs/AdminUserView"
+          },
+          "title": "Users",
+          "type": "array"
+        }
+      },
+      "required": [
+        "default_token_quota",
+        "users"
+      ],
+      "title": "AdminUsersResponse",
+      "type": "object"
+    },
     "AnalyseResponse": {
       "additionalProperties": false,
       "properties": {
@@ -1737,6 +1861,9 @@
           "title": "Raw",
           "type": "string"
         },
+        "usage": {
+          "$ref": "#/$defs/Usage"
+        },
         "at": {
           "format": "date-time",
           "title": "At",
@@ -2581,6 +2708,46 @@
         "at"
       ],
       "title": "Questionnaire",
+      "type": "object"
+    },
+    "QuotaView": {
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "description": "Lifetime token budget; 0 = unlimited.",
+          "minimum": 0,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "used": {
+          "minimum": 0,
+          "title": "Used",
+          "type": "integer"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "None when unlimited.",
+          "title": "Remaining"
+        },
+        "exhausted": {
+          "title": "Exhausted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "limit",
+        "used",
+        "remaining",
+        "exhausted"
+      ],
+      "title": "QuotaView",
       "type": "object"
     },
     "ReadinessReport": {
@@ -4400,6 +4567,117 @@
         }
       },
       "title": "Usage",
+      "type": "object"
+    },
+    "UsageBucketView": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotalsView"
+        }
+      },
+      "required": [
+        "key",
+        "totals"
+      ],
+      "title": "UsageBucketView",
+      "type": "object"
+    },
+    "UsageResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "quota": {
+          "$ref": "#/$defs/QuotaView"
+        },
+        "totals": {
+          "$ref": "#/$defs/UsageTotalsView"
+        },
+        "by_kind": {
+          "description": "generation / judge / narrative.",
+          "items": {
+            "$ref": "#/$defs/UsageBucketView"
+          },
+          "title": "By Kind",
+          "type": "array"
+        },
+        "by_source": {
+          "description": "Generations by provenance source label (quantum vs the PRNG arms).",
+          "items": {
+            "$ref": "#/$defs/UsageBucketView"
+          },
+          "title": "By Source",
+          "type": "array"
+        },
+        "by_day": {
+          "description": "UTC days, newest first (30 at most).",
+          "items": {
+            "$ref": "#/$defs/UsageBucketView"
+          },
+          "title": "By Day",
+          "type": "array"
+        },
+        "by_run": {
+          "description": "Most recent runs first (20 at most).",
+          "items": {
+            "$ref": "#/$defs/UsageBucketView"
+          },
+          "title": "By Run",
+          "type": "array"
+        }
+      },
+      "required": [
+        "quota",
+        "totals",
+        "by_kind",
+        "by_source",
+        "by_day",
+        "by_run"
+      ],
+      "title": "UsageResponse",
+      "type": "object"
+    },
+    "UsageTotalsView": {
+      "additionalProperties": false,
+      "properties": {
+        "calls": {
+          "minimum": 0,
+          "title": "Calls",
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 0,
+          "title": "Prompt Tokens",
+          "type": "integer"
+        },
+        "completion_tokens": {
+          "minimum": 0,
+          "title": "Completion Tokens",
+          "type": "integer"
+        },
+        "reasoning_tokens": {
+          "minimum": 0,
+          "title": "Reasoning Tokens",
+          "type": "integer"
+        },
+        "charged_tokens": {
+          "description": "Tokens counted against the quota (qr-server generations only).",
+          "minimum": 0,
+          "title": "Charged Tokens",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "calls",
+        "prompt_tokens",
+        "completion_tokens",
+        "reasoning_tokens",
+        "charged_tokens"
+      ],
+      "title": "UsageTotalsView",
       "type": "object"
     },
     "UserView": {

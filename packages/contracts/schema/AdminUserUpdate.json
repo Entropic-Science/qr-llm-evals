@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AdminUserUpdate.json",
+  "additionalProperties": false,
+  "description": "Only the fields present in the body are changed.",
+  "properties": {
+    "token_quota": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "null = back to the default; 0 = unlimited.",
+      "title": "Token Quota"
+    },
+    "disabled": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Disabled"
+    },
+    "is_admin": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Is Admin"
+    }
+  },
+  "title": "AdminUserUpdate",
+  "type": "object"
+}

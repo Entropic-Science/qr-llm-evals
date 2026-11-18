@@ -53,6 +53,10 @@ export interface Contracts {
   LinkKeyRequest: LinkKeyRequest;
   UserView: UserView;
   AuthResponse: AuthResponse;
+  UsageResponse: UsageResponse;
+  AdminUserView: AdminUserView;
+  AdminUsersResponse: AdminUsersResponse;
+  AdminUserUpdate: AdminUserUpdate;
 }
 /**
  * Everything the prereg freezes. ``config_hash(study)`` is its identity.
@@ -644,6 +648,7 @@ export interface JudgeRow {
   rubric_hash: string;
   score?: number | null;
   raw?: string;
+  usage?: Usage;
   at: string;
 }
 /**
@@ -1300,4 +1305,102 @@ export interface AuthResponse {
    */
   session_token: string;
   expires_at: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "UsageResponse".
+ */
+export interface UsageResponse {
+  quota: QuotaView;
+  totals: UsageTotalsView;
+  /**
+   * generation / judge / narrative.
+   */
+  by_kind: UsageBucketView[];
+  /**
+   * Generations by provenance source label (quantum vs the PRNG arms).
+   */
+  by_source: UsageBucketView[];
+  /**
+   * UTC days, newest first (30 at most).
+   */
+  by_day: UsageBucketView[];
+  /**
+   * Most recent runs first (20 at most).
+   */
+  by_run: UsageBucketView[];
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "QuotaView".
+ */
+export interface QuotaView {
+  /**
+   * Lifetime token budget; 0 = unlimited.
+   */
+  limit: number;
+  used: number;
+  /**
+   * None when unlimited.
+   */
+  remaining: number | null;
+  exhausted: boolean;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "UsageTotalsView".
+ */
+export interface UsageTotalsView {
+  calls: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  reasoning_tokens: number;
+  /**
+   * Tokens counted against the quota (qr-server generations only).
+   */
+  charged_tokens: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "UsageBucketView".
+ */
+export interface UsageBucketView {
+  key: string;
+  totals: UsageTotalsView;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "AdminUserView".
+ */
+export interface AdminUserView {
+  user: UserView;
+  disabled: boolean;
+  /**
+   * Per-account override; None = the default.
+   */
+  token_quota: number | null;
+  quota: QuotaView;
+  totals: UsageTotalsView;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "AdminUsersResponse".
+ */
+export interface AdminUsersResponse {
+  default_token_quota: number;
+  users: AdminUserView[];
+}
+/**
+ * Only the fields present in the body are changed.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "AdminUserUpdate".
+ */
+export interface AdminUserUpdate {
+  /**
+   * null = back to the default; 0 = unlimited.
+   */
+  token_quota?: number | null;
+  disabled?: boolean | null;
+  is_admin?: boolean | null;
 }
