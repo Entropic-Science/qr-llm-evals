@@ -4,7 +4,9 @@
 2. No ``*.jsonl`` outside ``backend/tests/fixtures/`` or ``packages/contracts/fixtures/``.
 3. No Inspect ``*.eval`` logs.
 4. No key files (``api-keys.json``, ``*.env`` other than ``*.env.example``).
-5. No credential-shaped strings in tracked text files.
+5. No credential-shaped strings in tracked text files. Test fixtures that need a
+   key-shaped value build it by concatenation (``"qrk_" + "..."``) so the source
+   never contains the shape.
 """
 
 from __future__ import annotations
