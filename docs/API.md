@@ -17,12 +17,23 @@ and the `/studies/*` results routes are documented as they land.
 
 | Header | Who | Used by |
 |---|---|---|
-| `Authorization: Bearer qrk_…` | Launch key (an api.entropic.science key, verified against the same keys file or by an edge probe — `QR_EVALS_KEY_VERIFY`) | `POST /readiness`, `POST /runs` |
+| `Authorization: Bearer qrs_…` | A signed-in account: the session token returned by `POST /auth/signup` or `POST /auth/login`; the server stores only its SHA-256 | `POST /auth/logout`, `GET /me`, `POST /me/key`, `POST /readiness`, `POST /runs` |
+| `Authorization: Bearer qrk_…` | Bare launch key (an api.entropic.science key, verified against the same keys file or by an edge probe — `QR_EVALS_KEY_VERIFY`). Still accepted until the web app signs users in | `POST /readiness`, `POST /runs` |
 | `X-Host-Token: host_…` | The run's host: the random token returned **once** by `POST /runs`; the record stores only its SHA-256 | `POST /runs/{id}/control`, `POST /runs/{id}/keys` |
-| `X-Observer-Id` | A self-chosen observer id (localStorage; no accounts) | observer routes (supervised mode) |
+| `X-Observer-Id` | A self-chosen observer id (localStorage; no account behind it) | observer routes (supervised mode) |
+
+An account is a username, a password (stored as an scrypt hash) and one linked
+api.entropic.science key. The key is verified when it is linked and then
+dropped: the account keeps its SHA-256, its name in the keys file and an
+8-hex fingerprint, never the key. One key links to one account. In file mode
+the linked key is re-checked by its digest on every launch, so disabling or
+removing a key in the keys file locks its account out of launching (`403`)
+until a working key is linked; in probe mode the key is trusted from the
+moment it was linked. Accounts live in `<QR_EVALS_DATA_DIR>/accounts.sqlite`.
 
 The launch key only gates: it is never stored. `run.key_name` keeps the key's
-name (file mode) or fingerprint (probe mode) for quota accounting. BYO
+name (file mode) or fingerprint (probe mode) for quota accounting, and
+`run.owner_id` the launching account (`null` for a bare-key launch). BYO
 provider/judge keys travel in the launch body, live in the run's in-memory
 `SecretBag`, and surface only as `keys_present: {provider: bool}`.
 
@@ -47,8 +58,8 @@ validation, has the OpenAI-style shape:
 
 | Limit | Scope | Response |
 |---|---|---|
-| `QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY` (default 1) active (not `complete`/`aborted`) runs | per launch key | `429` + `Retry-After: 60` |
-| Token bucket, 10 burst / 30 per minute sustained | per client IP (`X-Forwarded-For` first hop, else peer) on the open `POST` routes (`/estimates`, later `/prereg/render`, `/sessions/{id}/join`) | `429` + `Retry-After` |
+| `QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY` (default 1) active (not `complete`/`aborted`) runs | per launch key, which is also per account (one key links to one account) | `429` + `Retry-After: 60` |
+| Token bucket, 10 burst / 30 per minute sustained | per client IP (`X-Forwarded-For` first hop, else peer) on the open `POST` routes (`/estimates`, later `/prereg/render`, `/sessions/{id}/join`), and separately on `/auth/signup` and `/auth/login` | `429` + `Retry-After` |
 | `QR_EVALS_MAX_INFLIGHT` (default 3) | global in-flight generations | enforced by the runner, not by HTTP |
 
 ## Routes
@@ -56,12 +67,17 @@ validation, has the OpenAI-style shape:
 | Method | Path | Auth | Body → Response | Notes |
 |---|---|---|---|---|
 | GET | `/health` | none | → `HealthResponse` | `status` is `degraded` when the shared engine's `/health` does not answer; `version`, `commit` (`QR_EVALS_COMMIT`), `key_verify`, `active_runs`. |
+| POST | `/auth/signup` | none (IP bucket) | `SignupRequest {username, password, api_key}` → `201 AuthResponse {user, session_token, expires_at}` | Creates the account only if `api_key` verifies. `403 param=api_key` for a refused key or when `QR_EVALS_SIGNUP_ENABLED=0`; `409` for a taken username or a key already linked to an account; `400` for an invalid username (3-32 of `a-z 0-9 . _ -`) or password (10-256 characters). |
+| POST | `/auth/login` | none (IP bucket) | `LoginRequest {username, password}` → `AuthResponse` | `401` with one message for an unknown username and a wrong password; `403` for a disabled account. Each login issues a new token valid for `QR_EVALS_SESSION_TTL_HOURS`. |
+| POST | `/auth/logout` | session | → `{ok: true}` | Revokes the presented token only. |
+| GET | `/me` | session | → `UserView {user_id, username, key_name, key_fingerprint, key_linked_at, is_admin, created_at}` | |
+| POST | `/me/key` | session | `LinkKeyRequest {api_key}` → `UserView` | Links a different key, verified the same way as at signup. |
 | GET | `/cards` | none | → `CardsResponse` | Every registry card with a headline `estimate` on the default `qr-llm` target at catalogue throughput. |
 | GET | `/cards/{id}` | none | → `CardView` | `404` for unknown ids. |
 | GET | `/models` | none | → `ModelsResponse` | Catalogue rows (`pipeline_pinned`, `tps`, `key_slot`) + provider profiles + `default_tps_by_model`. |
 | POST | `/estimates` | none (IP bucket) | `StudyConfig` → `EstimatesResponse` | `by_arm[arm_id]` = `SelectionEstimate`; `totals`; `supervised` (observer hours, sessions, wall-clock incl. breaks) for supervised arms. Unknown card → `400 param=cards`. |
-| POST | `/readiness` | key | `ReadinessRequest {config, run_id?, throughput_probe?}` → `ReadinessReport` | Runs spec §2.7 in a worker thread. Equivalence refusal → `409 readiness_error`; engine unusable → `502`. With `run_id` the report is persisted on the run. |
-| POST | `/runs` | key | `LaunchRequest {config, kind, prereg_hash?, provider_keys?}` → `201 LaunchResponse {run_id, study_id, host_token, join_code, prereg_stale}` | Freezes the study (config + prereg) under `studies/<study_id>/`, creates `runs/<run_id>/`, state `created`. `prereg_stale` is true unless `prereg_hash` equals the hash of the frozen prereg. `429` on quota; `409` if the study id is frozen with a different config. |
+| POST | `/readiness` | session or key | `ReadinessRequest {config, run_id?, throughput_probe?}` → `ReadinessReport` | Runs spec §2.7 in a worker thread. Equivalence refusal → `409 readiness_error`; engine unusable → `502`. With `run_id` the report is persisted on the run. |
+| POST | `/runs` | session or key | `LaunchRequest {config, kind, prereg_hash?, provider_keys?}` → `201 LaunchResponse {run_id, study_id, host_token, join_code, prereg_stale}` | Freezes the study (config + prereg) under `studies/<study_id>/`, creates `runs/<run_id>/`, state `created`. `prereg_stale` is true unless `prereg_hash` equals the hash of the frozen prereg. `429` on quota; `409` if the study id is frozen with a different config. |
 | GET | `/runs/{id}` | none | → `RunView {run, live, control_state, subscribers, readiness}` | `run` is the stored record (secrets structurally impossible; `keys_present` only). |
 | POST | `/runs/{id}/control` | host | `{action: start \| pause \| resume \| abort}` → `RunControlResponse` | `start` (from `created`/`ready`) and `resume` (from `paused`) are the only ways into `running`; nothing auto-starts. `pause` takes effect at the next item boundary. Invalid transition → `409`. `resume` on a `needs_keys` run → `409` until keys are supplied. |
 | POST | `/runs/{id}/keys` | host | `{provider_keys}` → `RunKeysResponse` | Re-supply BYO keys (after a backend restart the run is `needs_keys`); the run becomes `paused` and can be resumed. |

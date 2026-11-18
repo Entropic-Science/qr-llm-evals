@@ -30,6 +30,8 @@ Each row gives **name / required / example / source**.
 | `QR_EVALS_KEYS_FILE` | when `file` (default `/etc/qr-llm-api/api-keys.json`) | `/etc/qr-llm-api/api-keys.json` | qr-llm-api keys file (digests only); must be group-readable by `qr-llm-evals` (`docs/SETUP_GUIDE.md`). |
 | `QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY` | no (default `1`) | `1` | Active runs per launch key; over it ⇒ `429` + `Retry-After`. |
 | `QR_EVALS_MAX_INFLIGHT` | no (default `3`) | `3` | Global in-flight generation cap; keep ≤ engine `--max-num-seqs` minus a reserve for other tenants. |
+| `QR_EVALS_SIGNUP_ENABLED` | no (default `1`) | `1` | Whether `POST /api/auth/signup` accepts new accounts. `0` closes registration; existing users can still log in. |
+| `QR_EVALS_SESSION_TTL_HOURS` | no (default `168`) | `168` | Lifetime of a login session token. Accounts live in `<QR_EVALS_DATA_DIR>/accounts.sqlite`, which cannot be rebuilt: back it up, never delete it. |
 
 ## Generation
 

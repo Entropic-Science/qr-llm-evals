@@ -65,7 +65,7 @@ comparisons and cannot promise the identical pinned local pipeline.
 | D-10 | Script-generated matplotlib SVG figures and JSON tables, not LLM-generated numbers. | [Analysis](#preregistration-and-analysis) |
 | D-11 | SHA-256 of exact UTF-8/LF prereg Markdown; embed canonical JSON config hash. | [Preregistration](#preregistration-and-analysis) |
 | D-12 | Apache-2.0 code, CC BY-SA 4.0 docs/prereg/results prose, CC BY 4.0 raw data. | [Publication](#preregistration-and-analysis) |
-| D-13 | Pseudonymous display name and random observer ID in localStorage; random host token, no accounts. | [Supervision](#supervision) |
+| D-13 | Pseudonymous display name and random observer ID in localStorage; random host token. Observers have no accounts. People who launch runs do (amended November 2026): a username, a password and one linked api.entropic.science key, of which only the SHA-256 is stored. | [Supervision](#supervision) |
 | D-14 | Run-scoped BYO keys only in process memory; restart requires key resupply. | [Secrets](#storage-and-secrets) |
 
 ## Layering

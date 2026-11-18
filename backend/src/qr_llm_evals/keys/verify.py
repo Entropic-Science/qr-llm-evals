@@ -32,7 +32,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 import httpx
 
@@ -197,6 +197,33 @@ class FileKeyVerifier:
     async def averify(self, key: str) -> KeyIdentity:
         return self.verify(key)
 
+    def verify_digest(self, digest: str) -> KeyIdentity:
+        """Re-check a key by its stored SHA-256 (a linked account's key; no plaintext).
+
+        Same answers as :meth:`verify`: a key removed from the file is refused
+        with 401, a disabled one with 403.
+        """
+        presented = digest.strip().lower()
+        found: _Entry | None = None
+        for entry in self._load():
+            if hmac.compare_digest(presented, entry.digest):
+                found = entry
+        if found is None:
+            raise KeyRefused("unknown launch key")
+        if found.disabled:
+            raise KeyRefused("launch key is disabled", status_code=403)
+        return KeyIdentity(key_name=found.name, key_fingerprint=presented[:FINGERPRINT_HEX])
+
+
+@runtime_checkable
+class DigestVerifier(Protocol):
+    """A verifier that can also re-check a key from its digest (file mode only).
+
+    The probe verifier cannot: the edge accepts keys, not digests.
+    """
+
+    def verify_digest(self, digest: str) -> KeyIdentity: ...
+
 
 # ── probe mode ────────────────────────────────────────────────────────────────
 
@@ -289,6 +316,7 @@ __all__ = [
     "FINGERPRINT_HEX",
     "KEY_PREFIX",
     "PROBE_LANE",
+    "DigestVerifier",
     "FileKeyVerifier",
     "KeyIdentity",
     "KeyRefused",

@@ -85,6 +85,10 @@ class Settings(BaseModel):
     max_active_runs_per_key: int = Field(ge=1)
     max_inflight: int = Field(ge=1)
 
+    # ── user accounts ─────────────────────────────────────────────────────
+    signup_enabled: bool = Field(description="Whether POST /auth/signup accepts new accounts.")
+    session_ttl_hours: int = Field(ge=1, description="Lifetime of a login session token.")
+
     # ── generation (spec §2.2 common body) ────────────────────────────────
     priority: int = Field(description="vLLM request priority sent with every generation.")
 
@@ -131,6 +135,8 @@ def load_settings(env: _Env | None = None) -> Settings:
         keys_file=_env_str(e, "QR_EVALS_KEYS_FILE", "/etc/qr-llm-api/api-keys.json"),
         max_active_runs_per_key=_env_int(e, "QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY", 1),
         max_inflight=_env_int(e, "QR_EVALS_MAX_INFLIGHT", 3),
+        signup_enabled=_env_bool(e, "QR_EVALS_SIGNUP_ENABLED", True),
+        session_ttl_hours=_env_int(e, "QR_EVALS_SESSION_TTL_HOURS", 168),
         priority=_env_int(e, "QR_EVALS_PRIORITY", 0),
         data_dir=_env_str(e, "QR_EVALS_DATA_DIR", "/var/lib/qr-llm-evals"),
         token_log_dir=_env_opt(e, "QR_EVALS_TOKEN_LOG_DIR"),

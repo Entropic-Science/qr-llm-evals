@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "UserView.json",
+  "additionalProperties": false,
+  "description": "What the API says about an account. No password hash, no key, no key digest.",
+  "properties": {
+    "user_id": {
+      "title": "User Id",
+      "type": "string"
+    },
+    "username": {
+      "title": "Username",
+      "type": "string"
+    },
+    "key_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The linked key's name in the keys file, if known.",
+      "title": "Key Name"
+    },
+    "key_fingerprint": {
+      "description": "First 8 hex of the linked key's SHA-256.",
+      "title": "Key Fingerprint",
+      "type": "string"
+    },
+    "key_linked_at": {
+      "format": "date-time",
+      "title": "Key Linked At",
+      "type": "string"
+    },
+    "is_admin": {
+      "title": "Is Admin",
+      "type": "boolean"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user_id",
+    "username",
+    "key_name",
+    "key_fingerprint",
+    "key_linked_at",
+    "is_admin",
+    "created_at"
+  ],
+  "title": "UserView",
+  "type": "object"
+}

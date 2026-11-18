@@ -124,6 +124,21 @@
     },
     "WithdrawResponse": {
       "$ref": "#/$defs/WithdrawResponse"
+    },
+    "SignupRequest": {
+      "$ref": "#/$defs/SignupRequest"
+    },
+    "LoginRequest": {
+      "$ref": "#/$defs/LoginRequest"
+    },
+    "LinkKeyRequest": {
+      "$ref": "#/$defs/LinkKeyRequest"
+    },
+    "UserView": {
+      "$ref": "#/$defs/UserView"
+    },
+    "AuthResponse": {
+      "$ref": "#/$defs/AuthResponse"
     }
   },
   "required": [
@@ -166,7 +181,12 @@
     "AnalyseResponse",
     "StudyView",
     "WithdrawRequest",
-    "WithdrawResponse"
+    "WithdrawResponse",
+    "SignupRequest",
+    "LoginRequest",
+    "LinkKeyRequest",
+    "UserView",
+    "AuthResponse"
   ],
   "additionalProperties": false,
   "$defs": {
@@ -362,6 +382,31 @@
         "available"
       ],
       "title": "ArmReadiness",
+      "type": "object"
+    },
+    "AuthResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/UserView"
+        },
+        "session_token": {
+          "description": "Shown once; the server stores only its SHA-256.",
+          "title": "Session Token",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user",
+        "session_token",
+        "expires_at"
+      ],
+      "title": "AuthResponse",
       "type": "object"
     },
     "CardEstimate": {
@@ -1855,6 +1900,45 @@
       "title": "LaunchResponse",
       "type": "object"
     },
+    "LinkKeyRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "api_key": {
+          "maxLength": 256,
+          "minLength": 8,
+          "title": "Api Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "api_key"
+      ],
+      "title": "LinkKeyRequest",
+      "type": "object"
+    },
+    "LoginRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "username": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Username",
+          "type": "string"
+        },
+        "password": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Password",
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password"
+      ],
+      "title": "LoginRequest",
+      "type": "object"
+    },
     "ModelEntryView": {
       "additionalProperties": false,
       "properties": {
@@ -2656,6 +2740,19 @@
           "title": "Key Name",
           "type": "string"
         },
+        "owner_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Account that launched the run; None for a run launched with a bare key.",
+          "title": "Owner Id"
+        },
         "host_token_hash": {
           "pattern": "^[0-9a-f]{64}$",
           "title": "Host Token Hash",
@@ -3336,6 +3433,37 @@
         }
       },
       "title": "SettingsByDisplay",
+      "type": "object"
+    },
+    "SignupRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "username": {
+          "maxLength": 32,
+          "minLength": 3,
+          "title": "Username",
+          "type": "string"
+        },
+        "password": {
+          "maxLength": 256,
+          "minLength": 10,
+          "title": "Password",
+          "type": "string"
+        },
+        "api_key": {
+          "description": "A working api.entropic.science key. Verified once; only its SHA-256 is kept.",
+          "maxLength": 256,
+          "minLength": 8,
+          "title": "Api Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "username",
+        "password",
+        "api_key"
+      ],
+      "title": "SignupRequest",
       "type": "object"
     },
     "StatisticalPlan": {
@@ -4272,6 +4400,62 @@
         }
       },
       "title": "Usage",
+      "type": "object"
+    },
+    "UserView": {
+      "additionalProperties": false,
+      "description": "What the API says about an account. No password hash, no key, no key digest.",
+      "properties": {
+        "user_id": {
+          "title": "User Id",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        },
+        "key_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The linked key's name in the keys file, if known.",
+          "title": "Key Name"
+        },
+        "key_fingerprint": {
+          "description": "First 8 hex of the linked key's SHA-256.",
+          "title": "Key Fingerprint",
+          "type": "string"
+        },
+        "key_linked_at": {
+          "format": "date-time",
+          "title": "Key Linked At",
+          "type": "string"
+        },
+        "is_admin": {
+          "title": "Is Admin",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id",
+        "username",
+        "key_name",
+        "key_fingerprint",
+        "key_linked_at",
+        "is_admin",
+        "created_at"
+      ],
+      "title": "UserView",
       "type": "object"
     },
     "Window": {

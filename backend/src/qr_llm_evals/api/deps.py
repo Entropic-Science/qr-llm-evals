@@ -1,11 +1,17 @@
 """Application state and the FastAPI dependencies (auth gates) — spec §2.4, §4.7, D-13.
 
-Three identities cross the wire, each carried by its own header and checked
-by its own dependency:
+Four identities cross the wire, each checked by its own dependency:
 
-``Authorization: Bearer qrk_…``  → :func:`require_launch_key`
-    The api.entropic.science key gating ``POST /runs`` and ``POST /readiness``.
-    Verified through :class:`~qr_llm_evals.keys.verify.KeyVerifier`; only the
+``Authorization: Bearer qrs_…``  → :func:`require_user`
+    A login session token from ``POST /auth/login`` or ``/auth/signup``. Only
+    its SHA-256 is stored. Gates the account routes.
+``Authorization: Bearer qrs_… | qrk_…``  → :func:`require_launcher`
+    Gates ``POST /runs`` and ``POST /readiness``. A session token launches as
+    that account; the account's linked key is re-checked by digest when the
+    verifier can do that (file mode), so disabling a key locks its account
+    out. A bare ``qrk_`` api.entropic.science key is still accepted until the
+    web app signs users in; it is verified through
+    :class:`~qr_llm_evals.keys.verify.KeyVerifier` and only its
     :class:`~qr_llm_evals.keys.verify.KeyIdentity` (name / fingerprint) is kept.
 ``X-Host-Token``                  → :func:`require_host`
     The random token returned once at launch; the record stores its SHA-256
@@ -31,6 +37,7 @@ from typing import Annotated, Protocol
 import httpx
 from fastapi import Depends, Header, Request
 
+from qr_llm_evals.accounts import SESSION_PREFIX, Accounts, User
 from qr_llm_evals.api.errors import ApiError
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
 from qr_llm_evals.api.registry import LiveRun, OrchestratorFactory, RunRegistry
@@ -38,6 +45,7 @@ from qr_llm_evals.api.session_runtime import restore_sessions
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.config import Settings
 from qr_llm_evals.keys.verify import (
+    DigestVerifier,
     KeyIdentity,
     KeyRefused,
     KeyVerifier,
@@ -87,6 +95,7 @@ class AppState:
     settings: Settings
     store: Store
     verifier: KeyVerifier
+    accounts: Accounts
     cards: dict[str, EvalCard]
     catalogue: ModelCatalogue
     providers: dict[str, ProviderProfile]
@@ -165,6 +174,83 @@ async def require_launch_key(
 LaunchKey = Annotated[KeyIdentity, Depends(require_launch_key)]
 
 
+# ── accounts ──────────────────────────────────────────────────────────────────
+
+_SESSION_CHALLENGE = {"WWW-Authenticate": 'Bearer realm="qr-llm-evals"'}
+
+
+def _session_user(state: AppState, authorization: str | None) -> User:
+    token = parse_bearer(authorization)
+    if token is None:
+        raise ApiError(
+            401, "sign in first: Authorization: Bearer qrs_…", headers=_SESSION_CHALLENGE
+        )
+    user = state.accounts.user_for_session(token)
+    if user is None:
+        raise ApiError(
+            401, "session is invalid or has expired; sign in again", headers=_SESSION_CHALLENGE
+        )
+    return user
+
+
+async def require_user(
+    state: State,
+    authorization: Annotated[str | None, Header()] = None,
+) -> User:
+    return _session_user(state, authorization)
+
+
+CurrentUser = Annotated[User, Depends(require_user)]
+
+
+@dataclass(frozen=True, slots=True)
+class Launcher:
+    """Who may launch: the quota bucket and the account behind it (if any)."""
+
+    quota_id: str
+    owner_id: str | None
+
+
+def recheck_linked_key(state: AppState, user: User) -> str:
+    """The quota bucket for ``user``; raises 403 if their linked key stopped being valid.
+
+    Only a verifier that can look a key up by digest (file mode) re-checks; in
+    probe mode the key was verified when it was linked and is trusted since.
+    """
+    verifier = state.verifier
+    if not isinstance(verifier, DigestVerifier):
+        return user.quota_id
+    try:
+        return verifier.verify_digest(user.key_sha256).quota_id
+    except KeyRefused as err:
+        raise ApiError(
+            403,
+            "the API key linked to this account is no longer valid "
+            f"({err.reason}); link a working key first",
+        ) from err
+    except KeyVerifyUnavailable as err:
+        raise ApiError(
+            503,
+            f"launch keys cannot be verified right now: {err}",
+            headers={"Retry-After": "10"},
+        ) from err
+
+
+async def require_launcher(
+    state: State,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Launcher:
+    token = parse_bearer(authorization)
+    if token is not None and token.startswith(SESSION_PREFIX):
+        user = _session_user(state, authorization)
+        return Launcher(quota_id=recheck_linked_key(state, user), owner_id=user.user_id)
+    identity = await require_launch_key(state, authorization)
+    return Launcher(quota_id=identity.quota_id, owner_id=None)
+
+
+LaunchAuth = Annotated[Launcher, Depends(require_launcher)]
+
+
 # ── host token ────────────────────────────────────────────────────────────────
 
 
@@ -214,8 +300,11 @@ __all__ = [
     "HOST_TOKEN_HEADER",
     "OBSERVER_HEADER",
     "AppState",
+    "CurrentUser",
     "HostRun",
+    "LaunchAuth",
     "LaunchKey",
+    "Launcher",
     "ObserverId",
     "PreregRenderer",
     "State",
@@ -223,9 +312,12 @@ __all__ = [
     "get_state",
     "host_token_matches",
     "new_host_token",
+    "recheck_linked_key",
     "request_headers_without_secrets",
     "require_host",
     "require_launch_key",
+    "require_launcher",
     "require_observer_id",
+    "require_user",
     "sha256_hex",
 ]

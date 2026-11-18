@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Add user accounts. `POST /api/auth/signup` creates an account from a
+  username, a password and a working api.entropic.science key; `/auth/login`,
+  `/auth/logout`, `GET /me` and `POST /me/key` manage the session and the
+  linked key. Only the key's SHA-256, name and fingerprint are stored. A
+  session token can launch runs and run readiness; the run records its
+  `owner_id`. Bare launch keys still work. Operators manage accounts with
+  `python -m qr_llm_evals.accounts.cli`. New settings:
+  `QR_EVALS_SIGNUP_ENABLED`, `QR_EVALS_SESSION_TTL_HOURS`.
+
 - Archive the OpenRouter provider profile. It is no longer a selectable
   provider, a `provider_keys` slot or a `keys_present` entry; the removed
   pieces and the steps to restore them are in `archive/openrouter/RESTORE.md`.

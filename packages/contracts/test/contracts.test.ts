@@ -137,6 +137,11 @@ describe("run-time records", () => {
       "StudyView",
       "WithdrawRequest",
       "WithdrawResponse",
+      "SignupRequest",
+      "LoginRequest",
+      "LinkKeyRequest",
+      "UserView",
+      "AuthResponse",
     ]);
   });
 });
