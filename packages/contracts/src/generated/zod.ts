@@ -45,6 +45,11 @@ import AnalyseResponseJson from "../../schema/AnalyseResponse.json";
 import StudyViewJson from "../../schema/StudyView.json";
 import WithdrawRequestJson from "../../schema/WithdrawRequest.json";
 import WithdrawResponseJson from "../../schema/WithdrawResponse.json";
+import SignupRequestJson from "../../schema/SignupRequest.json";
+import LoginRequestJson from "../../schema/LoginRequest.json";
+import LinkKeyRequestJson from "../../schema/LinkKeyRequest.json";
+import UserViewJson from "../../schema/UserView.json";
+import AuthResponseJson from "../../schema/AuthResponse.json";
 
 type Schema = z.core.JSONSchema.BaseSchema;
 
@@ -88,6 +93,11 @@ export const AnalyseResponseSchema = z.fromJSONSchema(AnalyseResponseJson as unk
 export const StudyViewSchema = z.fromJSONSchema(StudyViewJson as unknown as Schema) as unknown as z.ZodType<T.StudyView>;
 export const WithdrawRequestSchema = z.fromJSONSchema(WithdrawRequestJson as unknown as Schema) as unknown as z.ZodType<T.WithdrawRequest>;
 export const WithdrawResponseSchema = z.fromJSONSchema(WithdrawResponseJson as unknown as Schema) as unknown as z.ZodType<T.WithdrawResponse>;
+export const SignupRequestSchema = z.fromJSONSchema(SignupRequestJson as unknown as Schema) as unknown as z.ZodType<T.SignupRequest>;
+export const LoginRequestSchema = z.fromJSONSchema(LoginRequestJson as unknown as Schema) as unknown as z.ZodType<T.LoginRequest>;
+export const LinkKeyRequestSchema = z.fromJSONSchema(LinkKeyRequestJson as unknown as Schema) as unknown as z.ZodType<T.LinkKeyRequest>;
+export const UserViewSchema = z.fromJSONSchema(UserViewJson as unknown as Schema) as unknown as z.ZodType<T.UserView>;
+export const AuthResponseSchema = z.fromJSONSchema(AuthResponseJson as unknown as Schema) as unknown as z.ZodType<T.AuthResponse>;
 
 /** Every contract name → its zod validator, in registration order. */
 export const schemas = {
@@ -131,6 +141,11 @@ export const schemas = {
   StudyView: StudyViewSchema,
   WithdrawRequest: WithdrawRequestSchema,
   WithdrawResponse: WithdrawResponseSchema,
+  SignupRequest: SignupRequestSchema,
+  LoginRequest: LoginRequestSchema,
+  LinkKeyRequest: LinkKeyRequestSchema,
+  UserView: UserViewSchema,
+  AuthResponse: AuthResponseSchema,
 } as const;
 
 export type ContractName = keyof typeof schemas;

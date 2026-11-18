@@ -20,6 +20,7 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from importlib import metadata
 from pathlib import Path
 
@@ -27,6 +28,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from qr_llm_evals.accounts import ACCOUNTS_DB_NAME, Accounts
 from qr_llm_evals.api.deps import AppState, PreregRenderer, TargetUniformDrawer
 from qr_llm_evals.api.errors import install_handlers
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
@@ -159,6 +161,7 @@ def create_app(
     *,
     store: Store | None = None,
     verifier: KeyVerifier | None = None,
+    accounts: Accounts | None = None,
     cards: Mapping[str, EvalCard] | None = None,
     catalogue: ModelCatalogue | None = None,
     providers: Mapping[str, ProviderProfile] | None = None,
@@ -178,6 +181,14 @@ def create_app(
     the_catalogue = catalogue if catalogue is not None else load_catalogue()
     the_providers = dict(providers) if providers is not None else load_provider_profiles()
     the_verifier = verifier if verifier is not None else build_verifier(settings)
+    the_accounts = (
+        accounts
+        if accounts is not None
+        else Accounts(
+            Path(settings.data_dir) / ACCOUNTS_DB_NAME,
+            session_ttl=timedelta(hours=settings.session_ttl_hours),
+        )
+    )
     root = repo_root if repo_root is not None else REPO_ROOT
     factory = (
         orchestrator_factory
@@ -188,6 +199,7 @@ def create_app(
         settings=settings,
         store=the_store,
         verifier=the_verifier,
+        accounts=the_accounts,
         cards=the_cards,
         catalogue=the_catalogue,
         providers=the_providers,
@@ -260,6 +272,7 @@ def create_app(
                 controller.stop()
             await asyncio.to_thread(state.registry.close_all)
             the_store.close()
+            the_accounts.close()
 
     app = FastAPI(
         title=TITLE,

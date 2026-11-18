@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "AuthResponse.json",
+  "$defs": {
+    "UserView": {
+      "additionalProperties": false,
+      "description": "What the API says about an account. No password hash, no key, no key digest.",
+      "properties": {
+        "user_id": {
+          "title": "User Id",
+          "type": "string"
+        },
+        "username": {
+          "title": "Username",
+          "type": "string"
+        },
+        "key_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The linked key's name in the keys file, if known.",
+          "title": "Key Name"
+        },
+        "key_fingerprint": {
+          "description": "First 8 hex of the linked key's SHA-256.",
+          "title": "Key Fingerprint",
+          "type": "string"
+        },
+        "key_linked_at": {
+          "format": "date-time",
+          "title": "Key Linked At",
+          "type": "string"
+        },
+        "is_admin": {
+          "title": "Is Admin",
+          "type": "boolean"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "user_id",
+        "username",
+        "key_name",
+        "key_fingerprint",
+        "key_linked_at",
+        "is_admin",
+        "created_at"
+      ],
+      "title": "UserView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "user": {
+      "$ref": "#/$defs/UserView"
+    },
+    "session_token": {
+      "description": "Shown once; the server stores only its SHA-256.",
+      "title": "Session Token",
+      "type": "string"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "user",
+    "session_token",
+    "expires_at"
+  ],
+  "title": "AuthResponse",
+  "type": "object"
+}

@@ -33,7 +33,8 @@ scripts/                    check.py (the gate), export_schemas.py, gen_evals_do
 ## Layering (enforced by `backend/tests/test_layering.py`; imports point down only)
 
 ```
-config, client, keys, cards, models   layer 0: no internal imports except config
+config, client, keys, cards, models,  layer 0: no internal imports except config
+accounts
 tier0, store, prereg                  layer 1
 runner, inspect_bridge, supervised    layer 2
 analysis                              layer 2: imports store/cards/tier0 only; analysis.stats is a leaf
@@ -56,7 +57,12 @@ package must be side-effect free (no network, no writes, no downloads).
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge
    keys live in the run's in-memory `SecretBag`, are redacted from every log and
-   error path, and never enter `run.json`. `keys_present` booleans only.
+   error path, and never enter `run.json`. `keys_present` booleans only. An
+   account's linked api.entropic.science key is verified once and dropped:
+   `accounts.sqlite` keeps its SHA-256, name and fingerprint, and session
+   tokens as SHA-256 only. Passwords are scrypt hashes. No plaintext secret is
+   written anywhere, and `accounts.sqlite` (unlike `index.sqlite`) cannot be
+   rebuilt, so it is never deleted.
 4. **Never `rm` paid-for artifacts.** Runs cost QRNG time and GPU time;
    `store.quarantine()` moves, never deletes.
 5. **Figures and statistics come from scripts, never from an LLM.** The

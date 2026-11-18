@@ -48,6 +48,11 @@ export interface Contracts {
   StudyView: StudyView;
   WithdrawRequest: WithdrawRequest;
   WithdrawResponse: WithdrawResponse;
+  SignupRequest: SignupRequest;
+  LoginRequest: LoginRequest;
+  LinkKeyRequest: LinkKeyRequest;
+  UserView: UserView;
+  AuthResponse: AuthResponse;
 }
 /**
  * Everything the prereg freezes. ``config_hash(study)`` is its identity.
@@ -434,6 +439,10 @@ export interface Run {
    * Name of the launch key that gated the run (never the key).
    */
   key_name: string;
+  /**
+   * Account that launched the run; None for a run launched with a bare key.
+   */
+  owner_id?: string | null;
   host_token_hash: string;
   prereg_hash?: string | null;
   config_hash: string;
@@ -1231,4 +1240,64 @@ export interface WithdrawResponse {
   study_id: string;
   run_id: string;
   withdrawn?: true;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SignupRequest".
+ */
+export interface SignupRequest {
+  username: string;
+  password: string;
+  /**
+   * A working api.entropic.science key. Verified once; only its SHA-256 is kept.
+   */
+  api_key: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "LoginRequest".
+ */
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "LinkKeyRequest".
+ */
+export interface LinkKeyRequest {
+  api_key: string;
+}
+/**
+ * What the API says about an account. No password hash, no key, no key digest.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "UserView".
+ */
+export interface UserView {
+  user_id: string;
+  username: string;
+  /**
+   * The linked key's name in the keys file, if known.
+   */
+  key_name: string | null;
+  /**
+   * First 8 hex of the linked key's SHA-256.
+   */
+  key_fingerprint: string;
+  key_linked_at: string;
+  is_admin: boolean;
+  created_at: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "AuthResponse".
+ */
+export interface AuthResponse {
+  user: UserView;
+  /**
+   * Shown once; the server stores only its SHA-256.
+   */
+  session_token: string;
+  expires_at: string;
 }

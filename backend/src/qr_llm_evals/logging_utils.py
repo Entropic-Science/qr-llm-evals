@@ -63,6 +63,7 @@ _RESERVED: frozenset[str] = frozenset(
 #: Token shapes redacted even when the value was never registered.
 _SHAPE_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bqrk_[A-Za-z0-9_\-]{8,}"),
+    re.compile(r"\bqrs_[A-Za-z0-9_\-]{8,}"),
     re.compile(r"\bsk-ant-[A-Za-z0-9_\-]{8,}"),
     re.compile(r"\bsk-or-[A-Za-z0-9_\-]{8,}"),
     re.compile(r"\bsk-[A-Za-z0-9_\-]{16,}"),

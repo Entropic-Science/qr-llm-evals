@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from qr_llm_evals.api.routes import (
     analysis,
+    auth,
     cards,
     estimates,
     events,
@@ -21,6 +22,7 @@ from qr_llm_evals.api.routes import (
 #: Mount order (also the order in the OpenAPI document).
 ROUTERS: tuple[APIRouter, ...] = (
     health.router,
+    auth.router,
     cards.router,
     models.router,
     estimates.router,

@@ -205,6 +205,10 @@ class Run(_Record):
     state: RunState = "created"
     created_at: AwareDatetime
     key_name: str = Field(description="Name of the launch key that gated the run (never the key).")
+    owner_id: str | None = Field(
+        default=None,
+        description="Account that launched the run; None for a run launched with a bare key.",
+    )
     host_token_hash: Sha256Hex
     prereg_hash: Sha256Hex | None = None
     config_hash: Sha256Hex

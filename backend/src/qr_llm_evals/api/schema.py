@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from qr_llm_evals.cards.estimates import SelectionEstimate
 from qr_llm_evals.cards.schema import EvalCard
@@ -324,7 +324,57 @@ def as_json(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")
 
 
+# ── accounts: /auth/*, /me ────────────────────────────────────────────────────
+
+
+class SignupRequest(_Strict):
+    username: str = Field(min_length=3, max_length=32)
+    password: str = Field(min_length=10, max_length=256)
+    api_key: str = Field(
+        min_length=8,
+        max_length=256,
+        description="A working api.entropic.science key. Verified once; only its SHA-256 is kept.",
+    )
+
+
+class LoginRequest(_Strict):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+
+
+class LinkKeyRequest(_Strict):
+    api_key: str = Field(min_length=8, max_length=256)
+
+
+class UserView(_Strict):
+    """What the API says about an account. No password hash, no key, no key digest."""
+
+    user_id: str
+    username: str
+    key_name: str | None = Field(description="The linked key's name in the keys file, if known.")
+    key_fingerprint: str = Field(description="First 8 hex of the linked key's SHA-256.")
+    key_linked_at: AwareDatetime
+    is_admin: bool
+    created_at: AwareDatetime
+
+
+class AuthResponse(_Strict):
+    user: UserView
+    session_token: str = Field(description="Shown once; the server stores only its SHA-256.")
+    expires_at: AwareDatetime
+
+
+class LogoutResponse(_Strict):
+    ok: bool = True
+
+
 __all__ = [
+    "AuthResponse",
+    "LinkKeyRequest",
+    "LoginRequest",
+    "LogoutResponse",
+    "SignupRequest",
+    "UserView",
     "CardEstimateSummary",
     "CardView",
     "CardsResponse",

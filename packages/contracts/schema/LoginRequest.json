@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "LoginRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "username": {
+      "maxLength": 64,
+      "minLength": 1,
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Password",
+      "type": "string"
+    }
+  },
+  "required": [
+    "username",
+    "password"
+  ],
+  "title": "LoginRequest",
+  "type": "object"
+}

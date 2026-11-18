@@ -1,6 +1,6 @@
 """Run lifecycle routes (spec §2.4, §4.7, D-13, D-14).
 
-``POST /runs`` (launch key)
+``POST /runs`` (session or launch key)
     Quota check → freeze the study (config + prereg) → create the run record
     with the host token's hash → put the BYO keys into the run's ``SecretBag``.
     Returns the host token exactly once.
@@ -21,7 +21,7 @@ import secrets as _secrets
 
 from fastapi import APIRouter
 
-from qr_llm_evals.api.deps import AppState, HostRun, LaunchKey, State, new_host_token, sha256_hex
+from qr_llm_evals.api.deps import AppState, HostRun, LaunchAuth, State, new_host_token, sha256_hex
 from qr_llm_evals.api.errors import ApiError
 from qr_llm_evals.api.schema import (
     LaunchRequest,
@@ -83,7 +83,7 @@ def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
 
 
 @router.post("/runs", response_model=LaunchResponse, status_code=201)
-async def launch_run(body: LaunchRequest, state: State, key: LaunchKey) -> LaunchResponse:
+async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> LaunchResponse:
     _check_cards(state, body.config)
     _check_quota(state, key.quota_id)
 
@@ -110,6 +110,7 @@ async def launch_run(body: LaunchRequest, state: State, key: LaunchKey) -> Launc
         state="created",
         created_at=state.clock(),
         key_name=key.quota_id,
+        owner_id=key.owner_id,
         host_token_hash=sha256_hex(host_token),
         prereg_hash=frozen_hash,
         config_hash=config_hash(body.config),
@@ -126,6 +127,7 @@ async def launch_run(body: LaunchRequest, state: State, key: LaunchKey) -> Launc
             "study_id": run.study_id,
             "kind": run.kind,
             "key_name": run.key_name,
+            "owner_id": run.owner_id,
             "keys_present": run.keys_present,
             "prereg_stale": prereg_stale,
         },

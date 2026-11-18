@@ -25,7 +25,7 @@ from pathlib import Path
 PACKAGE = "qr_llm_evals"
 SRC = Path(__file__).resolve().parents[1] / "src" / PACKAGE
 
-LAYER0: frozenset[str] = frozenset({"client", "keys", "cards", "models"})
+LAYER0: frozenset[str] = frozenset({"client", "keys", "cards", "models", "accounts"})
 LAYER1: frozenset[str] = frozenset({"tier0", "store", "prereg"})
 
 #: subpackage -> internal subpackages it may import (``config`` is always allowed).

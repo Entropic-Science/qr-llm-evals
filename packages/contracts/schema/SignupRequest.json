@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SignupRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "username": {
+      "maxLength": 32,
+      "minLength": 3,
+      "title": "Username",
+      "type": "string"
+    },
+    "password": {
+      "maxLength": 256,
+      "minLength": 10,
+      "title": "Password",
+      "type": "string"
+    },
+    "api_key": {
+      "description": "A working api.entropic.science key. Verified once; only its SHA-256 is kept.",
+      "maxLength": 256,
+      "minLength": 8,
+      "title": "Api Key",
+      "type": "string"
+    }
+  },
+  "required": [
+    "username",
+    "password",
+    "api_key"
+  ],
+  "title": "SignupRequest",
+  "type": "object"
+}
