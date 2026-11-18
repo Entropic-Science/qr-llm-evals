@@ -166,7 +166,7 @@ def test_study1_report_all_green(tmp_path: Path) -> None:
     # the stub is a pure function of qr_seed ⇒ identical solo and under-load replays
     assert report.determinism_tier == "load_invariant"
     assert report.tier0_source == "engine_log"
-    assert report.epsilon_supported  # stub allowlists qr_bias_epsilon
+    assert report.epsilon_supported  # stub allowlists the per-request qr_population_mean
     assert report.measured_tps is None  # throughput probe is opt-in
 
     refs = _refs(engine)
@@ -307,7 +307,12 @@ def test_non_equivalent_arms_refused_with_clear_message(tmp_path: Path) -> None:
 
 
 def test_equivalence_keys_are_exactly_the_entropy_keys() -> None:
-    assert {"qr_entropy_source_type", "qr_seed", "qr_bias_epsilon"} == EQUIVALENCE_KEYS
+    assert {
+        "qr_entropy_source_type",
+        "qr_seed",
+        "qr_bias_epsilon",
+        "qr_population_mean",
+    } == EQUIVALENCE_KEYS
 
 
 def test_greedy_sanity_arm_does_not_break_equivalence() -> None:
@@ -492,17 +497,17 @@ def test_tier0_source_engine_log_when_file_appears_late(tmp_path: Path) -> None:
     assert report.tier0_source == "engine_log"
 
 
-def test_epsilon_arm_unavailable_when_dep2_missing() -> None:
-    """Study with an ε arm on an engine without qr_bias_epsilon: the arm is listed, unavailable."""
+def test_epsilon_arm_unavailable_when_the_bend_is_refused() -> None:
+    """ε arm on an engine that refuses qr_population_mean: the arm is listed, unavailable."""
     engine = StubEngine(
-        n_tokens=8, allowed_qr_keys=frozenset(ALLOWED_QR_KEYS - {"qr_bias_epsilon"})
+        n_tokens=8, allowed_qr_keys=frozenset(ALLOWED_QR_KEYS - {"qr_population_mean"})
     )
     report = _run(_study([QRNG, SEED7, EPS]), engine)
     assert not report.epsilon_supported
     eps = report.arms["prng_eps"]
     assert not eps.available
-    assert eps.reason is not None and "DEP-2" in eps.reason
-    assert eps.resolved_qr_args["qr_bias_epsilon"] == 0.01
+    assert eps.reason is not None and "qr_population_mean" in eps.reason
+    assert eps.resolved_qr_args["qr_population_mean"] == pytest.approx(127.5 - 0.01 * 0.7361215932)
     assert report.equivalence_ok  # ε is an allowed difference
     assert report.arms["qrng"].available and report.arms["prng_seed_7"].available
 

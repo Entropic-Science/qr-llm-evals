@@ -11,7 +11,9 @@ Rules:
 2. ``k ≥ 10`` (a per-prompt statistic needs k samples); ``k`` may be null only
    when the card generates nothing from the target (Tier 0 / derived / judge-only,
    i.e. ``est_tokens_per_sample == 0``). ``k_bounds`` must bracket ``k`` and
-   its floor must be ≥ 10.
+   its floor must be ≥ 10. Exception: a ``derived:`` card whose items are other
+   cards' completions (guessing cards) may use ``k ≥ 1``, because its unit is
+   the judged completion, not the prompt; more completions beat more guesses.
 3. An LLM judge is fixed at temperature 0 and is a different model from the
    target; every non-``none`` judge names a model.
 4. ``dataset.revision`` is pinned for ``hf:``/``git:`` sources once the card is
@@ -36,6 +38,8 @@ from qr_llm_evals.cards.loader import REPO_ROOT, CardLoadError, load_card, load_
 from qr_llm_evals.cards.schema import REVISION_REQUIRED_SCHEMES, EvalCard
 
 MIN_K = 10
+#: Derived cards judge other cards' completions; the completion is the unit (rule 2).
+MIN_K_DERIVED = 1
 INSPECT_TASK_RE = re.compile(r"^[a-z0-9_]+/[a-z0-9_]+$")
 
 
@@ -56,12 +60,13 @@ def _check_k(card: EvalCard, out: list[str]) -> None:
         if card.k_bounds is not None:
             out.append("k_bounds: must be null when k is null")
         return
-    if card.k < MIN_K:
-        out.append(f"k: must be ≥ {MIN_K} for a per-prompt statistic (got {card.k})")
+    min_k = MIN_K_DERIVED if card.dataset.scheme == "derived" else MIN_K
+    if card.k < min_k:
+        out.append(f"k: must be ≥ {min_k} for a per-prompt statistic (got {card.k})")
     if card.k_bounds is not None:
         lo, hi = card.k_bounds
-        if lo < MIN_K:
-            out.append(f"k_bounds: floor must be ≥ {MIN_K} (got {lo})")
+        if lo < min_k:
+            out.append(f"k_bounds: floor must be ≥ {min_k} (got {lo})")
         if lo > hi:
             out.append(f"k_bounds: lo must be ≤ hi (got [{lo}, {hi}])")
         if not lo <= card.k <= hi:

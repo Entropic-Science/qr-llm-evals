@@ -44,12 +44,15 @@ ALLOWED_QR_KEYS: frozenset[str] = frozenset(
         "qr_seed",
         "qr_bypass",
         "qr_bias_epsilon",
+        "qr_population_mean",
+        "qr_population_std",
         "qr_signal_amplifier_type",
         "qr_zscore_calibration_samples",
         "qr_entropy_prefetch",
         "qr_top_p",
         "qr_min_p_base",
         "qr_fixed_temperature",
+        "qr_temperature_strategy",
         "qr_token_log",
     }
 )

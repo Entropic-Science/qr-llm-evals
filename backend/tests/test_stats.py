@@ -368,6 +368,31 @@ def test_mmd_permutation_keeps_within_prompt_counts() -> None:
     assert np.all(perm[:, :4].sum(axis=1) == 2) and np.all(perm[:, 4:].sum(axis=1) == 3)
 
 
+def test_mmd_drops_prompts_without_two_samples_per_arm() -> None:
+    """Prompts asked once per arm (derived cards with k = 1) do not move the statistic."""
+    rng = np.random.default_rng(11)
+    a, pa = _sample_arm(rng, n_prompts=6, per_prompt=6, length=10, shift=0.0)
+    b, pb = _sample_arm(rng, n_prompts=6, per_prompt=6, length=10, shift=0.0)
+    base = mmd.mmd_hamming_permutation_test(a, b, pa, pb, n_permutations=200, seed=0)
+    # 40 one-off prompts with identical short answers on both arms, as source guesses are.
+    once = mmd.pad_sequences([[5]] * 40)
+    width = a.shape[1]
+    once = np.pad(once, ((0, 0), (0, width - once.shape[1])), constant_values=mmd.PAD_TOKEN)
+    ids = np.arange(100, 140)
+    mixed = mmd.mmd_hamming_permutation_test(
+        np.vstack([a, once]),
+        np.vstack([b, once]),
+        np.concatenate([pa, ids]),
+        np.concatenate([pb, ids]),
+        n_permutations=200,
+        seed=0,
+    )
+    assert mixed["n_prompts_dropped"] == 40 and base["n_prompts_dropped"] == 0
+    assert mixed["statistic"] == pytest.approx(base["statistic"])
+    assert mixed["p_value"] == base["p_value"]
+    assert mixed["n_prompts"] == 6 and mixed["n_a"] == 36 and mixed["n_b"] == 36
+
+
 def test_mmd_input_validation() -> None:
     a = mmd.pad_sequences([[1, 2], [1, 3], [2, 2], [3, 3]])
     with pytest.raises(ValueError):  # one sample per arm per prompt -> no within-arm pairs

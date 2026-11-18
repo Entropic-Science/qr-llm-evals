@@ -9,19 +9,22 @@ Two acquisition paths, one builder:
   token_prob, num_candidates, shannon_entropy, temperature_used, min_p_used,
   entropy_source_used, entropy_is_fallback, …``) plus ``token_index``,
   ``cdf_lo`` (F(t−1)), ``cdf_hi`` (F(t)) and ``top_entries``
-  (post-truncation top-20 ``[token_id, prob]``). Everything the record can
-  carry is present.
+  (post-truncation top candidates ``[token_id, prob]``). Everything the record
+  can carry is present, including the exact ``u`` and CDF bracket of every
+  token whatever its rank, so no top-k depth limits the engine path.
 * ``api_logprobs`` — degraded: only vLLM ``logprobs`` / ``top_logprobs`` from
   the chat-completions stream (:class:`~qr_llm_evals.client.sse.TokenLogprob`
   or its ``as_record()`` dict). Gives ``token_id`` (real only under
   ``--return-tokens-as-token-ids``, otherwise a stable text hash), the raw
-  ``logprob``, ``rank_raw`` within the returned top-k and the truncated
-  ``entropy_raw_top20``. ``u`` / ``cdf_*`` / ``p_post`` / ``entropy_post`` are
+  ``logprob``, ``rank_raw`` within the returned top-k (k = the configured
+  ``top_logprobs`` depth, ``QR_EVALS_TOP_LOGPROBS``; 20 by default, not a hard
+  limit) and the truncated ``entropy_raw_top20``. ``u`` / ``cdf_*`` / ``p_post`` / ``entropy_post`` are
   **absent** — never approximated — so T0-a and T4-l report *unavailable*.
 
 ``entropy_raw_top20`` is derived on both paths from the API's top-k and is a
 **truncated** entropy (the mass outside the returned top-k is ignored); tables
-must label it as such (:data:`ENTROPY_RAW_TOP20_LABEL`).
+must label it as such (:data:`ENTROPY_RAW_TOP20_LABEL`). The field keeps its
+historical name for contract stability; it holds the configured top-k.
 """
 
 from __future__ import annotations
@@ -37,7 +40,9 @@ from qr_llm_evals.tier0.records import entropy_nats, token_id_from_api_token
 from qr_llm_evals.tier0.schema import Tier0Record, TopEntry, Window
 
 #: How every table must label the API-derived entropy column.
-ENTROPY_RAW_TOP20_LABEL = "entropy of the raw top-20 mass (truncated; mass outside top-k ignored)"
+ENTROPY_RAW_TOP20_LABEL = (
+    "entropy of the raw returned top-k mass (truncated; mass outside the returned top-k ignored)"
+)
 
 #: Engine-log fields the builder needs beyond the API (DEP-1). Missing ⇒ the
 #: line is not a DEP-1 record and :func:`parse_engine_log` refuses it.

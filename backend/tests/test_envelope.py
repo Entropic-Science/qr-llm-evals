@@ -19,11 +19,13 @@ from qr_llm_evals.models.envelope import (
     EQUIVALENCE_KEYS,
     GREEDY_QRNG_REASON,
     REFUSED_QR_KEYS,
+    SAMPLE_MEAN_SE,
     SAMPLING_TABLE,
     SOURCE_TYPES,
     TOP_LOGPROBS,
     EnvelopeError,
     SampleContext,
+    bent_population_mean,
     build_envelope,
     build_request_body,
     envelope_hash,
@@ -125,6 +127,8 @@ def test_refused_keys_mirror_qr_llm_research_and_owned_keys() -> None:
         "qr_seed",
         "qr_bypass",
         "qr_bias_epsilon",
+        "qr_population_mean",
+        "qr_population_std",
         "qr_diagnostic_mode",
         "qr_sample_count",
     } <= REFUSED_QR_KEYS
@@ -202,12 +206,14 @@ def test_system_prng_row() -> None:
     assert "qr_seed" not in env
 
 
-def test_epsilon_row_adds_proposed_key_only() -> None:
+def test_epsilon_row_bends_the_reference_mean_only() -> None:
     eps = _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03)
     seeded = STUDY1_ARMS["prng_seed_1"]
     e_env, s_env = build_envelope(eps, CTX), build_envelope(seeded, CTX)
-    assert e_env.pop("qr_bias_epsilon") == 0.03
+    # u' = Φ(z + ε): the reference mean drops by ε standard errors of the byte mean
+    assert e_env.pop("qr_population_mean") == pytest.approx(127.5 - 0.03 * 73.61215932167728 / 100)
     assert e_env == s_env
+    assert bent_population_mean(0.5) == pytest.approx(127.5 - 0.5 * SAMPLE_MEAN_SE)
 
 
 def test_greedy_is_bypass_not_fixed_temperature() -> None:

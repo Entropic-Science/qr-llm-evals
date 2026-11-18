@@ -50,9 +50,11 @@ from qr_llm_evals.client.profiles import ProviderTarget, target_for
 from qr_llm_evals.client.sse import ChatChunk
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.envelope import (
+    TOP_LOGPROBS,
     SampleContext,
     build_envelope,
     build_request_body,
+    check_top_logprobs,
     request_seed,
 )
 from qr_llm_evals.models.provenance import provenance_fields
@@ -114,6 +116,8 @@ class RunnerConfig:
     token_log_dir: str | None = None
     determinism_tier: str = "none"
     repo_root: Path | None = None
+    #: Per-token ``top_logprobs`` depth (``Settings.top_logprobs``); not a hard 20.
+    top_logprobs: int = TOP_LOGPROBS
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +233,21 @@ class _DeltaCoalescer:
         self._thinking.clear()
         self._last = now if now is not None else self._perf()
         self._emit(RunEvent("sample.delta", data))
+
+
+def _qr_overrides(card: EvalCard, item: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Card-level ``task_args.qr_overrides`` merged with an item's own ``qr_overrides``.
+
+    An item may set sampling knobs for itself (the thesis's guesser warm-up asks for
+    temperature 0.5 and 1.5 replies within one card). Both pass through
+    :func:`~qr_llm_evals.models.envelope.validate_overrides`, so neither can touch the
+    source, seed, amplifier or any key the harness owns.
+    """
+    merged = {
+        **dict(card.task_args.get("qr_overrides") or {}),
+        **dict(item.get("qr_overrides") or {}),
+    }
+    return merged or None
 
 
 class Orchestrator:
@@ -426,6 +445,27 @@ class Orchestrator:
 
     # ── the run ───────────────────────────────────────────────────────────
 
+    def _record_request_settings(self) -> None:
+        """Write ``request_settings.json`` once; a resume keeps the first snapshot.
+
+        The analysis reads ``top_logprobs`` from it to label API-logprob endpoints
+        and to report how many sampled tokens fell inside the returned top-k.
+        """
+        depth = check_top_logprobs(self.config.top_logprobs)
+        current = {"schema_version": 1, "top_logprobs": depth}
+        with self._store_lock:
+            existing = self.store.read_request_settings()
+            if existing is None:
+                self.store.write_request_settings(current)
+            elif existing.get("top_logprobs") != depth:
+                logger.warning(
+                    "run %s resumed with top_logprobs=%s but generated with %s; "
+                    "request_settings.json keeps the original depth",
+                    self.store.run_id,
+                    depth,
+                    existing.get("top_logprobs"),
+                )
+
     def run_generation(self) -> Run:
         """Generate every pending sample of every available arm; returns the updated run."""
         if not self.control.started:
@@ -434,6 +474,7 @@ class Orchestrator:
         cards = self.thin_cards()
         base_cards = [card for card in cards if card.dataset.scheme != "derived"]
         derived_cards = [card for card in cards if card.dataset.scheme == "derived"]
+        self._record_request_settings()
         self._set_state("running")
         if not self.control.wait_while_paused():
             return self._finish_generation()
@@ -676,7 +717,7 @@ class Orchestrator:
         window, session_id = tags
         client = self._client_for(model)
         messages = job.task.build_messages(job.item, job.told)
-        qr_overrides = card.task_args.get("qr_overrides") if model.provider == "qr_server" else None
+        qr_overrides = _qr_overrides(card, job.item) if model.provider == "qr_server" else None
         profile = profile_for(model.provider) if model.provider != "qr_server" else None
         body = build_request_body(
             arm,
@@ -686,6 +727,7 @@ class Orchestrator:
             priority=self.config.priority,
             overrides=qr_overrides,
             profile=profile,
+            top_logprobs=self.config.top_logprobs,
         )
         envelope: Mapping[str, Any] = (
             build_envelope(arm, ctx, qr_overrides) if model.provider == "qr_server" else {}

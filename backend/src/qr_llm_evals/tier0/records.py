@@ -104,6 +104,34 @@ def group_by_sample(records: Iterable[Tier0Record]) -> dict[str, list[Tier0Recor
     return out
 
 
+#: The told cell kept by :func:`independent_streams` (present on every told/actual card).
+INDEPENDENT_TOLD_CELL = "told_nothing"
+
+
+def independent_streams(records: Iterable[Tier0Record]) -> list[Tier0Record]:
+    """Drop the told/actual duplicates that share one seeded entropy stream.
+
+    The three told cells of one ``(card, prompt, epoch)`` share a ``qr_seed``:
+    the told note is not in the pairing key (``models/seeds.py``), by design, so
+    the told contrast runs on common random numbers. On a seeded arm their
+    ``u``-streams are therefore identical, and their tokens and PIT residuals are
+    dependent, which makes stream-level tests that treat tokens or samples as
+    independent anti-conservative. Those tests keep records without a told cell
+    plus the ``told_nothing`` cell, on every arm alike so arms stay comparable.
+    Input order is preserved.
+    """
+    keep: dict[str, bool] = {}
+    out: list[Tier0Record] = []
+    for rec in records:
+        ok = keep.get(rec.sample_ref)
+        if ok is None:
+            told = parse_sample_ref(rec.sample_ref).told_condition
+            ok = keep[rec.sample_ref] = told is None or told == INDEPENDENT_TOLD_CELL
+        if ok:
+            out.append(rec)
+    return out
+
+
 def token_sequences(records: Iterable[Tier0Record]) -> dict[str, list[int]]:
     """``sample_ref -> [token_id, …]`` in generation order."""
     return {ref: [r.token_id for r in seq] for ref, seq in group_by_sample(records).items()}
@@ -136,10 +164,12 @@ def records_to_rows(records: Iterable[Tier0Record]) -> list[dict[str, Any]]:
 
 
 __all__ = [
+    "INDEPENDENT_TOLD_CELL",
     "TOKEN_ID_PREFIX",
     "SampleRefParts",
     "entropy_nats",
     "group_by_sample",
+    "independent_streams",
     "parse_sample_ref",
     "prompt_key",
     "read_tier0_jsonl",

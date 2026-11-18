@@ -36,6 +36,7 @@ Each row gives **name / required / example / source**.
 | Variable | Required | Example | Source / notes |
 |---|---|---|---|
 | `QR_EVALS_PRIORITY` | no (default `0`) | `0` | vLLM `priority` sent with every generation (priority scheduling on the shared engine; lower = sooner). |
+| `QR_EVALS_TOP_LOGPROBS` | no (default `20`) | `100` | Per-token `top_logprobs` depth requested from the shared engine (0–1000). Not a fixed 20: raise it together with the engine's `--max-logprobs` (vLLM rejects a larger request with `400`), so the API-logprob Tier 0 path sees deeper into each token's distribution. Readiness probes use the same depth; each run records it in `runs/<run_id>/request_settings.json`. |
 
 ## Storage and Tier 0
 

@@ -6,6 +6,85 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Revise the "Prompt or Physics?" thesis study after review. The sampler check
+  (H0) now asks whether the quantum arm is fair *within a fixed tolerance*
+  (KS distance of `u` from uniform below 0.005 with a one-sided DKW bound) instead
+  of exact uniformity, which any harmless flaw failed at 1.7M tokens; a passing
+  null result is no longer discarded when the sampler is slightly off. New: a
+  first-word test (H4: "Yes"-first rate on "Are you conscious?" against the
+  model's own odds, adjusted for device-wide unfairness), bent-number arms as a
+  positive control for the claim measure (C1), a guesser warm-up on temperature
+  0.5 vs 1.5 replies (C2, the original plan's control restored), a fixed 5-point
+  equivalence margin (the pilot no longer sets it), seed pairs as a sanity check
+  instead of a bar, base-prompt clustering (the 30 prompt variants are 10
+  prompts at three depths), every told-nothing reply guessed (1,800, once per
+  guessing arm) instead of 600 guessed 40 times, an all-replies analysis next to
+  the clean one, a pilot check on ordinary numbers only
+  (`thesis_report.py pilot-check` replaces `pilot-margins`), and
+  `scripts/thesis_device_check.py` / `scripts/thesis_first_word_tokens.py`.
+- Realise biased (ε) arms by lowering the z-score amplifier's reference mean
+  (`qr_population_mean`, a per-request field the engine accepts) instead of the
+  never-deployed `qr_bias_epsilon` (DEP-2): every `u` becomes `Φ(z + ε)`.
+  `qr_population_mean`/`qr_population_std` join the refused override keys and
+  `qr_population_mean` the equivalence keys; readiness probes the bend; ε 0.50
+  joins the grid.
+- Items may carry their own `qr_overrides` (merged over the card's, validated the
+  same way). Derived guessing cards may use `k ≥ 1`. `load_data` can keep tainted
+  samples (`include_tainted`). The source-guessing chance test accepts any two
+  labels. New cards `guesser_warmup_replies` and `guesser_warmup`.
+- Cut the analysis's peak memory. The MMD permutation test no longer builds the
+  full N×N Hamming kernel (about 5 GB for the thesis dry run): it sums per-prompt
+  blocks (`_mmd_blockwise`, identical statistic to within 1e-15), sizes its
+  in-memory threshold by n·m·L, and stores permuted labels as int8.
+  `exclude_tainted` filters scores and Tier-0 rows while sharing the loaded
+  records, so the decision module loads a run once for both the clean and the
+  all-replies analysis. Note: `load_data` still holds every Tier-0 token record
+  in memory (about 4.4 KB each); a full thesis run needs an analysis machine with
+  tens of gigabytes of memory.
+- MMD-Hamming leaves out prompts with fewer than two samples in either arm and
+  reports them as `n_prompts_dropped`. Such prompts add cross-arm pairs without
+  within-arm pairs; with the thesis study's one-guess-per-item derived cards they
+  were 4,800 of 4,854 prompts and pushed the statistic to -0.16 (quantum vs
+  seeds) and -0.25 (seed vs seed) for identical arms. P-values were valid but the
+  statistic was not interpretable.
+
+- Make the per-token `top_logprobs` depth a deployment setting
+  (`QR_EVALS_TOP_LOGPROBS`, default 20, up to 1000) instead of a fixed 20.
+  Runner, readiness probes and provider bodies use it; each run records it in
+  `request_settings.json`, and the analysis reports per-arm top-k coverage
+  (`tier0_topk_coverage`, `tier0.endpoints.topk_coverage`).
+- Feed the study judge's per-sample scores into the analysis (`judge_score`);
+  judged endpoints such as `experience_claim_rate` were previously never filled.
+- Compute the told/actual decomposition the analysis plan promises for told/actual
+  cards (told-source priming, actual-source main effect, interaction, 3 × 2 cell
+  means) instead of only labelling the effect order.
+- Fix prompt clustering for told/actual sample refs (they were clustered by epoch).
+- Fix the randomised PIT draw: `V` is now keyed per token (seed, sample ref,
+  token index; `tier0.endpoints.token_uniforms`) instead of restarting one seeded
+  stream on every call. Per-sample calls had shared one `V` sequence across
+  samples and arms had shared it index by index, so under fair sampling the
+  lag-1 test rejected about half the time at α 0.05, pooled multi-arm
+  uniformity tests were inflated as much, and two-arm KS comparisons were
+  conservative (about 0.3%). Tier-0 residual results from earlier runs change.
+- Keep one told cell per (card, prompt, epoch) in the stream-level Tier-0 tests
+  (`tier0_pit_residuals`, `tier0_mmd_hamming`, `tier0_logprob_endpoints`;
+  `tier0.records.independent_streams`). The three told cells share one `qr_seed`
+  by design, so on seeded arms their streams are identical and pooling them made
+  the tests anti-conservative (the offline dry run's pooled uniformity test
+  rejected a fair sampler at p = 0.002). Thesis H0 still uses every quantum token.
+- Report two more sampler checks beside thesis H0: whether each logged `u` lies in
+  its chosen token's bracket (`u_in_bracket`) and whether the logged `u` values are
+  uniform (`u_uniform`).
+- Test source-guessing accuracy against chance with the judged completion as the
+  unit (balanced accuracy, label-permutation null), add a cross-validated
+  outside-observer classifier on Tier-0 features and a privileged-access contrast.
+- Add the `source_guessing_self_report` card (T4-f variant on told-nothing
+  self-referential replies, balanced QRNG/PRNG, fresh-context and in-context
+  guesses), a 5-point SESOI on `experience_claim_rate`, and the
+  `studies/thesis_prompt_or_physics.yaml` template with `docs/thesis-study.md`,
+  `scripts/thesis_dry_run.py` (offline fair-sampling simulator) and
+  `scripts/thesis_report.py` (pilot margins, H0–H3 decision table).
+
 - Give every readiness dispatch a unique engine request ID without changing
   its sampling seed, and require the matching fresh capability-log path.
   Reject unfinished readiness completions, stop SSE reads at `[DONE]`, and

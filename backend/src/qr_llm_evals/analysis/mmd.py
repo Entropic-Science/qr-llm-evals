@@ -24,6 +24,12 @@ Where the port deliberately **differs from upstream** (spec §2.10 mandates it):
   ``Generator`` and ``b ≥ 2000`` by default; the per-prompt arm counts are
   invariant, which keeps the null exchangeable.
 - The p-value uses add-one smoothing ``(k + 1) / (b + 1)``.
+- Prompts with fewer than two samples in either arm are left out (and counted in
+  ``n_prompts_dropped``). They add no within-arm pair, so their cross-arm pairs
+  enter the estimator without the within-arm pairs that balance them; with many
+  such prompts (derived cards that ask each item once, such as the thesis
+  study's source guesses) the statistic moves far from zero although the arms are
+  identical. Upstream assumes every prompt has several samples per arm.
 
 If ``model_equality_testing`` is importable (it needs ``torch``; see the
 ``[metrics]`` extra) the observed statistic is *also* computed through the
@@ -89,12 +95,18 @@ def pad_sequences(
 
 
 def hamming_kernel(x: IntArray, y: IntArray, memory_threshold: int = 10_000) -> FloatArray:
-    """Pairwise count of position-wise equal tokens, ``(n, m)``; broadcast when small."""
+    """Pairwise count of position-wise equal tokens, ``(n, m)``; broadcast when small.
+
+    The broadcast builds an ``(n, m, L)`` boolean array, so "small" is judged on
+    ``n · m · L`` (at most ``memory_threshold**2`` elements, 100 MB by default),
+    not on ``n · m``: with 6,000 sequences of 800 tokens the latter allowed a
+    29 GB intermediate. Larger inputs go row by row; the result is identical.
+    """
     x2 = np.asarray(x, dtype=np.int64)
     y2 = np.asarray(y, dtype=np.int64)
     if x2.ndim != 2 or y2.ndim != 2 or x2.shape[1] != y2.shape[1]:
         raise ValueError("x and y must be 2-D with the same sequence length")
-    if x2.shape[0] * y2.shape[0] <= memory_threshold**2:
+    if x2.shape[0] * y2.shape[0] * max(1, x2.shape[1]) <= memory_threshold**2:
         out: FloatArray = np.sum(x2[:, None, :] == y2[None, :, :], axis=-1).astype(np.float64)
         return out
     out = np.zeros((x2.shape[0], y2.shape[0]), dtype=np.float64)
@@ -105,7 +117,11 @@ def hamming_kernel(x: IntArray, y: IntArray, memory_threshold: int = 10_000) -> 
 
 def _prepare(
     seqs_a: ArrayLike, seqs_b: ArrayLike, prompts_a: ArrayLike, prompts_b: ArrayLike
-) -> tuple[IntArray, IntArray, IntArray]:
+) -> tuple[IntArray, IntArray, IntArray, int]:
+    """Pooled rows (arm A first), prompt indices, labels and the number of prompts dropped.
+
+    Only prompts with at least two samples in each arm are kept (module docstring).
+    """
     a = np.asarray(seqs_a, dtype=np.int64)
     b = np.asarray(seqs_b, dtype=np.int64)
     pa = np.asarray(prompts_a).ravel()
@@ -121,7 +137,18 @@ def _prepare(
     labels = np.concatenate(
         [np.ones(a.shape[0], dtype=np.int64), np.zeros(b.shape[0], dtype=np.int64)]
     )
-    return pooled, prompt_idx.astype(np.int64), labels
+    n_groups = int(prompt_idx.max()) + 1 if prompt_idx.size else 0
+    count_a = np.bincount(prompt_idx[labels == 1], minlength=n_groups)
+    count_b = np.bincount(prompt_idx[labels == 0], minlength=n_groups)
+    keep_group = (count_a >= 2) & (count_b >= 2)
+    dropped = int(n_groups - int(keep_group.sum()))
+    if dropped:
+        keep = keep_group[prompt_idx]
+        pooled, labels = pooled[keep], labels[keep]
+        _, prompt_idx = np.unique(prompt_idx[keep], return_inverse=True)
+    if prompt_idx.size == 0:
+        raise ValueError("no prompt has at least two samples in each arm for the MMD estimator")
+    return pooled, prompt_idx.astype(np.int64), labels, dropped
 
 
 def _pooled_kernel(pooled: IntArray, prompt_idx: IntArray) -> FloatArray:
@@ -134,7 +161,7 @@ def _pooled_kernel(pooled: IntArray, prompt_idx: IntArray) -> FloatArray:
 
 
 def _pair_counts(
-    prompt_idx: IntArray, labels_matrix: IntArray
+    prompt_idx: IntArray, labels_matrix: NDArray[np.integer[Any]]
 ) -> tuple[FloatArray, FloatArray, FloatArray]:
     """Within-prompt pair counts (n_XX, n_XY, n_YY) for each labelling row of ``labels_matrix``."""
     n_prompts = int(prompt_idx.max()) + 1
@@ -164,11 +191,44 @@ def _mmd_from_kernel(k: FloatArray, prompt_idx: IntArray, labels_matrix: IntArra
     return result
 
 
+def _mmd_blockwise(
+    pooled: IntArray, prompt_idx: IntArray, labels_matrix: NDArray[np.integer[Any]]
+) -> FloatArray:
+    """MMD² for each labelling row, one prompt block at a time.
+
+    The pooled kernel is zero across prompts (:func:`_pooled_kernel`) and labels
+    are permuted within prompts, so every sum the estimator needs splits into
+    per-prompt blocks. Same result as :func:`_mmd_from_kernel` on the full
+    ``(N, N)`` kernel, without building it: with ~25,000 pooled sequences the full
+    kernel alone is 5 GB, while the largest block is a few hundred rows.
+    """
+    length = float(pooled.shape[1])
+    b = labels_matrix.shape[0]
+    s_xx = np.zeros(b)
+    s_xy = np.zeros(b)
+    total = 0.0
+    for g in np.unique(prompt_idx):
+        members = np.flatnonzero(prompt_idx == g)
+        kg = hamming_kernel(pooled[members], pooled[members]) / length
+        np.fill_diagonal(kg, 0.0)
+        zg = labels_matrix[:, members].astype(np.float64)
+        kz = zg @ kg
+        s_xx += np.sum(kz * zg, axis=1)
+        s_xy += np.sum(kz * (1.0 - zg), axis=1)
+        total += float(kg.sum())
+    s_yy = total - s_xx - 2.0 * s_xy
+    n_xx, n_xy, n_yy = _pair_counts(prompt_idx, labels_matrix)
+    if np.any(n_xx == 0) or np.any(n_yy == 0) or np.any(n_xy == 0):
+        raise ValueError("every prompt needs at least two samples per arm for the MMD estimator")
+    result: FloatArray = s_xx / n_xx - 2.0 * s_xy / n_xy + s_yy / n_yy
+    return result
+
+
 def mmd_hamming(
     seqs_a: ArrayLike, seqs_b: ArrayLike, prompts_a: ArrayLike, prompts_b: ArrayLike
 ) -> float:
     """Observed MMD²-Hamming between arm A and arm B (prompts matched jointly)."""
-    pooled, prompt_idx, labels = _prepare(seqs_a, seqs_b, prompts_a, prompts_b)
+    pooled, prompt_idx, labels, _ = _prepare(seqs_a, seqs_b, prompts_a, prompts_b)
     k = _pooled_kernel(pooled, prompt_idx)
     return float(_mmd_from_kernel(k, prompt_idx, labels[None, :])[0])
 
@@ -189,9 +249,10 @@ def _upstream_statistic(
 
 def _permuted_labels(
     prompt_idx: IntArray, labels: IntArray, n_permutations: int, rng: np.random.Generator
-) -> IntArray:
+) -> NDArray[np.int8]:
     """``(b, N)`` label matrix: arm labels shuffled independently within each prompt."""
-    out = np.empty((n_permutations, labels.size), dtype=np.int64)
+    # int8: a 2,000 x 25,000 label matrix is 50 MB instead of 400 MB.
+    out = np.empty((n_permutations, labels.size), dtype=np.int8)
     for g in np.unique(prompt_idx):
         members = np.flatnonzero(prompt_idx == g)
         block = np.tile(labels[members], (n_permutations, 1))
@@ -224,7 +285,8 @@ def mmd_hamming_permutation_test(
     Returns:
         ``statistic`` (observed MMD²), ``p_value`` (smoothed, one-sided: large
         MMD rejects), ``null_quantiles`` (5/50/95 % of the permutation
-        distribution), ``n_permutations``, ``n_prompts``, ``n_a``, ``n_b``,
+        distribution), ``n_permutations``, ``n_prompts`` (used),
+        ``n_prompts_dropped`` (fewer than two samples in an arm), ``n_a``, ``n_b``,
         ``implementation`` (which code path produced ``statistic``) and
         ``statistic_upstream`` (``None`` unless upstream ran).
     """
@@ -232,10 +294,9 @@ def mmd_hamming_permutation_test(
         raise ValueError("n_permutations must be positive")
     if implementation == "upstream" and not upstream_available():
         raise RuntimeError("model_equality_testing is not importable; install the [metrics] extra")
-    pooled, prompt_idx, labels = _prepare(seqs_a, seqs_b, prompts_a, prompts_b)
+    pooled, prompt_idx, labels, dropped = _prepare(seqs_a, seqs_b, prompts_a, prompts_b)
     n_a = int(labels.sum())
-    k = _pooled_kernel(pooled, prompt_idx)
-    observed = float(_mmd_from_kernel(k, prompt_idx, labels[None, :])[0])
+    observed = float(_mmd_blockwise(pooled, prompt_idx, labels[None, :])[0])
 
     statistic_upstream: float | None = None
     used: Literal["vendored", "upstream"] = "vendored"
@@ -246,7 +307,7 @@ def mmd_hamming_permutation_test(
 
     rng = np.random.default_rng(seed)
     labels_matrix = _permuted_labels(prompt_idx, labels, n_permutations, rng)
-    null = _mmd_from_kernel(k, prompt_idx, labels_matrix)
+    null = _mmd_blockwise(pooled, prompt_idx, labels_matrix)
     statistic = (
         statistic_upstream if used == "upstream" and statistic_upstream is not None else observed
     )
@@ -260,6 +321,7 @@ def mmd_hamming_permutation_test(
         "null_quantiles": {"q05": float(q05), "q50": float(q50), "q95": float(q95)},
         "n_permutations": int(n_permutations),
         "n_prompts": int(prompt_idx.max()) + 1,
+        "n_prompts_dropped": dropped,
         "n_a": n_a,
         "n_b": int(labels.size - n_a),
         "implementation": used,
