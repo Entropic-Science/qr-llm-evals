@@ -94,21 +94,28 @@ class UsageRecorder:
     def record_narrative(
         self, run_id: str, model: str, raw_usage: Mapping[str, Any] | None
     ) -> None:
-        owner = self.owner_of(run_id)
-        if owner is None:
-            return
-        raw = raw_usage or {}
-        self.ledger.record(
-            UsageEvent(
-                user_id=owner,
-                run_id=run_id,
-                kind="narrative",
-                model=model,
-                prompt_tokens=_count(raw.get("prompt_tokens")),
-                completion_tokens=_count(raw.get("completion_tokens")),
-                at=self._clock(),
+        """Record a narrative call; never raises (accounting must not fail an analysis)."""
+        try:
+            owner = self.owner_of(run_id)
+            if owner is None:
+                return
+            raw = raw_usage or {}
+            self.ledger.record(
+                UsageEvent(
+                    user_id=owner,
+                    run_id=run_id,
+                    kind="narrative",
+                    model=model,
+                    prompt_tokens=_count(raw.get("prompt_tokens")),
+                    completion_tokens=_count(raw.get("completion_tokens")),
+                    at=self._clock(),
+                )
             )
-        )
+        except Exception:
+            log.exception(
+                "narrative usage not recorded",
+                extra={"event": "usage.narrative_failed", "run_id": run_id},
+            )
 
     def _pause_if_exhausted(self, run_id: str, owner: str) -> None:
         quota = self.quota_for(owner)

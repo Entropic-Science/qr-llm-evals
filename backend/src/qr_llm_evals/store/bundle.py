@@ -39,8 +39,8 @@ BUNDLE_SCHEMA_VERSION = 1
 ZSTD_LEVEL = 10
 
 #: Keys stripped (recursively) from exported JSON/JSONL, after normalising the
-#: key to lower-case with ``-`` -> ``_``. Provider header dumps and provider
-#: request ids only; nothing the analysis needs.
+#: key to lower-case with ``-`` -> ``_``. Provider header dumps, provider
+#: request ids and the launching account id; nothing the analysis needs.
 STRIPPED_KEYS: frozenset[str] = frozenset(
     {
         "headers",
@@ -58,6 +58,7 @@ STRIPPED_KEYS: frozenset[str] = frozenset(
         "anthropic_organization_id",
         "anthropic_request_id",
         "request_id_header",
+        "owner_id",
     }
 )
 #: Header-shaped keys (``x-…``) are stripped wherever they appear.
