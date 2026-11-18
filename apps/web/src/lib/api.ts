@@ -1,4 +1,6 @@
 import type {
+  AdminUsersResponse, AdminUserUpdate, AdminUserView, AuthResponse, LinkKeyRequest, LoginRequest,
+  SignupRequest, UsageResponse, UserView,
   CardsResponse, CreateSessionRequest, EstimatesResponse, LaunchRequest, LaunchResponse,
   ModelsResponse, PreregRenderRequest, PreregRenderResponse, ReadinessReport, ReadinessRequest,
   RunControlRequest, RunControlResponse, RunKeysRequest, RunKeysResponse, RunView,
@@ -29,6 +31,14 @@ export async function apiFetch<Response, Body = never>(path: string, options: { 
 }
 
 export const api = {
+  signup: (body: SignupRequest) => apiFetch<AuthResponse, SignupRequest>("/api/auth/signup", { body }),
+  login: (body: LoginRequest) => apiFetch<AuthResponse, LoginRequest>("/api/auth/login", { body }),
+  logout: (bearer: string) => apiFetch<{ ok: boolean }>("/api/auth/logout", { method: "POST", auth: { bearer } }),
+  me: (bearer: string) => apiFetch<UserView>("/api/me", { auth: { bearer } }),
+  linkKey: (body: LinkKeyRequest, bearer: string) => apiFetch<UserView, LinkKeyRequest>("/api/me/key", { body, auth: { bearer } }),
+  usage: (bearer: string) => apiFetch<UsageResponse>("/api/me/usage", { auth: { bearer } }),
+  adminUsers: (bearer: string) => apiFetch<AdminUsersResponse>("/api/admin/users", { auth: { bearer } }),
+  adminUpdateUser: (userId: string, body: AdminUserUpdate, bearer: string) => apiFetch<AdminUserView, AdminUserUpdate>(`/api/admin/users/${encodeURIComponent(userId)}`, { body, auth: { bearer } }),
   cards: () => apiFetch<CardsResponse>("/api/cards"),
   models: () => apiFetch<ModelsResponse>("/api/models"),
   estimates: (body: StudyConfig) => apiFetch<EstimatesResponse, StudyConfig>("/api/estimates", { body }),
@@ -45,7 +55,7 @@ export const api = {
   questionnaire: (sessionId: string, body: SessionQuestionnaireRequest, observerId: string) => apiFetch<Questionnaire, SessionQuestionnaireRequest>(`/api/sessions/${encodeURIComponent(sessionId)}/questionnaire`, { body, auth: { observerId } }),
 };
 
-export const RUN_EVENT_TYPES = ["run.state", "run.progress", "sample.started", "sample.delta", "sample.finished", "taint", "session.state", "session.timer", "observer.presence", "analysis.progress", "error", "resync"] as const;
+export const RUN_EVENT_TYPES = ["run.state", "run.progress", "sample.started", "sample.delta", "sample.finished", "taint", "session.state", "session.timer", "observer.presence", "analysis.progress", "quota.exhausted", "error", "resync"] as const;
 export type RunEventType = typeof RUN_EVENT_TYPES[number];
 export interface RunEvent<T = unknown> { id?: string; type: RunEventType; data: T }
 export interface ResyncData { reason?: string; dropped?: number }

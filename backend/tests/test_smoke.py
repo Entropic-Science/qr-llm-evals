@@ -56,7 +56,11 @@ async def test_disabled_launch_key_preserves_403(mode: str, tmp_path: Path) -> N
         )
     )
     settings = load_settings(
-        {"QR_EVALS_DATA_DIR": str(tmp_path / "data"), "QR_EVALS_KEYS_FILE": str(path)}
+        {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
+            "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
+            "QR_EVALS_KEYS_FILE": str(path),
+        }
     )
     app = create_app(settings, verifier=verifier)
     async with (

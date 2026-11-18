@@ -90,6 +90,7 @@ def keys_file(tmp_path: Path) -> Path:
 def settings(tmp_path: Path, keys_file: Path) -> Settings:
     return load_settings(
         {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
             "QR_EVALS_DATA_DIR": str(tmp_path / "data"),
             "QR_EVALS_KEYS_FILE": str(keys_file),
             "QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY": "1",

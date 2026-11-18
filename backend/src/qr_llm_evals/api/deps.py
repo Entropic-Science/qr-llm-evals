@@ -9,8 +9,9 @@ Four identities cross the wire, each checked by its own dependency:
     Gates ``POST /runs`` and ``POST /readiness``. A session token launches as
     that account; the account's linked key is re-checked by digest when the
     verifier can do that (file mode), so disabling a key locks its account
-    out. A bare ``qrk_`` api.entropic.science key is still accepted until the
-    web app signs users in; it is verified through
+    out. A bare ``qrk_`` api.entropic.science key is accepted only when
+    ``QR_EVALS_ALLOW_KEY_LAUNCH`` is on (operator tooling: such a run has no
+    owner, is not metered and bypasses token quotas). It is verified through
     :class:`~qr_llm_evals.keys.verify.KeyVerifier` and only its
     :class:`~qr_llm_evals.keys.verify.KeyIdentity` (name / fingerprint) is kept.
 ``X-Host-Token``                  → :func:`require_host`
@@ -256,6 +257,13 @@ async def require_launcher(
     if token is not None and token.startswith(SESSION_PREFIX):
         user = _session_user(state, authorization)
         return Launcher(quota_id=recheck_linked_key(state, user), owner_id=user.user_id)
+    if not state.settings.allow_key_launch:
+        raise ApiError(
+            401,
+            "sign in to launch: send the session token from POST /api/auth/login as "
+            "Authorization: Bearer qrs_…",
+            headers=_SESSION_CHALLENGE,
+        )
     identity = await require_launch_key(state, authorization)
     return Launcher(quota_id=identity.quota_id, owner_id=None)
 

@@ -87,6 +87,12 @@ class Settings(BaseModel):
 
     # ── user accounts ─────────────────────────────────────────────────────
     signup_enabled: bool = Field(description="Whether POST /auth/signup accepts new accounts.")
+    allow_key_launch: bool = Field(
+        description=(
+            "Accept a bare qrk_ key on POST /runs and /readiness. Such runs have no owner, are "
+            "not metered and bypass token quotas, so this is for operator tooling only."
+        ),
+    )
     session_ttl_hours: int = Field(ge=1, description="Lifetime of a login session token.")
     default_token_quota: int = Field(
         ge=0,
@@ -140,6 +146,7 @@ def load_settings(env: _Env | None = None) -> Settings:
         max_active_runs_per_key=_env_int(e, "QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY", 1),
         max_inflight=_env_int(e, "QR_EVALS_MAX_INFLIGHT", 3),
         signup_enabled=_env_bool(e, "QR_EVALS_SIGNUP_ENABLED", True),
+        allow_key_launch=_env_bool(e, "QR_EVALS_ALLOW_KEY_LAUNCH", False),
         session_ttl_hours=_env_int(e, "QR_EVALS_SESSION_TTL_HOURS", 168),
         default_token_quota=_env_int(e, "QR_EVALS_DEFAULT_TOKEN_QUOTA", 2_000_000),
         priority=_env_int(e, "QR_EVALS_PRIORITY", 0),

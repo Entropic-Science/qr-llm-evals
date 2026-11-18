@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Add sign-in to the web app: `/login`, `/signup`, an `/account` page with
+  the linked key, the token quota and usage tables, and an `/admin` page
+  listing every account. The configure wizard no longer asks for a launch
+  key; launching uses the signed-in account. The run page says when a run
+  was paused because the token quota ran out.
+- Launching with a bare `qrk_` key is now off by default
+  (`QR_EVALS_ALLOW_KEY_LAUNCH`), because such runs are not metered and bypass
+  token quotas. `POST /api/runs` and `/api/readiness` need a session unless an
+  operator switches it on.
+
 - Meter token usage per account and enforce a token quota. Every generation,
   judge call and narrative call of an account's runs is recorded
   (`GET /api/me/usage`). Generations on the qr-server engine count against a
