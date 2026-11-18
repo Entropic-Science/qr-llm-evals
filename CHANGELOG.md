@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Harden accounts and quotas after review. A `custom:` model must use an
+  `https://` base URL on a public host, so it cannot reach the shared engine
+  unmetered. A disabled account can no longer start or resume runs, and its
+  running runs pause. Judge and narrative calls made on the qr-server engine
+  are charged. A study with no qr-server arm is not held back by a spent
+  quota. If usage cannot be recorded, the run pauses. Login is throttled per
+  username as well as per address, and the address now comes from
+  `CF-Connecting-IP`. `GET /api/runs/{id}` no longer returns `owner_id` and
+  reports `owner_quota_exhausted`. `POST /api/readiness` needs the same
+  standing as a launch.
+
 - Document account setup for operators (`docs/SETUP_GUIDE.md`: first admin,
   quotas, backups of `accounts.sqlite`) and what an account stores
   (`docs/PRIVACY.md`).
@@ -35,7 +46,7 @@ All notable changes to this project are documented here. The format follows
   `/auth/logout`, `GET /me` and `POST /me/key` manage the session and the
   linked key. Only the key's SHA-256, name and fingerprint are stored. A
   session token can launch runs and run readiness; the run records its
-  `owner_id`. Bare launch keys still work. Operators manage accounts with
+  `owner_id`. Operators manage accounts with
   `python -m qr_llm_evals.accounts.cli`. New settings:
   `QR_EVALS_SIGNUP_ENABLED`, `QR_EVALS_SESSION_TTL_HOURS`.
 

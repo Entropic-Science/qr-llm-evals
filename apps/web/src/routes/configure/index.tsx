@@ -90,7 +90,7 @@ export function Configure() {
   };
   const closeBriefing = () => { window.sessionStorage.setItem(ACK_KEY, "yes"); setBriefingOpen(false); };
   const launch = () => {
-    if (!getSession()) { setLaunchState("Sign in before launching (step 06 has the link). Your configuration is kept."); return; }
+    if (!getSession()) { setLaunchState("Sign in before launching (step 06 has the link). The study configuration is kept; provider keys need typing again."); return; }
     setLaunchState("");
     setLaunchOpen(true);
   };
@@ -98,9 +98,10 @@ export function Configure() {
   const providerKeys: Record<string, string> = {};
   if (keys.anthropic) providerKeys.anthropic = keys.anthropic;
   if (keys.external) {
-    // The one external key goes to the slot of each external provider the study uses.
-    const slots = config.models.map((model) => model.provider).filter((provider) => provider === "openai" || provider === "custom");
-    for (const slot of slots.length > 0 ? slots : ["custom"]) providerKeys[slot] = keys.external;
+    // Sent only when the study has an external model. Both slots get it: a custom
+    // base URL on a known provider's host resolves to that provider's slot server-side.
+    const external = config.models.some((model) => model.provider === "openai" || model.provider === "custom");
+    if (external) { providerKeys.openai = keys.external; providerKeys.custom = keys.external; }
   }
 
   return <div className="configure-page">

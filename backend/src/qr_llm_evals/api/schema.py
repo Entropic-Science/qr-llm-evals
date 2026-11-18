@@ -222,6 +222,10 @@ class RunView(_Strict):
     control_state: str | None = None
     subscribers: int = Field(default=0, ge=0)
     readiness: ReadinessReport | None = None
+    owner_quota_exhausted: bool = Field(
+        default=False,
+        description="The launching account has no token quota left; start/resume is refused.",
+    )
 
 
 class RunListResponse(_Strict):

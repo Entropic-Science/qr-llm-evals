@@ -114,6 +114,8 @@ class JudgeCall:
     judge_id: str
     model: str
     call: Callable[[str, str], JudgeReply]  # (system, user) -> text + usage
+    #: The judge runs on the shared engine (a ``qr_server`` judge model).
+    on_engine: bool = False
 
 
 def _anthropic_call(
@@ -191,7 +193,12 @@ def _provider_call(
             ),
         )
 
-    return JudgeCall(judge_id=judge_id_for(card, spec), model=ref.served_name, call=call)
+    return JudgeCall(
+        judge_id=judge_id_for(card, spec),
+        model=ref.served_name,
+        call=call,
+        on_engine=ref.provider == "qr_server",
+    )
 
 
 def resolve_judge(
@@ -303,6 +310,7 @@ class JudgePhase:
                             usage=usage,
                             at=self._clock(),
                         ),
+                        on_engine=judge.on_engine,
                     )
                 done.add(row.sample_ref)
             self._sink.emit(

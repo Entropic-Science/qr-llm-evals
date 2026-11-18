@@ -65,6 +65,7 @@ class UsageNote:
     card_id: str
     model: str
     source_label: str | None
+    #: The call ran on the shared engine (so it is charged to the owner's quota).
     pipeline_pinned: bool
     usage: Usage
     at: datetime
@@ -139,7 +140,9 @@ class RunStore:
     def append_tier0(self, arm_id: str, card_id: str, records: Iterable[RowLike]) -> int:
         return append_jsonl(self.arm_card(arm_id, card_id).tier0_jsonl, records)
 
-    def append_judge(self, arm_id: str, card_id: str, row: JudgeRow) -> None:
+    def append_judge(
+        self, arm_id: str, card_id: str, row: JudgeRow, *, on_engine: bool = False
+    ) -> None:
         append_jsonl(self.arm_card(arm_id, card_id).judge_jsonl(row.judge_id), row)
         self.store.notify_usage(
             UsageNote(
@@ -149,7 +152,7 @@ class RunStore:
                 card_id=card_id,
                 model=row.model,
                 source_label=None,
-                pipeline_pinned=False,
+                pipeline_pinned=on_engine,
                 usage=row.usage,
                 at=row.at,
             )

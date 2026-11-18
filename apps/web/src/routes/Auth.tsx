@@ -1,14 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "wouter";
 import { api, ApiError } from "../lib/api";
-import { setSession } from "../lib/session";
+import { nextPath, setSession } from "../lib/session";
 
 type Mode = "login" | "signup";
-
-function nextPath(): string {
-  const next = new URLSearchParams(window.location.search).get("next");
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/account";
-}
 
 function AuthForm({ mode }: { mode: Mode }) {
   const [, navigate] = useLocation();
@@ -28,7 +23,7 @@ function AuthForm({ mode }: { mode: Mode }) {
         : await api.login({ username, password });
       setApiKey(""); setPassword("");
       setSession(auth);
-      navigate(nextPath());
+      navigate(nextPath(window.location.search));
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "The request did not reach the server. Try again.");
     } finally { setBusy(false); }

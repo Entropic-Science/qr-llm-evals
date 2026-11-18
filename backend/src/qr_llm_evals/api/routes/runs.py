@@ -31,6 +31,7 @@ from qr_llm_evals.api.deps import (
     sha256_hex,
 )
 from qr_llm_evals.api.errors import ApiError
+from qr_llm_evals.api.gates import check_external_models, check_owner_can_generate, has_charged_arms
 from qr_llm_evals.api.routes.estimates import estimate_study
 from qr_llm_evals.api.schema import (
     LaunchRequest,
@@ -81,35 +82,27 @@ def _check_quota(state: AppState, quota_id: str) -> None:
         )
 
 
-def _quota_message(used: int, limit: int) -> str:
-    return (
-        f"this account's token quota is used up ({used:,} of {limit:,} qr-server generation "
-        "tokens); ask an admin to raise it"
-    )
-
-
 def _check_token_quota(state: AppState, launcher: Launcher, body: LaunchRequest) -> None:
-    """Refuse a launch the owner's remaining token budget cannot cover.
+    """Refuse a full run whose estimate the owner's remaining budget cannot cover.
 
-    Only qr-server arms are charged. A full run is checked against the study
-    estimate; a pilot is much smaller than that estimate, so it only needs a
-    budget that is not already spent. A run that outgrows the budget anyway is
-    paused when it reaches zero (:mod:`qr_llm_evals.api.usage`).
+    :func:`check_owner_can_generate` has already refused a spent budget. Only
+    qr-server arms are charged. A pilot is much smaller than the study
+    estimate, so it only needs a budget that is not already spent. A run that
+    outgrows the budget anyway is paused when it reaches zero
+    (:mod:`qr_llm_evals.api.usage`); two launches at once are not reserved
+    against each other, and that pause is what bounds the overshoot.
     """
-    if launcher.owner_id is None:
+    if launcher.owner_id is None or body.kind != "full" or not has_charged_arms(body.config):
         return
     quota = state.usage.quota_for(launcher.owner_id)
     if quota is None or quota.unlimited:
         return
-    if quota.exhausted:
-        raise ApiError(403, _quota_message(quota.used, quota.limit))
-    if body.kind != "full":
-        return
+    providers = {model.id: model.provider for model in body.config.models}
     by_arm = estimate_study(state, body.config).by_arm
     needed = sum(
         by_arm[arm.id].tokens_per_arm
         for arm in body.config.arms
-        if state.catalogue.is_pinned(arm.model)
+        if providers.get(arm.model) == "qr_server"
     )
     remaining = quota.remaining or 0
     if needed > remaining:
@@ -119,14 +112,6 @@ def _check_token_quota(state: AppState, launcher: Launcher, body: LaunchRequest)
             f"account has {remaining:,} left of {quota.limit:,}; reduce the study or ask an "
             "admin to raise the quota",
         )
-
-
-def _check_owner_can_generate(state: AppState, owner_id: str | None) -> None:
-    if owner_id is None:
-        return
-    quota = state.usage.quota_for(owner_id)
-    if quota is not None and quota.exhausted:
-        raise ApiError(403, _quota_message(quota.used, quota.limit))
 
 
 def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
@@ -142,7 +127,9 @@ def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
 @router.post("/runs", response_model=LaunchResponse, status_code=201)
 async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> LaunchResponse:
     _check_cards(state, body.config)
+    check_external_models(state, body.config)
     _check_quota(state, key.quota_id)
+    check_owner_can_generate(state, key.owner_id, body.config)
     _check_token_quota(state, key, body)
 
     try:
@@ -203,8 +190,12 @@ async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> Laun
 async def get_run(run_id: str, state: State) -> RunView:
     run_store = state.run_store(run_id)
     live = state.registry.get(run_id)
+    run = run_store.read_run()
+    quota = state.usage.quota_for(run.owner_id) if run.owner_id is not None else None
     return RunView(
-        run=run_store.read_run(),
+        # This route is open: the launching account's id stays server-side.
+        run=run.model_copy(update={"owner_id": None}),
+        owner_quota_exhausted=quota is not None and quota.exhausted,
         live=live is not None and live.thread_alive,
         control_state=live.control.state if live is not None else None,
         subscribers=live.bus.subscriber_count if live is not None else 0,
@@ -217,7 +208,8 @@ async def control_run(
     run_id: str, body: RunControlRequest, live: HostRun, state: State
 ) -> RunControlResponse:
     if body.action in ("start", "resume"):
-        _check_owner_can_generate(state, live.read().owner_id)
+        record = live.read()
+        check_owner_can_generate(state, record.owner_id, state.store.load_study(record.study_id))
     try:
         if body.action == "start":
             run = live.start(state.orchestrator_factory)

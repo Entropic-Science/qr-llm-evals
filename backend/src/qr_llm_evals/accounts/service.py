@@ -245,11 +245,22 @@ class Accounts:
             for version, sql in MIGRATIONS:
                 if version in applied:
                     continue
-                self._conn.executescript("BEGIN;" + sql + "COMMIT;")
-                self._conn.execute(
-                    "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-                    (version, _iso(self._clock())),
-                )
+                # One transaction for the DDL and its bookkeeping row: a crash
+                # between the two would otherwise re-run the DDL at the next
+                # boot and fail on "table already exists" for good. The script
+                # opens the transaction and leaves it open; the bookkeeping
+                # row and the COMMIT follow on the same connection.
+                try:
+                    self._conn.executescript("BEGIN;" + sql)
+                    self._conn.execute(
+                        "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+                        (version, _iso(self._clock())),
+                    )
+                    self._conn.execute("COMMIT")
+                except BaseException:
+                    if self._conn.in_transaction:
+                        self._conn.execute("ROLLBACK")
+                    raise
 
     def _hash(self, password: str) -> str:
         if self._scrypt_n is None:
@@ -318,10 +329,11 @@ class Accounts:
         wanted_n = self._scrypt_n
         stale = needs_rehash(stored) if wanted_n is None else needs_rehash(stored, n=wanted_n)
         if stale:
+            upgraded = self._hash(password)  # outside the transaction: scrypt is slow
             with self._tx() as conn:
                 conn.execute(
-                    "UPDATE users SET password_hash = ? WHERE user_id = ?",
-                    (self._hash(password), user.user_id),
+                    "UPDATE users SET password_hash = ? WHERE user_id = ? AND password_hash = ?",
+                    (upgraded, user.user_id, stored),
                 )
         return user
 
@@ -329,11 +341,9 @@ class Accounts:
         """Replace the password and sign the user out everywhere."""
         check_password(password)
         self.get_user(user_id)
+        hashed = self._hash(password)  # outside the transaction: scrypt is slow
         with self._tx() as conn:
-            conn.execute(
-                "UPDATE users SET password_hash = ? WHERE user_id = ?",
-                (self._hash(password), user_id),
-            )
+            conn.execute("UPDATE users SET password_hash = ? WHERE user_id = ?", (hashed, user_id))
             conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
 
     def link_key(

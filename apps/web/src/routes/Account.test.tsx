@@ -173,9 +173,9 @@ describe("admin page", () => {
     renderAt("/admin");
     expect(await screen.findByRole("rowheader", { name: /bob/ })).toBeInTheDocument();
     expect(screen.getByText("used up")).toBeInTheDocument();
-    const [ownDisable, bobDisable] = screen.getAllByRole("button", { name: "Disable" });
-    expect(ownDisable).toBeDisabled();
-    expect(bobDisable).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Disable alice" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Disable bob" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith("usr_2", { disabled: true }, admin.session_token));
 
     const input = screen.getByLabelText(/Token quota for bob/);
     expect(input).toHaveValue("500");
@@ -186,5 +186,21 @@ describe("admin page", () => {
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.submit(input.closest("form")!);
     await waitFor(() => expect(update).toHaveBeenCalledWith("usr_2", { token_quota: null }, admin.session_token));
+
+    update.mockClear();
+    fireEvent.change(input, { target: { value: "lots" } });
+    fireEvent.submit(input.closest("form")!);
+    expect(await screen.findByText("Whole number, 0, or empty")).toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("signs out when an admin change is rejected as unauthenticated", async () => {
+    setSession(admin);
+    vi.spyOn(api, "me").mockResolvedValue(admin.user);
+    vi.spyOn(api, "adminUsers").mockResolvedValue(listing);
+    vi.spyOn(api, "adminUpdateUser").mockRejectedValue(new ApiError("session is invalid or has expired; sign in again", 401));
+    renderAt("/admin");
+    fireEvent.click(await screen.findByRole("button", { name: "Disable bob" }));
+    await waitFor(() => expect(getSession()).toBeNull());
   });
 });

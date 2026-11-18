@@ -14,16 +14,19 @@ function quotaLabel(row: AdminUserView, fallback: number): string {
 function QuotaEditor({ row, onSave }: { row: AdminUserView; onSave: (update: AdminUserUpdate) => Promise<void> }) {
   const [value, setValue] = useState(row.token_quota === null ? "" : String(row.token_quota));
   const [busy, setBusy] = useState(false);
+  const [invalid, setInvalid] = useState(false);
   async function submit(event: FormEvent) {
     event.preventDefault();
     const trimmed = value.trim();
-    if (trimmed !== "" && !/^\d+$/.test(trimmed)) return;
+    if (trimmed !== "" && !/^\d+$/.test(trimmed)) { setInvalid(true); return; }
+    setInvalid(false);
     setBusy(true);
     try { await onSave({ token_quota: trimmed === "" ? null : Number(trimmed) }); } finally { setBusy(false); }
   }
   return <form className="quota-editor" onSubmit={(event) => void submit(event)}>
-    <label><span className="sr-only">Token quota for {row.user.username}. Empty for the default, 0 for unlimited.</span><input inputMode="numeric" pattern="\d*" placeholder="default" value={value} onChange={(event) => setValue(event.target.value)} /></label>
-    <button className="button button--secondary" type="submit" disabled={busy}>Set</button>
+    <label><span className="sr-only">Token quota for {row.user.username}. Empty for the default, 0 for unlimited.</span><input inputMode="numeric" placeholder="default" aria-invalid={invalid} value={value} onChange={(event) => { setValue(event.target.value); setInvalid(false); }} /></label>
+    <button className="button button--secondary" type="submit" disabled={busy} aria-label={`Set quota for ${row.user.username}`}>Set</button>
+    {invalid ? <span className="quota-editor__error" role="alert">Whole number, 0, or empty</span> : null}
   </form>;
 }
 
@@ -49,6 +52,7 @@ export function Admin() {
   async function update(userId: string, body: AdminUserUpdate) {
     if (!token) return;
     try { await api.adminUpdateUser(userId, body, token); await load(); } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) { clearSession(); return; }
       setError(cause instanceof Error ? cause.message : "The change was not saved.");
     }
   }
@@ -72,7 +76,7 @@ export function Admin() {
             <td className="num">{formatTokens(row.quota.used)}{row.quota.exhausted ? <span className="badge">used up</span> : null}</td>
             <td>{quotaLabel(row, data.default_token_quota)}</td>
             <td><QuotaEditor key={`${row.user.user_id}:${row.token_quota ?? "default"}`} row={row} onSave={(body) => update(row.user.user_id, body)} /></td>
-            <td><button className="button button--secondary" type="button" disabled={self} title={self ? "You cannot disable your own account" : undefined} onClick={() => void update(row.user.user_id, { disabled: !row.disabled })}>{row.disabled ? "Enable" : "Disable"}</button></td>
+            <td><button className="button button--secondary" type="button" disabled={self} title={self ? "You cannot disable your own account" : undefined} aria-label={`${row.disabled ? "Enable" : "Disable"} ${row.user.username}`} onClick={() => void update(row.user.user_id, { disabled: !row.disabled })}>{row.disabled ? "Enable" : "Disable"}</button></td>
           </tr>;
         })}</tbody>
       </table></div>
