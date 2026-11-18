@@ -51,7 +51,7 @@ export function setSession(auth: AuthResponse): Session {
 
 export function updateSessionUser(user: UserView): void {
   const current = getSession();
-  if (!current) return;
+  if (!current || JSON.stringify(current.user) === JSON.stringify(user)) return;
   try { storage()?.setItem(SESSION_STORAGE_KEY, JSON.stringify({ ...current, user })); } catch { /* Storage blocked. */ }
   cachedRaw = undefined;
   notify();

@@ -26,6 +26,7 @@ beforeEach(() => {
   Object.defineProperty(window, "localStorage", { configurable: true, value: memoryStorage() });
   Object.defineProperty(window, "sessionStorage", { configurable: true, value: memoryStorage() });
   clearSession();
+  vi.spyOn(api, "me").mockImplementation(() => Promise.resolve(getSession()!.user));
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.pushState({}, "", "/"); });
 
@@ -139,6 +140,23 @@ describe("admin page", () => {
       { user: { ...admin.user, user_id: "usr_2", username: "bob", is_admin: false, key_name: "bob-key" }, disabled: false, token_quota: 500, quota: { limit: 500, used: 640, remaining: 0, exhausted: true }, totals: totals(8, 400, 240, 640) },
     ],
   };
+
+  it("picks up an admin flag granted after sign-in", async () => {
+    setSession(authResponse());
+    vi.spyOn(api, "me").mockResolvedValue(admin.user);
+    vi.spyOn(api, "adminUsers").mockResolvedValue(listing);
+    renderAt("/admin");
+    expect(await screen.findByRole("heading", { level: 1, name: "All accounts" })).toBeInTheDocument();
+    expect(getSession()?.user.is_admin).toBe(true);
+  });
+
+  it("signs out everywhere when the server has revoked the session", async () => {
+    setSession(authResponse());
+    vi.spyOn(api, "me").mockRejectedValue(new ApiError("session is invalid or has expired; sign in again", 401));
+    renderAt("/");
+    await waitFor(() => expect(getSession()).toBeNull());
+    expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+  });
 
   it("is closed to accounts that are not admins", () => {
     setSession(authResponse());
