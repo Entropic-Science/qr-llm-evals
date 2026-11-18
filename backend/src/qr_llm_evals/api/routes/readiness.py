@@ -15,6 +15,7 @@ from fastapi import APIRouter
 
 from qr_llm_evals.api.deps import AppState, LaunchAuth, State
 from qr_llm_evals.api.errors import ApiError
+from qr_llm_evals.api.gates import check_external_models, check_owner_can_generate
 from qr_llm_evals.api.schema import ReadinessRequest
 from qr_llm_evals.readiness.check import (
     EquivalenceError,
@@ -34,6 +35,10 @@ def _run_store_for(state: AppState, run_id: str | None) -> RunStore | None:
 
 @router.post("/readiness", response_model=ReadinessReport)
 async def post_readiness(body: ReadinessRequest, state: State, key: LaunchAuth) -> ReadinessReport:
+    # Readiness generates on the engine (replays, the throughput probe), so it needs
+    # the same standing as a launch.
+    check_external_models(state, body.config)
+    check_owner_can_generate(state, key.owner_id, body.config)
     config = ReadinessConfig.from_settings(state.settings, throughput_probe=body.throughput_probe)
     run_store = _run_store_for(state, body.run_id)
     try:

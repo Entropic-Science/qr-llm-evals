@@ -488,6 +488,12 @@
         }
       ],
       "default": null
+    },
+    "owner_quota_exhausted": {
+      "default": false,
+      "description": "The launching account has no token quota left; start/resume is refused.",
+      "title": "Owner Quota Exhausted",
+      "type": "boolean"
     }
   },
   "required": [

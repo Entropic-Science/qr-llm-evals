@@ -1,5 +1,6 @@
 import type { StudyConfig } from "@qr-evals/contracts";
 import { useState } from "react";
+import { Link } from "wouter";
 import { api, ApiError } from "../../lib/api";
 import { setHostToken } from "../../lib/host-token";
 import { clearSession, getSession } from "../../lib/session";
@@ -16,10 +17,12 @@ interface LaunchDialogProps {
 
 export function LaunchDialog({ open, config, providerKeys, onClose, onClearKeys, onLaunched }: LaunchDialogProps) {
   const [state, setState] = useState<"idle" | "checking" | "launching" | "error">("idle");
+  const [signedOut, setSignedOut] = useState(false);
   const [message, setMessage] = useState("");
   async function launch() {
     const session = getSession();
-    if (!session) { setState("error"); setMessage("Your session has ended. Sign in again to launch."); return; }
+    if (!session) { setState("error"); setSignedOut(true); setMessage("Your session has ended. Sign in again to launch."); return; }
+    setSignedOut(false);
     const launchKey = session.token;
     try {
       setState("checking"); setMessage("Checking engine, entropy, and arm equivalence…");
@@ -31,13 +34,13 @@ export function LaunchDialog({ open, config, providerKeys, onClose, onClearKeys,
       onLaunched(result.run_id);
     } catch (error) {
       setState("error");
-      if (error instanceof ApiError && error.status === 401) { clearSession(); setMessage("Your session has ended. Sign in again to launch."); return; }
+      if (error instanceof ApiError && error.status === 401) { clearSession(); setSignedOut(true); setMessage("Your session has ended. Sign in again to launch."); return; }
       setMessage(error instanceof Error ? error.message : "Launch failed.");
     }
   }
   return <Modal open={open} onClose={state === "checking" || state === "launching" ? () => undefined : onClose} eyebrow="Final launch gate" title="Readiness before generation" footer={<div className="launch-dialog__actions"><button className="button button--secondary" type="button" disabled={state === "checking" || state === "launching"} onClick={onClose}>Cancel</button><button className="button button--primary" type="button" disabled={state === "checking" || state === "launching"} onClick={() => void launch()}>Check readiness &amp; launch</button></div>}>
     <p>This performs the preregistered readiness check first, then creates the run. <strong>It does not start generation.</strong> The host must explicitly press Start on the run page.</p>
     <dl className="launch-ledger"><div><dt>Arms</dt><dd>{config.arms.length}</dd></div><div><dt>Evaluations</dt><dd>{config.cards.length}</dd></div><div><dt>Provider keys</dt><dd>Sent once · cleared after success</dd></div></dl>
-    {message ? <p className={state === "error" ? "prereg-error" : "launch-dialog__status"} role="status">{message}</p> : null}
+    {message ? <p className={state === "error" ? "prereg-error" : "launch-dialog__status"} role={state === "error" ? "alert" : "status"}>{message}{signedOut ? <> <Link className="text-link" href="/login?next=/">Sign in</Link> (provider keys need typing again).</> : null}</p> : null}
   </Modal>;
 }

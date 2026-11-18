@@ -9,9 +9,12 @@ at :data:`DEFAULT_RATE_PER_S`; an empty bucket answers ``429`` with a
 The launch route (``POST /runs``) is *not* rate-limited here; it is gated by
 the key and the active-run quota.
 
-Client IP: the first hop of ``X-Forwarded-For`` when cloudflared set it, else
-the socket peer. On the box every request arrives through cloudflared on
-loopback, so the header is what distinguishes clients.
+Client IP: ``CF-Connecting-IP`` when present, else the **last** hop of
+``X-Forwarded-For``, else the socket peer. On the box every request arrives
+through cloudflared on loopback, so a header is what distinguishes clients.
+Cloudflare sets ``CF-Connecting-IP`` itself and appends the real address to
+``X-Forwarded-For``; the first hop of that header is whatever the client sent
+and must not be trusted, or one client could mint a fresh bucket per request.
 """
 
 from __future__ import annotations
@@ -95,12 +98,28 @@ class TokenBucketLimiter:
 
 
 def client_ip(request: Request) -> str:
+    connecting = request.headers.get("cf-connecting-ip", "").strip()
+    if connecting:
+        return connecting
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
-        first = forwarded.split(",")[0].strip()
-        if first:
-            return first
+        last = forwarded.split(",")[-1].strip()
+        if last:
+            return last
     return request.client.host if request.client else "unknown"
+
+
+def enforce_subject(limiter: TokenBucketLimiter, scope: str, subject: str) -> None:
+    """Like :func:`enforce`, keyed by something other than the caller's address."""
+    try:
+        limiter.take(f"{scope}:{subject}")
+    except RateLimited as err:
+        retry = max(1, int(err.retry_after_s + 0.999))
+        raise ApiError(
+            429,
+            f"too many attempts; retry in {retry}s",
+            headers={"Retry-After": str(retry)},
+        ) from err
 
 
 def enforce(limiter: TokenBucketLimiter, request: Request, *, scope: str = "ip") -> None:
@@ -124,4 +143,5 @@ __all__ = [
     "TokenBucketLimiter",
     "client_ip",
     "enforce",
+    "enforce_subject",
 ]

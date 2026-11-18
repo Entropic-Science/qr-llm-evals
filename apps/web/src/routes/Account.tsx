@@ -40,6 +40,7 @@ function LinkedKey({ session }: { session: Session }) {
       updateSessionUser(updated);
       setState({ kind: "ok", message: "Key linked." });
     } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) { clearSession(); return; }
       setState({ kind: "error", message: cause instanceof ApiError ? cause.message : "The request did not reach the server. Try again." });
     }
   }
@@ -83,6 +84,7 @@ export function Account() {
   const token = session?.token;
 
   useEffect(() => {
+    setUsage(null); setError("");
     if (!token) return;
     let live = true;
     api.usage(token).then((value) => { if (live) setUsage(value); }).catch((cause: unknown) => {

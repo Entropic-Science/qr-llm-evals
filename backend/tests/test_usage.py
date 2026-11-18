@@ -476,3 +476,167 @@ async def test_narrative_tokens_are_recorded_uncharged(site: Site) -> None:
     narrative = _kinds(await site.usage(alice))["narrative"]
     assert narrative["calls"] == 2 and narrative["charged_tokens"] == 0
     assert (narrative["prompt_tokens"], narrative["completion_tokens"]) == (900, 300)
+
+
+# ── review fixes ──────────────────────────────────────────────────────────────
+
+QR_MODEL = {"id": "qr-llm", "family": "qr_llm", "provider": "qr_server", "served_name": "qr-llm"}
+
+
+def _custom(base_url: str) -> dict[str, str]:
+    return {
+        "id": f"custom:{base_url}#some-model",
+        "family": "external",
+        "provider": "custom",
+        "served_name": "some-model",
+    }
+
+
+def _external_study(model: dict[str, str], **over: Any) -> dict[str, Any]:
+    """A study whose only arm runs on an external provider (nothing charged)."""
+    arm = {"id": "ext", "model": model["id"], "sampling": "t1_minp", "source": "provider"}
+    estimates = {"tps_by_model": {"qr-llm": 400.0, model["id"]: 50.0}}
+    return _study_dict(
+        models=[QR_MODEL, model], arms=[arm], title="External only", estimates=estimates, **over
+    )
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    [
+        "http://stub",  # the engine origin in these tests
+        "http://127.0.0.1:8000/v1",
+        "https://127.0.0.1:8000/v1",
+        "https://localhost/v1",
+        "https://engine.internal/v1",
+        "https://10.0.0.5/v1",
+        "https://[::1]/v1",
+        "http://llm.example.org/v1",  # public, but not https
+    ],
+)
+async def test_custom_models_cannot_point_at_the_engine(site: Site, base_url: str) -> None:
+    alice, _ = await site.signup()
+    refused = await site.launch(alice, config=_external_study(_custom(base_url)))
+    assert refused.status_code == 400, refused.text
+    assert refused.json()["error"]["param"] == "config.models"
+    as_narrative = await site.launch(alice, config=_study_dict(narrative_model=_custom(base_url)))
+    assert as_narrative.status_code == 400, as_narrative.text
+
+
+async def test_spent_quota_does_not_block_a_study_that_costs_nothing(tmp_path: Path) -> None:
+    async with _site(_settings(tmp_path, QR_EVALS_DEFAULT_TOKEN_QUOTA="10")) as site:
+        alice, alice_id = await site.signup()
+        site.h.state.ledger.record(_event(alice_id))  # 140 charged tokens: over the quota
+        assert (await site.usage(alice))["quota"]["exhausted"] is True
+
+        charged = await site.launch(alice)
+        assert charged.status_code == 403 and "quota" in charged.json()["error"]["message"]
+        readiness = await site.c.post(
+            f"{API}/readiness", json={"config": _study_dict()}, headers=alice
+        )
+        assert readiness.status_code == 403 and "quota" in readiness.json()["error"]["message"]
+
+        external = _external_study(_custom("https://llm.example.org/v1"))
+        free = await site.launch(alice, config=external)
+        assert free.status_code == 201, free.text
+        view = (await site.c.get(f"{API}/runs/{free.json()['run_id']}")).json()
+        assert view["owner_quota_exhausted"] is True and view["run"]["owner_id"] is None
+
+
+async def test_disabled_account_cannot_start_and_its_running_run_is_paused(
+    tmp_path: Path,
+) -> None:
+    async with _site(_settings(tmp_path), StubEngine(chunk_delay_s=0.005)) as site:
+        alice, alice_id = await site.signup()
+        accounts = site.h.state.accounts
+
+        first = (await site.launch(alice)).json()
+        accounts.set_disabled(alice_id, True)
+        refused = await site.control(first, "start")
+        assert refused.status_code == 403 and "disabled" in refused.json()["error"]["message"]
+        assert site.h.engine.requests == []
+
+        accounts.set_disabled(alice_id, False)
+        started = await site.control(first, "start")
+        assert started.status_code == 200, started.text
+        await _wait_state(site.c, first["run_id"], {"running"})
+        accounts.set_disabled(alice_id, True)
+        view = await _wait_state(site.c, first["run_id"], {"paused", "complete"})
+        assert view["run"]["state"] == "paused", "the next persisted sample pauses the run"
+        assert (await site.control(first, "resume")).status_code == 403
+
+        accounts.set_disabled(alice_id, False)
+        assert (await site.control(first, "resume")).status_code == 200
+        await _wait_state(site.c, first["run_id"], {"complete"})
+
+
+async def test_a_ledger_failure_pauses_the_run_instead_of_running_unmetered(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with _site(_settings(tmp_path), StubEngine(chunk_delay_s=0.005)) as site:
+        alice, _ = await site.signup()
+        launched = (await site.launch(alice)).json()
+        ledger = site.h.state.ledger
+        with monkeypatch.context() as patch:
+
+            def down(event: UsageEvent) -> None:
+                raise RuntimeError("database is locked")
+
+            patch.setattr(ledger, "record", down)
+            view = await site.run_to(launched, {"paused", "complete"})
+            assert view["run"]["state"] == "paused"
+        # every generated row is still on disk even though none was recorded
+        run_store = site.h.store.find_run(launched["run_id"])
+        assert run_store is not None
+        on_disk = sum(
+            len(list(run_store.generations(arm, "stub_free"))) for arm in ("qrng", "prng_seed_7")
+        )
+        assert 0 < on_disk < SAMPLES
+        assert ledger.totals_by_user() == {}
+
+        assert (await site.control(launched, "resume")).status_code == 200
+        await _wait_state(site.c, launched["run_id"], {"complete"})
+        assert _kinds(await site.usage(alice))["generation"]["calls"] == SAMPLES - on_disk
+
+
+async def test_engine_narrative_and_judge_tokens_are_charged(site: Site) -> None:
+    alice, _ = await site.signup()
+    launched = (await site.launch(alice)).json()
+    recorder: UsageRecorder = site.h.state.usage
+    usage = {"prompt_tokens": 900, "completion_tokens": 300}
+    recorder.record_narrative(launched["run_id"], "claude-x", usage)
+    recorder.record_narrative(launched["run_id"], "qr-llm", usage, on_engine=True)
+    assert _kinds(await site.usage(alice))["narrative"]["charged_tokens"] == 1200
+
+    note = UsageNote(
+        run_id=launched["run_id"],
+        kind="judge",
+        arm_id="qrng",
+        card_id="stub_free",
+        model="qr-llm",
+        source_label=None,
+        pipeline_pinned=True,
+        usage=Usage(prompt_tokens=10, completion_tokens=5),
+        at=T0,
+    )
+    recorder.on_row(note)
+    assert _kinds(await site.usage(alice))["judge"]["charged_tokens"] == 15
+
+
+def test_a_failed_migration_rolls_back_and_can_be_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "accounts.sqlite"
+    good = accounts_service.MIGRATIONS
+    broken = (good[0], (2, "CREATE TABLE half_done (id INTEGER); CREATE TABLE users (x);"))
+    with monkeypatch.context() as patch:
+        patch.setattr(accounts_service, "MIGRATIONS", broken)
+        with pytest.raises(Exception, match="already exists"):
+            Accounts(path, scrypt_n=FAST_N)
+    # nothing of the failed migration stuck, so the real one applies cleanly
+    acc = Accounts(path, scrypt_n=FAST_N)
+    tables = {r["name"] for r in acc._conn.execute("SELECT name FROM sqlite_master")}
+    assert "half_done" not in tables and "usage_events" in tables
+    versions = [r["version"] for r in acc._conn.execute("SELECT version FROM schema_migrations")]
+    assert sorted(versions) == [1, 2]
+    acc.close()

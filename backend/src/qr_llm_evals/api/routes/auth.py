@@ -14,12 +14,13 @@
 ``GET /me/usage``
     Token totals and the quota for the signed-in account.
 
-Signup and login are rate-limited per client address. Login failures do not
-say whether the username exists.
+Signup and login are rate-limited per client address, and login per username
+as well. Login failures do not say whether the username exists.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Request
@@ -36,7 +37,7 @@ from qr_llm_evals.accounts import (
 )
 from qr_llm_evals.api.deps import AppState, CurrentUser, State
 from qr_llm_evals.api.errors import ApiError
-from qr_llm_evals.api.ratelimit import enforce
+from qr_llm_evals.api.ratelimit import enforce, enforce_subject
 from qr_llm_evals.api.schema import (
     AuthResponse,
     LinkKeyRequest,
@@ -101,7 +102,9 @@ async def signup(body: SignupRequest, request: Request, state: State) -> AuthRes
         raise ApiError(403, "registration is closed")
     identity = await _verify_key(state, body.api_key)
     try:
-        user = state.accounts.create_user(
+        # scrypt takes tens of milliseconds: keep it off the event loop.
+        user = await asyncio.to_thread(
+            state.accounts.create_user,
             body.username,
             body.password,
             key_sha256=sha256_hex(body.api_key.strip()),
@@ -127,8 +130,11 @@ async def signup(body: SignupRequest, request: Request, state: State) -> AuthRes
 @router.post("/auth/login", response_model=AuthResponse)
 async def login(body: LoginRequest, request: Request, state: State) -> AuthResponse:
     enforce(state.limiter, request, scope="login")
+    # Also per username, so guesses against one account are slowed whatever
+    # addresses they come from.
+    enforce_subject(state.limiter, "login-user", body.username.strip().lower())
     try:
-        user = state.accounts.authenticate(body.username, body.password)
+        user = await asyncio.to_thread(state.accounts.authenticate, body.username, body.password)
     except BadCredentials as err:
         raise ApiError(401, str(err)) from err
     except AccountDisabled as err:

@@ -261,6 +261,13 @@ async def client(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
         yield c
 
 
+def _state(client: httpx.AsyncClient) -> AppState:
+    transport = client._transport
+    assert isinstance(transport, httpx.ASGITransport)
+    state: AppState = transport.app.state.qr  # type: ignore[union-attr]
+    return state
+
+
 def _bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
@@ -376,8 +383,13 @@ async def test_session_launch_records_the_owner(client: httpx.AsyncClient) -> No
     body = {"config": _study_dict(), "kind": "pilot"}
     resp = await client.post(f"{API}/runs", json=body, headers=_bearer(data["session_token"]))
     assert resp.status_code == 201, resp.text
-    run = (await client.get(f"{API}/runs/{resp.json()['run_id']}")).json()["run"]
-    assert run["owner_id"] == data["user"]["user_id"] and run["key_name"] == "alice"
+    run_id = resp.json()["run_id"]
+    view = (await client.get(f"{API}/runs/{run_id}")).json()
+    assert view["run"]["key_name"] == "alice"
+    assert view["run"]["owner_id"] is None, "the open route never names the account"
+    assert view["owner_quota_exhausted"] is False
+    stored = _state(client).store.find_run(run_id)
+    assert stored is not None and stored.read_run().owner_id == data["user"]["user_id"]
     # the per-key cap is the per-account cap: a second active run is refused
     again = await client.post(f"{API}/runs", json=body, headers=_bearer(data["session_token"]))
     _error(again, 429)
@@ -500,3 +512,55 @@ def test_cli_manages_accounts(tmp_path: Path, capsys: pytest.CaptureFixture[str]
     check = Accounts(db)
     assert check.authenticate("alice", "a new long password").is_admin is False
     check.close()
+
+
+# ── review fixes ──────────────────────────────────────────────────────────────
+
+
+async def test_rate_limit_ignores_a_spoofed_forwarded_for(tmp_path: Path) -> None:
+    app = _app(_settings(tmp_path), limiter=TokenBucketLimiter(rate_per_s=0.001, burst=3))
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        statuses = []
+        for i in range(6):
+            resp = await c.post(
+                f"{API}/auth/login",
+                json={"username": f"ghost{i}", "password": "whatever"},
+                headers={
+                    # what Cloudflare sends: the client-chosen first hop, then the real address
+                    "X-Forwarded-For": f"10.9.{i}.1, 203.0.113.7",
+                    "CF-Connecting-IP": "203.0.113.7",
+                },
+            )
+            statuses.append(resp.status_code)
+        assert statuses == [401, 401, 401, 429, 429, 429]
+
+        # without Cloudflare's header, the last forwarded hop is the one that counts
+        statuses = []
+        for i in range(5):
+            resp = await c.post(
+                f"{API}/auth/login",
+                json={"username": f"phantom{i}", "password": "whatever"},
+                headers={"X-Forwarded-For": f"10.8.{i}.1, 198.51.100.4"},
+            )
+            statuses.append(resp.status_code)
+        assert statuses == [401, 401, 401, 429, 429]
+
+
+async def test_login_is_throttled_per_username_across_addresses(tmp_path: Path) -> None:
+    app = _app(_settings(tmp_path), limiter=TokenBucketLimiter(rate_per_s=0.001, burst=3))
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        statuses = []
+        for i in range(5):
+            resp = await c.post(
+                f"{API}/auth/login",
+                json={"username": "Alice", "password": f"guess-{i}"},
+                headers={"CF-Connecting-IP": f"203.0.113.{i}"},
+            )
+            statuses.append(resp.status_code)
+        assert statuses == [401, 401, 401, 429, 429]

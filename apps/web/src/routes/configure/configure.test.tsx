@@ -30,4 +30,12 @@ describe("configure wizard", () => {
     fireEvent.change(screen.getByLabelText("Anthropic judge key"), { target: { value: "sk-ant-secret" } });
     await waitFor(() => expect(window.localStorage.getItem("qr-evals.study-config.v1")).not.toContain("secret"));
   });
+
+  it("refuses to open the launch gate while signed out", () => {
+    render(<Configure />);
+    fireEvent.click(screen.getByRole("button", { name: /07Review/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Launch run" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Sign in before launching");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

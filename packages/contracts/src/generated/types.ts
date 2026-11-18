@@ -1070,6 +1070,10 @@ export interface RunView {
   control_state?: string | null;
   subscribers?: number;
   readiness?: ReadinessReport | null;
+  /**
+   * The launching account has no token quota left; start/resume is refused.
+   */
+  owner_quota_exhausted?: boolean;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
