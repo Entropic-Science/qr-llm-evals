@@ -2,8 +2,8 @@
 
 `qr-llm-evals` is the **pre-registered research harness** behind
 [evals.entropic.science](https://evals.entropic.science): a Python 3.11 FastAPI
-backend on the `qr-server` box (loopback `:8830`, fronted by its own cloudflared
-tunnel at `evals-api.entropic.science`) plus a static React SPA on Cloudflare
+backend on the `qr-server` box (loopback `:8830`, reached at
+`evals-api.entropic.science` through qr-llm-api's cloudflared tunnel) plus a static React SPA on Cloudflare
 Pages. It compares **quantum-random** token sampling (hardware QRNG via
 qr-sampler) against **seeded pseudo-random** sampling on identical pipelines,
 runs a registry of evals against both, and produces pre-registration documents,

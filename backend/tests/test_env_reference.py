@@ -31,7 +31,7 @@ _ENV_TOUCH_RE = re.compile(r"\bos\.environ\b|\bos\.getenv\b")
 _TABLE_ROW_RE = re.compile(r"^\|\s*`([A-Z][A-Z0-9_]*)`\s*\|")
 
 #: Documented for operators but never read by the backend process.
-OPERATOR_ONLY = frozenset({"PYTHONUTF8", "TUNNEL_TOKEN"})
+OPERATOR_ONLY = frozenset({"PYTHONUTF8"})
 
 
 def _src_env_reads() -> dict[str, str]:

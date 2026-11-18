@@ -58,8 +58,8 @@ Each row gives **name / required / example / source**.
 
 | Variable | Required | Example | Source / notes |
 |---|---|---|---|
-| `QR_EVALS_BIND_HOST` | no (default `127.0.0.1`) | `127.0.0.1` | Loopback only; cloudflared fronts it (spec D-3). |
-| `QR_EVALS_BIND_PORT` | no (default `8830`) | `8830` | Matches `infra/qr-llm-evals-cloudflared.service`. |
+| `QR_EVALS_BIND_HOST` | no (default `127.0.0.1`) | `127.0.0.1` | Loopback only; qr-llm-api's tunnel fronts it (spec D-3). |
+| `QR_EVALS_BIND_PORT` | no (default `8830`) | `8830` | Matches the `evals-api.entropic.science` public hostname on qr-llm-api's tunnel (`docs/SETUP_GUIDE.md` section 4). |
 | `QR_EVALS_CORS_ORIGINS` | no (default `https://evals.entropic.science,http://localhost:5173`) | `https://evals.entropic.science` | Comma-separated browser origins allowed to call the API. |
 | `QR_EVALS_LOG_LEVEL` | no (default `INFO`) | `INFO` | Root logger level; secrets are redacted by `SecretFilter` regardless of level. |
 | `QR_EVALS_COMMIT` | no (unset = not reported) | `1a2b3c4d` | Deployed git commit shown by `GET /api/health`; `scripts/deploy.sh` writes it into each release.env at deploy time; the unit loads that after the operator env file. |
@@ -69,7 +69,6 @@ Each row gives **name / required / example / source**.
 | Variable | Required | Example | Source / notes |
 |---|---|---|---|
 | `PYTHONUTF8` | yes on Windows dev | `1` | Forces UTF-8 for the interpreter (Windows notes in `AGENTS.md`). |
-| `TUNNEL_TOKEN` | yes on the box | *(token-mode connector)* | Read by `qr-llm-evals-cloudflared.service`, never by the backend. |
 
 ## DO NOT set — anti-list
 
@@ -100,5 +99,5 @@ Vite `/api` proxy. Backend CORS remains explicitly configured independently.
 
 Environment examples are systemd EnvironmentFile syntax, not shell scripts.
 Do not source them into an interactive shell or print their values. Keep the
-backend and tunnel files separate and root-owned mode 0600; systemd reads them
-before dropping privileges. Full installation: `.\docs\SETUP_GUIDE.md`.
+backend file root-owned mode 0600; systemd reads it before dropping
+privileges. The harness has no tunnel token of its own. Full installation: `.\docs\SETUP_GUIDE.md`.

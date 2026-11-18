@@ -7,10 +7,12 @@ This directory configures **only the harness**, never the shared engine or QRNG.
 - **API unit**: `.\infra\qr-llm-evals.service`, dedicated `qr-llm-evals` user,
   one process on `127.0.0.1:8830`, preflight before binding, strict filesystem
   sandbox with writable state under `/var/lib/qr-llm-evals`.
-- **Tunnel unit**: `.\infra\qr-llm-evals-cloudflared.service`, token-mode
-  connector with its own environment file, no token on the command line.
-- **Examples**: `.\infra\qr-llm-evals.env.example` and
-  `.\infra\cloudflared.env.example` contain placeholders, not secrets.
+- **Tunnel**: none here. `evals-api.entropic.science` is a second public
+  hostname on qr-llm-api's existing tunnel (`qr-llm-api-cloudflared.service`),
+  pointing at `http://127.0.0.1:8830`. The harness ships no connector and
+  holds no tunnel token.
+- **Example**: `.\infra\qr-llm-evals.env.example` contains placeholders, not
+  secrets.
 - **Release scripts**: `.\scripts\deploy.sh` and `.\scripts\rollback.sh` run
   on the Linux box as root from a reviewed checkout. Deploy refuses all
   non-ignored dirty files, archives a commit, creates a fresh venv from hashed
@@ -24,8 +26,9 @@ This directory configures **only the harness**, never the shared engine or QRNG.
 service users. `current` and `previous` are symlinks there. The data root is
 outside all releases. A single `flock` serializes deploy and rollback.
 Unit files in `/etc/systemd/system` link through `current`, so application and
-unit definitions roll back together. Tunnel restart/token rotation is explicit
-operator work; an API restart never tears down the tunnel.
+unit definitions roll back together. The tunnel belongs to qr-llm-api: restarting
+or redeploying the harness never touches it, but restarting that tunnel takes
+both `api.entropic.science` and `evals-api.entropic.science` down together.
 
 Preflight and health must return success, including engine availability. Unlike
 interactive entrypoint startup, deployment treats preflight exit 1 (engine

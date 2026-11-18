@@ -1,7 +1,7 @@
 # Operator setup guide
 
 Scope: Linux `qr-server`, Python 3.11, static Cloudflare Pages frontend, and a
-separate token-mode tunnel to `127.0.0.1:8830`. This is a runbook, **not evidence
+public hostname on qr-llm-api's existing tunnel to `127.0.0.1:8830`. This is a runbook, **not evidence
 that a live deployment or pilot has passed**. Read `.\docs\DESIGN.md`,
 `.\docs\API.md`, `.\docs\PRIVACY.md`, and `.\infra\ENV_REFERENCE.md` first.
 Never paste bearer keys, tunnel tokens, or participant data into a PR or journal.
@@ -13,8 +13,9 @@ Never paste bearer keys, tunnel tokens, or participant data into a PR or journal
    it neither installs nor restarts either service. The edge at `:8820` is used
    only for optional launch-key probes, not the pinned study generation path.
 2. Install Python 3.11 with venv support, Git, Bash, curl, util-linux (`flock`),
-   systemd, and cloudflared at `/usr/bin/cloudflared` using the box's approved
-   package sources. Run `python3.11 --version` and `cloudflared --version`.
+   and systemd using the box's approved package sources. Run
+   `python3.11 --version`. The harness runs no cloudflared of its own; it needs
+   `qr-llm-api-cloudflared.service` (qr-llm-api's tunnel) to be running.
 3. Use the repository remote chosen by the owner. The original spec names
    `Entropic-Science/qr-llm-evals`; the requested new remote is
    `Entropic-Science/evals.entropic.science`. The commands below use the latter;
@@ -58,12 +59,10 @@ sudo install -d -o root -g root -m 0755 /opt/qr-llm-evals/releases
 sudo install -d -o qr-llm-evals -g qr-llm-evals -m 0700 /var/lib/qr-llm-evals
 sudo install -d -o root -g root -m 0700 /etc/qr-llm-evals
 sudo install -o root -g root -m 0600 infra/qr-llm-evals.env.example /etc/qr-llm-evals/qr-llm-evals.env
-sudo install -o root -g root -m 0600 infra/cloudflared.env.example /etc/qr-llm-evals/cloudflared.env
 sudoedit /etc/qr-llm-evals/qr-llm-evals.env
-sudoedit /etc/qr-llm-evals/cloudflared.env
 ```
 
-Systemd reads the root-only environment files before changing user. Keep
+Systemd reads the root-only environment file before changing user. Keep
 `QR_EVALS_BIND_HOST=127.0.0.1`, port `8830`, production-only CORS origin, and the
 default data root; custom state paths also require sandbox/drop-in changes.
 Keep `QR_EVALS_MAX_INFLIGHT=3` with the shared engine's four-sequence capacity
@@ -155,12 +154,11 @@ in the UI and held only in memory; never put them in these environment files.
 1. Commit all intended implementation and generated changes; deploy rejects
    staged, unstaged, and non-ignored untracked files. Ignored caches never enter
    `git archive`. Resolve and review the selected commit, not just its branch.
-2. Install these unit links once. If a regular unit already exists, inspect and
+2. Install this unit link once. If a regular unit already exists, inspect and
    back it up before replacing it; the script deliberately refuses mismatches.
 
 ```bash
 sudo ln -s /opt/qr-llm-evals/current/infra/qr-llm-evals.service /etc/systemd/system/qr-llm-evals.service
-sudo ln -s /opt/qr-llm-evals/current/infra/qr-llm-evals-cloudflared.service /etc/systemd/system/qr-llm-evals-cloudflared.service
 sudo bash scripts/deploy.sh HEAD
 sudo systemctl enable qr-llm-evals.service
 sudo systemctl status qr-llm-evals.service --no-pager
@@ -180,38 +178,48 @@ and its release retained. Read the journal; do not repeatedly restart blindly.
 
 ```bash
 sudo journalctl -u qr-llm-evals.service -n 80 --no-pager
-sudo systemd-analyze verify /etc/systemd/system/qr-llm-evals.service /etc/systemd/system/qr-llm-evals-cloudflared.service
+sudo systemd-analyze verify /etc/systemd/system/qr-llm-evals.service
 ```
 
 No inbound public firewall rule is needed for 8830 or 8000. Confirm the API
 socket using `ss -ltnp`; do not change the bind address to bypass the tunnel.
 
-## 4. Token-mode tunnel and DNS
+## 4. Public hostname on the shared tunnel
 
-1. In Cloudflare, create a **separate remotely managed tunnel** for
-   `evals-api.entropic.science`; retain the existing edge and entropy tunnels.
-2. Configure its public hostname as `evals-api.entropic.science`, service
-   `http://127.0.0.1:8830`. The dashboard owns ingress; do not also install a local
-   ingress configuration. Associate the proxied hostname record with this
-   tunnel (the dashboard can create it); never point it at the box's public IP.
-3. Put its token into the already protected tunnel environment file using
-   `sudoedit`. The unit uses `TUNNEL_TOKEN` rather than an argv token; do not run
-   the generic service installer that would create a competing connector.
-   Token-mode and its environment option are documented in
-   [Cloudflare tunnel parameters](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/run-parameters/).
-4. Start the connector after local health passes:
+The harness has no tunnel of its own. `evals-api.entropic.science` is a second
+public hostname on the tunnel that already serves `api.entropic.science`
+(`qr-llm-api-cloudflared.service`, token mode, owned by qr-llm-api). Nothing is
+installed on the box for this step and no token is handled.
+
+1. In Cloudflare (Zero Trust, Networks, Tunnels), open the existing qr-llm-api
+   tunnel. Do not create a new tunnel and do not refresh its token.
+2. Add a public hostname: `evals-api.entropic.science`, service
+   `http://127.0.0.1:8830`. Leave the existing `api.entropic.science` entry
+   pointing at `http://127.0.0.1:8820` unchanged. The dashboard owns ingress
+   and creates the proxied DNS record; never point the record at the box's
+   public IP.
+3. The running connector picks the new hostname up within seconds. Check from
+   outside the box once local health passes:
 
 ```bash
-sudo systemctl enable --now qr-llm-evals-cloudflared.service
-sudo journalctl -u qr-llm-evals-cloudflared.service -n 40 --no-pager
+systemctl is-active qr-llm-api-cloudflared.service
 curl --fail --max-time 10 https://evals-api.entropic.science/api/health
+curl --fail --max-time 10 https://api.entropic.science/health
 ```
 
-Allow outbound cloudflared connectivity under the box's network policy. Check
-external registry responses, browser CORS, and an authorized run's SSE stream
-for at least 60 seconds (including idle keep-alives). Do not cache `/api/*` or
-apply browser challenges that break API/SSE requests. Token rotation requires
-editing only the tunnel environment and explicitly restarting its unit.
+What sharing the tunnel means:
+
+- Both hostnames go down together if the tunnel is restarted, its token is
+  rotated or the connector fails. Deploying or restarting the harness never
+  touches it.
+- The connector runs as the `qr-llm-api` user and reaches the harness only
+  over loopback. The harness keeps its own user, port, data and rate limits.
+- Removing the hostname in the dashboard takes the harness offline without
+  affecting `api.entropic.science`.
+
+Check external registry responses, browser CORS, and an authorized run's SSE
+stream for at least 60 seconds (including idle keep-alives). Do not cache
+`/api/*` or apply browser challenges that break API/SSE requests.
 
 ## 5. Cloudflare Pages
 
@@ -225,7 +233,7 @@ root** as the build root (the pnpm workspace spans more than the web app).
 - **Frontend API**: `VITE_API_BASE=https://evals-api.entropic.science` (origin
   only, no `/api` suffix); this is public build-time configuration, never a key.
 - **Custom domain**: add `evals.entropic.science` through Pages custom domains
-  and complete its DNS verification. This hostname is not the API tunnel.
+  and complete its DNS verification. This hostname is served by Pages, not by the tunnel.
 
 These fields follow [Pages build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/)
 and [runtime overrides](https://developers.cloudflare.com/pages/configuration/build-image/).

@@ -26,8 +26,8 @@ def bash_binary() -> str:
     return bash
 
 
-@pytest.mark.parametrize("name", ["qr-llm-evals", "qr-llm-evals-cloudflared"])
-def test_units_parse_and_are_hardened(name: str) -> None:
+def test_unit_parses_and_is_hardened() -> None:
+    name = "qr-llm-evals"
     unit = configparser.ConfigParser(interpolation=None, strict=False)
     unit.optionxform = str
     unit.read_string(read(f"infra/{name}.service"))
@@ -41,25 +41,26 @@ def test_units_parse_and_are_hardened(name: str) -> None:
     assert service["UMask"] == "0077"
     assert service["LimitCORE"] == "0"
     assert unit["Install"]["WantedBy"] == "multi-user.target"
-    if name == "qr-llm-evals":
-        assert service["ExecStartPre"].endswith(" -m qr_llm_evals.preflight")
-        assert service["ExecStart"].endswith(" -m qr_llm_evals.entrypoint")
-        assert service["WorkingDirectory"] == "/opt/qr-llm-evals/current"
-        assert service["StateDirectory"] == "qr-llm-evals"
-        assert "EnvironmentFile=/etc/qr-llm-evals/qr-llm-evals.env" in read(f"infra/{name}.service")
-    else:
-        assert service["ExecStart"] == "/usr/bin/cloudflared tunnel --no-autoupdate run"
-        assert "--token" not in service["ExecStart"]
-        assert "Requires" not in unit["Unit"]
-        assert service["EnvironmentFile"] == "/etc/qr-llm-evals/cloudflared.env"
+    assert service["ExecStartPre"].endswith(" -m qr_llm_evals.preflight")
+    assert service["ExecStart"].endswith(" -m qr_llm_evals.entrypoint")
+    assert service["WorkingDirectory"] == "/opt/qr-llm-evals/current"
+    assert service["StateDirectory"] == "qr-llm-evals"
+    assert "EnvironmentFile=/etc/qr-llm-evals/qr-llm-evals.env" in read(f"infra/{name}.service")
+
+
+def test_no_tunnel_connector_is_shipped() -> None:
+    # The API hostname is a public hostname on qr-llm-api's tunnel; a second
+    # connector here would need its own token and compete for the hostname.
+    names = sorted(p.name for p in (ROOT / "infra").iterdir())
+    assert not [n for n in names if "cloudflared" in n], names
+    assert "cloudflared" not in read("scripts/deploy.sh")
 
 
 def test_example_variables_documented_and_secrets_separated() -> None:
     reference = read("infra/ENV_REFERENCE.md")
-    for example in ("qr-llm-evals.env.example", "cloudflared.env.example"):
-        for name in re.findall(r"^([A-Z][A-Z0-9_]*)=", read(f"infra/{example}"), re.M):
-            assert f"| `{name}` |" in reference, name
     backend = read("infra/qr-llm-evals.env.example")
+    for name in re.findall(r"^([A-Z][A-Z0-9_]*)=", backend, re.M):
+        assert f"| `{name}` |" in reference, name
     assert "QR_EVALS_BIND_HOST=127.0.0.1" in backend
     assert "QR_EVALS_BIND_PORT=8830" in backend
     assert "QR_EVALS_CORS_ORIGINS=https://evals.entropic.science" in backend

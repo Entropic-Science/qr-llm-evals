@@ -16,10 +16,9 @@ if [[ -L $ROOT/current ]]; then
 elif [[ -e $ROOT/current ]]; then
   fail "current must be a symlink"
 fi
-for unit in qr-llm-evals.service qr-llm-evals-cloudflared.service; do
-  [[ $(readlink "/etc/systemd/system/$unit") == "$ROOT/current/infra/$unit" ]] || \
-    fail "install documented unit symlink first: $unit"
-done
+unit=qr-llm-evals.service
+[[ $(readlink "/etc/systemd/system/$unit") == "$ROOT/current/infra/$unit" ]] || \
+  fail "install documented unit symlink first: $unit"
 RELEASE="$ROOT/releases/$(date -u +%Y%m%dT%H%M%SZ)-${COMMIT:0:12}"
 mkdir -m 0755 "$RELEASE" # never overwrite an existing release
 # Only tracked bytes from the selected immutable commit; no working-tree copy.
@@ -39,4 +38,4 @@ done
 "$RELEASE/.venv/bin/python" -m pip check
 chmod -R go-w "$RELEASE"
 activate "$RELEASE" "$OLD"
-echo "Deployed $COMMIT. Tunnel lifecycle is operator-owned; no study auto-started."
+echo "Deployed $COMMIT. The shared API tunnel is not touched; no study auto-started."

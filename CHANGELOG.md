@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Serve `evals-api.entropic.science` through qr-llm-api's existing tunnel
+  instead of a dedicated one. The harness no longer ships a cloudflared unit
+  or a tunnel token file, and `scripts/deploy.sh` no longer expects the unit
+  link. The hostname is added as a second public hostname on that tunnel
+  (`docs/SETUP_GUIDE.md` section 4).
+
 - Harden accounts and quotas after review. A `custom:` model must use an
   `https://` base URL on a public host, so it cannot reach the shared engine
   unmetered. A disabled account can no longer start or resume runs, and its
