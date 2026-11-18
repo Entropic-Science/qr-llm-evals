@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Document account setup for operators (`docs/SETUP_GUIDE.md`: first admin,
+  quotas, backups of `accounts.sqlite`) and what an account stores
+  (`docs/PRIVACY.md`).
+
 - Add sign-in to the web app: `/login`, `/signup`, an `/account` page with
   the linked key, the token quota and usage tables, and an `/admin` page
   listing every account. The configure wizard no longer asks for a launch

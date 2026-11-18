@@ -72,6 +72,61 @@ allocation. A replay profile with one sequence needs the harness cap reduced
 to one. `QR_EVALS_TIER2_REPLAY_ACTIVE=1` is an operator declaration, not a switch
 that configures the engine; readiness must still verify replay.
 
+### Accounts, quotas, and the first admin
+
+People who launch runs need an account. An account is a username, a password
+and one linked api.entropic.science key; the account is created at
+`https://evals.entropic.science/signup` and only if the key verifies. Accounts
+and the token-usage ledger live in `/var/lib/qr-llm-evals/accounts.sqlite`,
+which the service creates on first start.
+
+Three settings in `/etc/qr-llm-evals/qr-llm-evals.env` control this:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `QR_EVALS_SIGNUP_ENABLED` | `1` | `0` closes registration; existing accounts still sign in. |
+| `QR_EVALS_DEFAULT_TOKEN_QUOTA` | `2000000` | Lifetime budget of qr-server generation tokens per account. `0` is unlimited. |
+| `QR_EVALS_ALLOW_KEY_LAUNCH` | `0` | `1` lets a bare `qrk_` key launch without an account. Those runs are not metered and bypass quotas, so keep it `0` in production. |
+
+Nobody is an admin until an operator says so. After the first person has
+signed up, grant the flag on the box, as the service user so the database
+keeps its owner:
+
+```bash
+cd /opt/qr-llm-evals/current
+sudo -u qr-llm-evals env QR_EVALS_DATA_DIR=/var/lib/qr-llm-evals \
+  .venv/bin/python -m qr_llm_evals.accounts.cli make-admin <username>
+```
+
+The same tool covers the rest. None of these commands prints or needs a
+secret, except `reset-password`, which prompts for the new one:
+
+```bash
+... -m qr_llm_evals.accounts.cli list
+... -m qr_llm_evals.accounts.cli set-quota <username> 5000000   # or 0, or default
+... -m qr_llm_evals.accounts.cli disable <username>             # also signs them out
+... -m qr_llm_evals.accounts.cli enable <username>
+... -m qr_llm_evals.accounts.cli reset-password <username>
+... -m qr_llm_evals.accounts.cli revoke-admin <username>
+```
+
+An admin can also set quotas and disable accounts from
+`https://evals.entropic.science/admin`. There is no self-service password
+reset: a user who forgets their password asks an operator.
+
+How the quota behaves: only prompt and completion tokens of generations on
+the qr-server engine count. Judge and narrative calls are recorded but not
+counted, because the user's own provider key pays for them. An account with
+nothing left cannot launch or resume, and a run in progress is paused when
+the budget reaches zero; raise the quota and the host can resume it. The
+quota does not reset on a schedule.
+
+Disabling a key in qr-llm-api's keys file also stops its account from
+launching, because file mode re-checks the linked key's digest on every
+launch. The account still signs in, so its owner can link a replacement key.
+In `probe` mode that re-check is not possible: a key is trusted from the
+moment it is linked, so disable the account as well as the key.
+
 ### Cross-repo keys-file permissions
 
 File mode reads **digests only** from `/etc/qr-llm-api/api-keys.json`. Coordinate
@@ -192,8 +247,8 @@ origins belong in CSP; provider requests are server-side.
 
 ## 6. First readiness and pilot (PRD section 7.4)
 
-A healthy HTTP server is not experimental readiness. From the UI, configure
-Study 1 and enter a valid launch key; consult `.\docs\API.md` for the exact
+A healthy HTTP server is not experimental readiness. From the UI, sign in,
+configure Study 1 and launch; consult `.\docs\API.md` for the exact
 `POST /api/readiness` request contract if operating by API.
 
 1. **Readiness**: verify fresh QRNG health/fallback baseline, arm availability,
@@ -263,8 +318,15 @@ sessions automatically.
 
 ## 8. Maintenance, backups, and rollback
 
+Operator tooling that launches with a bare key, such as `scripts/smoke.py
+--live` with `--launch-key-file`, is refused while
+`QR_EVALS_ALLOW_KEY_LAUNCH=0`. Set it to `1` for the acceptance window,
+restart, run the check, then set it back and restart again.
+
 Pause active runs at generation boundaries before maintenance. Take a consistent
-backup of the complete data tree: stop the harness while copying SQLite and its
+backup of the complete data tree, `accounts.sqlite` included: unlike
+`index.sqlite` it cannot be rebuilt from the artifacts, and losing it loses
+every account, quota and usage record. To back it up: stop the harness while copying SQLite and its
 WAL together with artifacts, or use SQLite's online backup API plus a coordinated
 artifact snapshot. Encrypt backups, restrict access, test restores offline, and
 record commit/schema versions. Never delete paid-for artifacts; use quarantine
