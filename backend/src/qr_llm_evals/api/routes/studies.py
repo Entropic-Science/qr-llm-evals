@@ -51,7 +51,7 @@ def _file(
 
 def _public_run(run: Run) -> dict[str, object]:
     data = run.model_dump(mode="json")
-    for field in ("host_token_hash", "key_name", "keys_present"):
+    for field in ("host_token_hash", "key_name", "owner_id", "keys_present"):
         data.pop(field, None)
     return data
 

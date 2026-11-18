@@ -68,6 +68,7 @@ def _setup(tmp_path: Path) -> tuple[Store, Run, object]:
         state="complete",
         created_at=datetime(2026, 9, 15, tzinfo=UTC),
         key_name="test-key",
+        owner_id="usr_private",
         host_token_hash=sha256_hex(HOST_TOKEN),
         prereg_hash=study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0],
         config_hash=config_hash(study),
@@ -117,6 +118,7 @@ async def test_analysis_results_bundle_and_withdrawal(tmp_path: Path) -> None:
             public_run = study.json()["runs"][0]
             assert analysis_id in study.json()["analyses"][run.run_id]
             assert "host_token_hash" not in public_run and "key_name" not in public_run
+            assert "owner_id" not in public_run
 
             output = store.run(run.study_id, run.run_id).run_dir.analysis_dir(analysis_id)
             table_name = next((output / "tables").glob("*.json")).stem
@@ -172,6 +174,10 @@ async def test_analysis_results_bundle_and_withdrawal(tmp_path: Path) -> None:
                 extracted = archive.extractfile(canary)
                 assert extracted is not None
                 assert b"provider_headers" not in extracted.read()
+                run_json = next(name for name in names if name.endswith("/run.json"))
+                exported = archive.extractfile(run_json)
+                assert exported is not None
+                assert b"usr_private" not in exported.read()
 
             withdrawn = await client.post(
                 f"/api/studies/{run.study_id}/withdraw",

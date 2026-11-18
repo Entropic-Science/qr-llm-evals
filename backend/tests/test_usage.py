@@ -470,6 +470,9 @@ async def test_narrative_tokens_are_recorded_uncharged(site: Site) -> None:
     )
     recorder.record_narrative(launched["run_id"], "claude-x", None)
     recorder.record_narrative("run_unknown", "claude-x", {"prompt_tokens": 1})
+    # an owner the accounts database does not know must not raise into the analysis
+    recorder._owners["run_orphan"] = "usr_gone"
+    recorder.record_narrative("run_orphan", "claude-x", {"prompt_tokens": 1})
     narrative = _kinds(await site.usage(alice))["narrative"]
     assert narrative["calls"] == 2 and narrative["charged_tokens"] == 0
     assert (narrative["prompt_tokens"], narrative["completion_tokens"]) == (900, 300)
