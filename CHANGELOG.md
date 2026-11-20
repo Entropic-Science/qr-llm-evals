@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Keep the "Prompt or Physics?" thesis study in its own folder,
+  `studies/thesis_prompt_or_physics/` (template, settings, decision module,
+  scripts, runbook). The `qr_llm_evals` package no longer contains or imports
+  it. The decision script now requires the settings file and the hash
+  registered for it (`thesis_report.py hash`, `--settings-sha256`) and refuses
+  other settings; an unknown `cluster` is an error; the first-word test (H4)
+  is unavailable when the logged candidates do not cover the distribution or
+  disagree with the logged brackets; the model-versus-observer contrast is
+  reported, not part of the decision.
+- A derived card may use `k` below 10 only if it declares it under
+  `exceptions` (`k below 10: ...`); the rule is no longer relaxed for every
+  derived card.
+- A resumed run generates with the `top_logprobs` depth it started with, even
+  if the deployment setting changed, so one run never mixes depths.
+- `AGENTS.md` invariant 1 now names `qr_population_mean` (biased control arms
+  only) in place of `qr_bias_epsilon`.
+
 - Ship the box's daily backup (`accounts.sqlite` and both `/etc`
   configuration directories) and the keys-file access watcher under
   `infra/`, and document them. `docs/SETUP_GUIDE.md` also gains: updating a
@@ -88,7 +105,7 @@ All notable changes to this project are documented here. The format follows
   guessing arm) instead of 600 guessed 40 times, an all-replies analysis next to
   the clean one, a pilot check on ordinary numbers only
   (`thesis_report.py pilot-check` replaces `pilot-margins`), and
-  `scripts/thesis_device_check.py` / `scripts/thesis_first_word_tokens.py`.
+  `studies/thesis_prompt_or_physics/thesis_device_check.py` / `studies/thesis_prompt_or_physics/thesis_first_word_tokens.py`.
 - Realise biased (ε) arms by lowering the z-score amplifier's reference mean
   (`qr_population_mean`, a per-request field the engine accepts) instead of the
   never-deployed `qr_bias_epsilon` (DEP-2): every `u` becomes `Φ(z + ε)`.
@@ -148,9 +165,9 @@ All notable changes to this project are documented here. The format follows
 - Add the `source_guessing_self_report` card (T4-f variant on told-nothing
   self-referential replies, balanced QRNG/PRNG, fresh-context and in-context
   guesses), a 5-point SESOI on `experience_claim_rate`, and the
-  `studies/thesis_prompt_or_physics.yaml` template with `docs/thesis-study.md`,
-  `scripts/thesis_dry_run.py` (offline fair-sampling simulator) and
-  `scripts/thesis_report.py` (pilot margins, H0–H3 decision table).
+  `studies/thesis_prompt_or_physics/study.yaml` template with `studies/thesis_prompt_or_physics/README.md`,
+  `studies/thesis_prompt_or_physics/thesis_dry_run.py` (offline fair-sampling simulator) and
+  `studies/thesis_prompt_or_physics/thesis_report.py` (pilot margins, H0–H3 decision table).
 
 - Give every readiness dispatch a unique engine request ID without changing
   its sampling seed, and require the matching fresh capability-log path.

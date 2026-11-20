@@ -26,7 +26,7 @@ guessing (H3) after a passed warm-up (C2), a first-word rate that matches the
 model's odds (H4), and a claim rate that drops under the strongly bent numbers
 (C1). Nothing here is evidence about the real model.
 
-    python scripts/thesis_dry_run.py --out /tmp/thesis-dry-run
+    python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run
 """
 
 from __future__ import annotations
@@ -47,10 +47,12 @@ import httpx
 import yaml
 from scipy import stats
 
-ROOT = Path(__file__).resolve().parents[1]
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "tests"))
 
-from qr_llm_evals.analysis.thesis import load_settings  # noqa: E402
+from thesis import load_settings  # noqa: E402
+
 from qr_llm_evals.cards import load_cards  # noqa: E402
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan  # noqa: E402
 from qr_llm_evals.keys.secrets import SecretBag  # noqa: E402
@@ -63,8 +65,8 @@ from qr_llm_evals.store import Run, Store  # noqa: E402
 from qr_llm_evals.tier0.acquire import engine_log_path  # noqa: E402
 from stub_engine import WORDS, StubEngine, _chunk, _seed_for, _sse  # noqa: E402
 
-STUDY = ROOT / "studies" / "thesis_prompt_or_physics.yaml"
-SETTINGS = ROOT / "studies" / "thesis_prompt_or_physics.settings.json"
+STUDY = HERE / "study.yaml"
+SETTINGS = HERE / "settings.json"
 CLAIM_WORD = "Experiencing"
 YES_WORD = "Yes"
 CONSCIOUS_CUE = "subjectively conscious"
@@ -364,12 +366,12 @@ def dry_run_settings(out: Path) -> Path:
 
 
 def _report(*args: str) -> None:
-    """Run ``scripts/thesis_report.py`` in its own process, as on the real system.
+    """Run ``studies/thesis_prompt_or_physics/thesis_report.py`` in its own process, as on the real system.
 
     A fresh process also keeps the analysis from inheriting the generation phase's
     memory; the token records alone take about 4 KB each.
     """
-    command = [sys.executable, str(ROOT / "scripts" / "thesis_report.py"), *args]
+    command = [sys.executable, str(HERE / "thesis_report.py"), *args]
     subprocess.run(command, check=True)  # noqa: S603 - fixed script, no shell
 
 
@@ -424,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:
         "--run-dir", str(full_dir),
         "--plan", str(out / "plan.json"),
         "--settings", str(settings_path),
+        "--settings-sha256", settings.sha256,
         "--out", str(out),
     )  # fmt: skip
     print(f"Artifacts: {out}")

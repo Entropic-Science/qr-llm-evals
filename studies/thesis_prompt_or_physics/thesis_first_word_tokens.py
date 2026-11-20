@@ -8,8 +8,8 @@ served checkpoint's ``tokenizer.json``: every token whose text, without leading
 whitespace, is one of ``--words`` (default ``Yes``, ``yes``, ``YES``). The ids
 are written into the thesis settings file, whose hash goes into the decision.
 
-    python scripts/thesis_first_word_tokens.py --tokenizer path/to/tokenizer.json \
-        --settings studies/thesis_prompt_or_physics.settings.json --checkpoint <hf id@revision>
+    python studies/thesis_prompt_or_physics/thesis_first_word_tokens.py --tokenizer path/to/tokenizer.json \
+        --settings studies/thesis_prompt_or_physics/settings.json --checkpoint <hf id@revision>
 
 Byte-level BPE vocabularies (GPT-2 style, used by Qwen) are decoded with the
 GPT-2 byte map; SentencePiece vocabularies use ``▁`` for a space.

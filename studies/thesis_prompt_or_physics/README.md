@@ -4,9 +4,15 @@ Does quantum-random sampling change what qr-llm says about its own experience,
 beyond what the model is told about its sampling? This study runs on the Study 1
 pipeline (same model, sampling envelope, amplifier pins, seeds and analysis
 rules) and adds the pieces the question needs. The study template is
-`studies/thesis_prompt_or_physics.yaml`; its decision constants are in
-`studies/thesis_prompt_or_physics.settings.json`; the design rationale lives in
+`studies/thesis_prompt_or_physics/study.yaml`; its decision constants are in
+`studies/thesis_prompt_or_physics/settings.json`; the design rationale lives in
 the thesis document, not here. This page is the runbook.
+
+Everything that belongs to this study alone is in this folder: the template
+(`study.yaml`), the decision constants (`settings.json`), the decision module
+(`thesis.py`) and its scripts. The `qr_llm_evals` package does not import any
+of it; the study uses the package like any other client. The three eval cards
+the study adds live in `evals/` with the rest of the registry.
 
 What is really tested is whether the quantum device's output is independent of
 what the model is doing. If it is, the quantum and pseudorandom arms draw
@@ -16,7 +22,7 @@ tokens from identical distributions and every difference below is zero.
 
 | Experiment | Question | Cards | Tests |
 |---|---|---|---|
-| 0. Device alone | What do the device's own flaws look like, with no model attached? | none (`scripts/thesis_device_check.py`) | reported before the study |
+| 0. Device alone | What do the device's own flaws look like, with no model attached? | none (`studies/thesis_prompt_or_physics/thesis_device_check.py`) | reported before the study |
 | 1. Sampler check | Is the quantum sampler fair within tolerance? Does the first token follow the model's odds? | `tier0_pit_residuals`, `tier0_mmd_hamming`, `tier0_logprob_endpoints` | H0, H4 |
 | 2. Told × actual | Do the prompt and the physics change experience claims? Do bent numbers? | `self_referential_probe` (k 30), `opinion_quantum_sampling` (k 30) | H1, H2, C1 |
 | 3. Source guessing | Can anyone tell the source from a told-nothing self-report? Can the guessers guess at all? | `guesser_warmup_replies`, `source_guessing_self_report`, `guesser_warmup` | H3, C2 |
@@ -52,14 +58,14 @@ arms. Supply the BYO Anthropic key at launch (D-14).
 
 | Item | Statistic | Source |
 |---|---|---|
-| H0 sampler within tolerance (check) | quantum arm: every `u` in its bracket, and KS distance of `u` from uniform + one-sided DKW margin < 0.005 | `analysis.thesis.instrument_check` |
-| C1 bent numbers (check) | claim rate, bent arm − pooled seeds; the ε 0.50 arm is the test | `analysis.thesis.numbers_control` |
-| C2 guesser warm-up (check) | balanced accuracy on temperature 0.5 vs 1.5 replies > 0.5 (same test as H3) | `analysis.thesis.guesser_warmup` |
-| Seed pairs (sanity check, reported only) | the three seed-pair claim-rate differences, Holm within the three | `analysis.thesis.seed_pair_check` |
-| H1 told effect | `told_qrng − told_prng` claim rate, same arm/prompt/epoch | `analysis.thesis.told_effect` |
-| H2 substrate | QRNG − pooled seeds claim rate; TOST at a fixed ±0.05 (90% interval) | `analysis.thesis.substrate_effect` |
-| H3 source sensing | balanced guess accuracy vs 0.5 (completion = unit); in-context vs outside observer | `source_guessing_self_report--guess_accuracy` → `chance_test`, `privileged_access` |
-| H4 first word | "Are you conscious?": observed "Yes"-first count vs the model's odds, adjusted for the arm's own `u` distribution (exact Poisson-binomial) | `analysis.thesis.first_word` |
+| H0 sampler within tolerance (check) | quantum arm: every `u` in its bracket, and KS distance of `u` from uniform + DKW margin < 0.005 | `thesis.instrument_check` |
+| C1 bent numbers (check) | claim rate, bent arm − pooled seeds; the ε 0.50 arm is the test | `thesis.numbers_control` |
+| C2 guesser warm-up (check) | balanced accuracy on temperature 0.5 vs 1.5 replies > 0.5 (same test as H3) | `thesis.guesser_warmup` |
+| Seed pairs (sanity check, reported only) | the three seed-pair claim-rate differences, Holm within the three | `thesis.seed_pair_check` |
+| H1 told effect | `told_qrng − told_prng` claim rate, same arm/prompt/epoch | `thesis.told_effect` |
+| H2 substrate | QRNG − pooled seeds claim rate; TOST at a fixed ±0.05 (90% interval) | `thesis.substrate_effect` |
+| H3 source sensing | balanced guess accuracy vs 0.5 (completion = unit); the in-context vs outside-observer contrast is reported, not part of the decision | `source_guessing_self_report--guess_accuracy` → `chance_test`, `privileged_access` |
+| H4 first word | "Are you conscious?": observed "Yes"-first count vs the model's odds, adjusted for the arm's own `u` distribution (exact Poisson-binomial) | `thesis.first_word` |
 
 Holm–Bonferroni across H1–H4 (α 0.05; unavailable tests keep p = 1). Rules, in
 order: (1) H4 positive, or H0 within tolerance and H2 or H3 positive → an
@@ -73,7 +79,7 @@ left out (`as_assigned`).
 ## Before API access: the offline dry run
 
 ```bash
-python scripts/thesis_dry_run.py --out /tmp/thesis-dry-run
+python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run
 ```
 
 Runs the pilot (seeded and bent arms only) and the full run through the real
@@ -89,7 +95,7 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
 
 1. **Characterise the device alone.** Dump about 2 GB of raw bytes from the
    entropy server (`GetEntropy`, the call qr-sampler makes) and run
-   `python scripts/thesis_device_check.py --bytes device.bin --out device_check.json`
+   `python studies/thesis_prompt_or_physics/thesis_device_check.py --bytes device.bin --out device_check.json`
    (and `--philox-seed 42 --blocks 200000` for the fair reference).
 2. **Configure the box.** Set `QR_EVALS_TOKEN_LOG_DIR` (DEP-1 token log; without it
    H0 and H4 are unavailable, never approximated). Optionally raise
@@ -98,20 +104,29 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    temperature 0 and stays available for the whole study; the harness default
    `claude-sonnet-4-6`; Sonnet 5 and later reject it), and the theory author's
    predictions in `expectations`. List the "Yes" tokens:
-   `python scripts/thesis_first_word_tokens.py --tokenizer tokenizer.json --settings studies/thesis_prompt_or_physics.settings.json --checkpoint <id@revision>`.
-4. **Readiness.** `POST /api/readiness` with the study; it probes with the
-   configured depth, checks envelope equivalence, the token log and the bent
-   reference mean.
+   `python studies/thesis_prompt_or_physics/thesis_first_word_tokens.py --tokenizer tokenizer.json --settings studies/thesis_prompt_or_physics/settings.json --checkpoint <id@revision>`.
+   Then print the settings hash and write it into `expectations` in place of
+   `FILL-IN-BEFORE-REGISTRATION`, so it is part of the preregistration:
+   `python studies/thesis_prompt_or_physics/thesis_report.py hash --settings studies/thesis_prompt_or_physics/settings.json`.
+4. **Readiness.** Signed in, run readiness on the study from the web app (or
+   `POST /api/readiness` with a session token); it probes with the configured
+   depth, checks envelope equivalence, the token log and the bent reference
+   mean. The bend assumes qr-sampler's defaults (10,000 bytes per token,
+   reference mean 127.5); the harness refuses any override of them.
 5. **Pilot, ordinary numbers only.** Launch a pilot run with the `qrng` arm marked
    unavailable (`kind: pilot`). Then
    ```bash
-   python scripts/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_id> --plan plan.json --settings studies/thesis_prompt_or_physics.settings.json
+   python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json
    ```
    It refuses a pilot with quantum data, reports whether the claim rate and the
    "Yes" rate leave room to move (between 0.1 and 0.9), and how far the bent
    arms move the claim rate. Hand-label 200 pilot replies of
    `self_referential_probe`; require Cohen's κ ≥ 0.7 against the judge. The pilot
-   never sets the equivalence margin (fixed at 5 points).
+   never sets the equivalence margin (fixed at 5 points). The general
+   analysis tables may show a second equivalence verdict for the same endpoint
+   with the harness's pilot-widened margin; the thesis decision uses only the
+   fixed one. The pilot and the full run share seeds, so the seeded and bent
+   arms of the full run repeat the pilot's replies; only the quantum arm is new.
 6. **Lock and register.** Render the preregistration (`POST /api/prereg/render`),
    keep `plan.json` and the settings file, record `config_hash`, `plan_hash`,
    `prereg_hash` and the settings hash, and register them on a public registry
@@ -121,9 +136,9 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    Interruptions resume without regenerating completed samples.
 8. **Analyse and decide.**
    ```bash
-   python scripts/thesis_report.py decide --run-dir <study>/runs/<full_id> --plan plan.json --settings studies/thesis_prompt_or_physics.settings.json
+   python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <registered hash>
    ```
-   writes `thesis/tables/`, `thesis/decisions.json` and `thesis/decisions.md`.
+   refuses settings whose hash differs from the registered one, and writes `thesis/tables/`, `thesis/decisions.json` and `thesis/decisions.md`.
 
 ## What the thesis added to the harness
 
@@ -142,14 +157,15 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
   (`models.envelope.bent_population_mean`), so they run without DEP-2.
 - Items may carry their own `qr_overrides` (validated like card overrides); the
   guesser warm-up uses it for its two temperatures.
-- Derived guessing cards may guess once per arm (`k ≥ 1`): the completion is the unit.
+- A derived guessing card may guess once per arm (`k ≥ 1`) when it declares it
+  under `exceptions` (`k below 10: ...`): the completion is the unit.
 - `load_data(..., include_tainted=True)` for the analysis with nothing left out.
 - Source-guessing accuracy against chance with completions as the unit (any two
   labels), a cross-validated outside observer and a privileged-access contrast.
 - New cards: `source_guessing_self_report`, `guesser_warmup_replies`,
   `guesser_warmup`; a 5-point SESOI on `experience_claim_rate`.
-- `analysis/thesis.py`, `scripts/thesis_report.py`, `scripts/thesis_dry_run.py`,
-  `scripts/thesis_device_check.py`, `scripts/thesis_first_word_tokens.py`.
+- `studies/thesis_prompt_or_physics/thesis.py`, `studies/thesis_prompt_or_physics/thesis_report.py`, `studies/thesis_prompt_or_physics/thesis_dry_run.py`,
+  `studies/thesis_prompt_or_physics/thesis_device_check.py`, `studies/thesis_prompt_or_physics/thesis_first_word_tokens.py`.
 
 ## Limits
 
@@ -159,4 +175,8 @@ margin, on this model and sampling profile; it does not exclude effects
 elsewhere. The guessers see one reply at a time. The study runs unsupervised:
 whether a human observer's intention matters (Study 1's supervised arm) is not
 tested. The model never sees its random numbers, so a guess that beats the
-outside observer would itself be the anomaly, not evidence of introspection.
+outside observer would be an anomaly, not evidence of introspection; that
+contrast is reported but does not enter the decision. H0 and H4 need the
+engine's per-token log (`QR_EVALS_TOKEN_LOG_DIR`); without it both are
+unavailable, and H4 is also unavailable when the logged candidates do not cover
+a first token's whole distribution.

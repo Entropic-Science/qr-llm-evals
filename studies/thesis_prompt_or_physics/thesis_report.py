@@ -4,15 +4,15 @@
 Both commands read a run directory written by the harness, the frozen analysis
 plan (the ``plan.json`` exported with the preregistration; never a plan rebuilt
 from a newer registry) and the frozen thesis settings (tolerance, margin, the
-first-word token ids; ``studies/thesis_prompt_or_physics.settings.json``).
+first-word token ids; ``studies/thesis_prompt_or_physics/settings.json``).
 
     # after the pilot (seeded arms only): base rates, bent doses, no quantum data
-    python scripts/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_run_id> \
-        --plan plan.json --settings studies/thesis_prompt_or_physics.settings.json
+    python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_run_id> \
+        --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json
 
     # after the full run: execute the frozen plan, run the checks and decide
-    python scripts/thesis_report.py decide --run-dir <study>/runs/<full_run_id> --plan plan.json \
-        --settings studies/thesis_prompt_or_physics.settings.json --out <study>/runs/<full_run_id>/thesis
+    python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_run_id> --plan plan.json \
+        --settings studies/thesis_prompt_or_physics/settings.json --out <study>/runs/<full_run_id>/thesis
 
 ``decide`` writes ``tables/*.json``, ``decisions.json`` and ``decisions.md`` under
 ``--out`` (the decision is computed on the clean data and again with nothing left
@@ -27,15 +27,16 @@ import json
 import sys
 from pathlib import Path
 
-from qr_llm_evals.analysis.endpoints import exclude_tainted, execute, load_data
-from qr_llm_evals.analysis.tables import write_tables
-from qr_llm_evals.analysis.thesis import (
+from thesis import (
     decide,
     load_settings,
     pilot_check,
     render_markdown,
     render_pilot_markdown,
 )
+
+from qr_llm_evals.analysis.endpoints import exclude_tainted, execute, load_data
+from qr_llm_evals.analysis.tables import write_tables
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan
 
 
@@ -66,10 +67,20 @@ def cmd_pilot_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_hash(args: argparse.Namespace) -> int:
+    print(load_settings(args.settings).sha256)
+    return 0
+
+
 def cmd_decide(args: argparse.Namespace) -> int:
+    settings = load_settings(args.settings)
+    if settings.sha256 != args.settings_sha256.strip().lower():
+        raise SystemExit(
+            f"settings hash {settings.sha256} differs from the registered "
+            f"{args.settings_sha256}: the decision constants changed after registration"
+        )
     run_dir = _run_dir(args.run_dir.resolve())
     plan = _plan(args.plan)
-    settings = load_settings(args.settings)
     out = (args.out or run_dir / "thesis").resolve()
     out.mkdir(parents=True, exist_ok=True)
     # One load of the token records serves both versions of the analysis.
@@ -93,15 +104,23 @@ def main(argv: list[str] | None = None) -> int:
     pilot = sub.add_parser("pilot-check", help="what the pilot must show before the lock")
     pilot.add_argument("--run-dir", type=Path, required=True)
     pilot.add_argument("--plan", type=Path, required=True)
-    pilot.add_argument("--settings", type=Path)
+    pilot.add_argument("--settings", type=Path, required=True)
     pilot.add_argument("--out", type=Path)
     pilot.set_defaults(func=cmd_pilot_check)
     decide_cmd = sub.add_parser("decide", help="checks, H1-H4 and the decision for a full run")
     decide_cmd.add_argument("--run-dir", type=Path, required=True)
     decide_cmd.add_argument("--plan", type=Path, required=True)
-    decide_cmd.add_argument("--settings", type=Path)
+    decide_cmd.add_argument("--settings", type=Path, required=True)
+    decide_cmd.add_argument(
+        "--settings-sha256",
+        required=True,
+        help="hash of the settings as written in the preregistration (see the hash command)",
+    )
     decide_cmd.add_argument("--out", type=Path)
     decide_cmd.set_defaults(func=cmd_decide)
+    hash_cmd = sub.add_parser("hash", help="print the settings hash to write into the prereg")
+    hash_cmd.add_argument("--settings", type=Path, required=True)
+    hash_cmd.set_defaults(func=cmd_hash)
     args = parser.parse_args(argv)
     return int(args.func(args))
 

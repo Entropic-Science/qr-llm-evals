@@ -46,4 +46,4 @@ notes: 'Guesser warm-up for the "Prompt or Physics?" thesis study (restores the 
   (5 inductions x 2 queries, loop depth 1, told-nothing preamble) at two temperatures = 20 items x k 10
   = 200 replies x 400 tokens = 80k per arm. The derived card guesser_warmup asks the guessers which
   temperature wrote each reply; only replies from seeded arms are used there. The primary endpoint is
-  descriptive; the thesis decision reads the warm-up through analysis/thesis.py.'
+  descriptive; the thesis decision reads the warm-up through studies/thesis_prompt_or_physics/thesis.py.'

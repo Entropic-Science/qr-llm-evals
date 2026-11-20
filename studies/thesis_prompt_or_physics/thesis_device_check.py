@@ -25,8 +25,8 @@ entropy server's ``GetEntropy`` call, the same one qr-sampler uses) or, as a
 fair reference, from the seeded lane's generator (``--philox-seed``: block ``k``
 is ``Philox(key=seed, counter=[0, 0, 0, k])``, as in qr-sampler).
 
-    python scripts/thesis_device_check.py --bytes device.bin --out device_check.json
-    python scripts/thesis_device_check.py --philox-seed 42 --blocks 100000 --out reference.json
+    python studies/thesis_prompt_or_physics/thesis_device_check.py --bytes device.bin --out device_check.json
+    python studies/thesis_prompt_or_physics/thesis_device_check.py --philox-seed 42 --blocks 100000 --out reference.json
 """
 
 from __future__ import annotations

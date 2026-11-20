@@ -38,7 +38,9 @@ endpoints:
   requires_tier0: none
 paired_stat: paired_binomial
 sesoi: {}
-exceptions: []
+exceptions:
+- 'k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis,
+  so more distinct replies give better evidence than repeated guesses on few.'
 status: implemented
 selectable: true
 notes: 'Variant of T4-f (source_guessing) for the "Prompt or Physics?" thesis study. Judges the told-nothing replies

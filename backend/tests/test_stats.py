@@ -368,6 +368,17 @@ def test_mmd_permutation_keeps_within_prompt_counts() -> None:
     assert np.all(perm[:, :4].sum(axis=1) == 2) and np.all(perm[:, 4:].sum(axis=1) == 3)
 
 
+def test_mmd_blockwise_equals_full_kernel() -> None:
+    rng = np.random.default_rng(5)
+    pooled = rng.integers(0, 6, size=(40, 12))
+    prompt_idx = np.repeat(np.arange(4), 10)
+    labels = np.tile(np.array([1] * 5 + [0] * 5), 4)
+    labels_matrix = np.vstack([labels[None, :], mmd._permuted_labels(prompt_idx, labels, 30, rng)])
+    full = mmd._mmd_from_kernel(mmd._pooled_kernel(pooled, prompt_idx), prompt_idx, labels_matrix)
+    blocks = mmd._mmd_blockwise(pooled, prompt_idx, labels_matrix)
+    assert np.allclose(blocks, full, rtol=0, atol=1e-12)
+
+
 def test_mmd_drops_prompts_without_two_samples_per_arm() -> None:
     """Prompts asked once per arm (derived cards with k = 1) do not move the statistic."""
     rng = np.random.default_rng(11)

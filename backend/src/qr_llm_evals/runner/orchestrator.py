@@ -288,6 +288,8 @@ class Orchestrator:
             else EntropyProbe(config.vllm_origin, transport=transport)
         )
         self.tagger = tagger or _default_tagger
+        # Replaced by the run's recorded depth once generation starts.
+        self._top_logprobs = config.top_logprobs
         self.dispatch_hooks = dispatch_hooks
         self.clock: Clock = clock or (lambda: datetime.now(UTC))
         self.perf: Perf = perf or time.perf_counter
@@ -446,25 +448,30 @@ class Orchestrator:
     # ── the run ───────────────────────────────────────────────────────────
 
     def _record_request_settings(self) -> None:
-        """Write ``request_settings.json`` once; a resume keeps the first snapshot.
+        """Write ``request_settings.json`` once; a resume keeps and uses the first snapshot.
 
         The analysis reads ``top_logprobs`` from it to label API-logprob endpoints
-        and to report how many sampled tokens fell inside the returned top-k.
+        and to report how many sampled tokens fell inside the returned top-k. A
+        run never mixes depths: if the deployment setting changed since the run
+        started, the run goes on with the depth it recorded.
         """
         depth = check_top_logprobs(self.config.top_logprobs)
-        current = {"schema_version": 1, "top_logprobs": depth}
         with self._store_lock:
             existing = self.store.read_request_settings()
             if existing is None:
-                self.store.write_request_settings(current)
+                self.store.write_request_settings({"schema_version": 1, "top_logprobs": depth})
             elif existing.get("top_logprobs") != depth:
+                recorded = check_top_logprobs(existing.get("top_logprobs"))  # type: ignore[arg-type]
                 logger.warning(
-                    "run %s resumed with top_logprobs=%s but generated with %s; "
-                    "request_settings.json keeps the original depth",
+                    "run %s started with top_logprobs=%s; the deployment now says %s; "
+                    "the run keeps %s",
                     self.store.run_id,
+                    recorded,
                     depth,
-                    existing.get("top_logprobs"),
+                    recorded,
                 )
+                depth = recorded
+        self._top_logprobs = depth
 
     def run_generation(self) -> Run:
         """Generate every pending sample of every available arm; returns the updated run."""
@@ -727,7 +734,7 @@ class Orchestrator:
             priority=self.config.priority,
             overrides=qr_overrides,
             profile=profile,
-            top_logprobs=self.config.top_logprobs,
+            top_logprobs=self._top_logprobs,
         )
         envelope: Mapping[str, Any] = (
             build_envelope(arm, ctx, qr_overrides) if model.provider == "qr_server" else {}

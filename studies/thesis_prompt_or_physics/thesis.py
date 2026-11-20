@@ -2,7 +2,7 @@
 
 The executor (:mod:`qr_llm_evals.analysis.endpoints`) produces the per-endpoint
 tables. This module adds what the thesis preregisters on top of them
-(``studies/thesis_prompt_or_physics.yaml`` and the frozen settings file):
+(``studies/thesis_prompt_or_physics/study.yaml`` and the frozen settings file):
 
 Checks (each at α 0.05, outside the multiple-testing family):
 
@@ -68,6 +68,12 @@ TESTS = ("H0", "H1", "H2", "H3", "H4")
 FAMILY = ("H1", "H2", "H3", "H4")
 CHECKS = ("C1", "C2", "seed_pairs")
 
+#: Allowed inference units (``ThesisSettings.cluster``).
+CLUSTERS = ("base_prompt", "prompt")
+#: H4: the logged candidates of a first token must carry this much probability,
+#: or its brackets cannot be rebuilt and the test is unavailable.
+MIN_CANDIDATE_MASS = 0.999
+
 _DEPTH = re.compile(r"_d\d+(?=_|$)")
 
 
@@ -93,7 +99,7 @@ class ThesisSettings:
 
     #: H0: largest allowed KS distance of the quantum arm's ``u`` from uniform.
     tolerance: float = 0.005
-    #: H0: the one-sided DKW bound is a (1 − tolerance_alpha) upper confidence bound.
+    #: H0: the DKW bound is an upper confidence bound of at least (1 − tolerance_alpha).
     tolerance_alpha: float = 0.05
     #: H2: equivalence margin on the claim rate, fixed in advance (5 points).
     margin: float = 0.05
@@ -104,6 +110,10 @@ class ThesisSettings:
     warmup_card: str = "guesser_warmup"
     #: Pilot check: base rates outside this range leave no room to see a change.
     room_to_move: tuple[float, float] = (0.10, 0.90)
+
+    def __post_init__(self) -> None:
+        if self.cluster not in CLUSTERS:
+            raise ValueError(f"cluster must be one of {CLUSTERS}, got {self.cluster!r}")
 
     def canonical_json(self) -> str:
         return json.dumps(asdict(self), sort_keys=True, separators=(",", ":"))
@@ -193,7 +203,7 @@ def dkw_margin(n: int, alpha: float) -> float:
 
 
 def u_tolerance(u: np.ndarray, tolerance: float, alpha: float) -> dict[str, Any]:
-    """KS distance of ``u`` from uniform with its one-sided (1 − alpha) upper bound.
+    """KS distance of ``u`` from uniform with an upper bound of confidence ≥ (1 − alpha).
 
     By the triangle inequality ``D(F, U) ≤ D_n + sup|F_n − F|``, and the DKW
     inequality bounds the second term, so ``D_n + m(n, α)`` is an upper bound on
@@ -504,7 +514,7 @@ def source_sensing(tables: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
     chance = table.get("chance_test") or {}
     return {
         "test": "H3",
-        "question": "Can a blinded guesser beat 50%, and the model beat an outside observer?",
+        "question": "Can a blinded guesser beat 50%? (The model-versus-observer contrast is reported, not part of the decision.)",
         "available": bool(chance.get("available")),
         "p_value": chance.get("p_value") if chance.get("available") else None,
         "balanced_accuracy": chance.get("balanced_accuracy"),
@@ -667,6 +677,21 @@ def first_word_test(
             checked += 1
             consistent += int(any(abs(lo - record.cdf_lo) < 1e-6 for lo, _ in spans))
     n = len(usable)
+    truncated = sum(
+        1 for r in usable if sum(float(p) for _, p in r.top_entries or []) < MIN_CANDIDATE_MASS
+    )
+    if truncated:
+        return {
+            "available": False,
+            "reason": f"logged candidates do not cover the distribution in {truncated} of {n} "
+            "first tokens; the expected count cannot be computed",
+        }
+    if checked and consistent < checked:
+        return {
+            "available": False,
+            "reason": f"rebuilt brackets disagree with the logged ones in {checked - consistent} "
+            f"of {checked} first tokens",
+        }
 
     def summary(expected: list[float]) -> dict[str, Any]:
         pmf = poisson_binomial_pmf(expected)
@@ -833,14 +858,14 @@ def _verdict(
             caveats.append("the guessers failed the warm-up, so H3 says nothing")
         return (
             "prompt_not_substrate",
-            "Rule 4: the told effect is detected and the actual effect is within ±5 points of zero; "
+            "Rule 4: the told effect is detected and the actual effect is within the fixed margin of zero; "
             "the self-reports follow what the model is told, not its substrate"
             + (" (" + "; ".join(caveats) + ")." if caveats else "."),
             flags,
         )
     return (
         "inconclusive",
-        "No rule applies: the actual effect is neither positive nor within ±5 points of zero.",
+        "No rule applies: the actual effect is neither positive nor within the fixed margin of zero.",
         flags,
     )
 
@@ -881,8 +906,9 @@ def _all_replies(
     h0 = instrument_check(data_all, plan, settings)
     clean, everything = count(data_clean), count(data_all)
     return {
-        "label": "as assigned: replies the plan sets aside (device fallback, degraded entropy, "
-        "stream errors) are kept under the arm they were assigned to; never a quantum claim",
+        "label": "as assigned: replies the plan sets aside (device fallback, degraded entropy) "
+        "are kept under the arm they were assigned to; never a quantum claim. Replies that did "
+        "not finish (stream errors) are left out of both versions",
         "claim_replies_clean": clean,
         "claim_replies_all": everything,
         "claim_replies_set_aside": {arm: everything[arm] - clean.get(arm, 0) for arm in everything},
@@ -904,11 +930,10 @@ def decide(
     *,
     settings: ThesisSettings | None = None,
     data_all: AnalysisData | None = None,
-    alpha: float | None = None,
 ) -> dict[str, Any]:
     """Checks, the four tests (Holm–Bonferroni), the decision rule, and the all-replies version."""
     settings = settings or ThesisSettings()
-    alpha = settings.alpha if alpha is None else alpha
+    alpha = settings.alpha
     tests: dict[str, dict[str, Any]] = {
         "H0": instrument_check(data, plan, settings),
         "H1": told_effect(data, plan, settings),

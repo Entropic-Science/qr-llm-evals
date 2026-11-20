@@ -125,7 +125,8 @@ def _study() -> StudyConfig:
     )
 
 
-def test_run_sends_and_records_the_configured_depth(tmp_path: Path) -> None:
+@pytest.mark.parametrize("recorded", [None, 32])
+def test_run_sends_and_records_the_configured_depth(tmp_path: Path, recorded: int | None) -> None:
     store = Store(tmp_path)
     study = _study()
     study_dir = store.freeze_study(study, "# prereg\n")
@@ -140,6 +141,10 @@ def test_run_sends_and_records_the_configured_depth(tmp_path: Path) -> None:
             config_hash=config_hash(study),
         )
     )
+    if recorded is not None:
+        # The run started under another deployment setting: it keeps that depth.
+        run_store.write_request_settings({"schema_version": 1, "top_logprobs": recorded})
+    expected = recorded or 64
     engine = StubEngine()
     control = RunControl()
     control.start()
@@ -157,7 +162,7 @@ def test_run_sends_and_records_the_configured_depth(tmp_path: Path) -> None:
         perf=lambda: 0.0,
     ).run()
     assert record.state == "complete"
-    assert engine.requests and {body["top_logprobs"] for body in engine.requests} == {64}
+    assert engine.requests and {body["top_logprobs"] for body in engine.requests} == {expected}
     snapshot = json.loads((run_store.run_dir.path / "request_settings.json").read_text())
-    assert snapshot == {"schema_version": 1, "top_logprobs": 64}
+    assert snapshot == {"schema_version": 1, "top_logprobs": expected}
     assert run_store.read_request_settings() == snapshot

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -14,7 +15,19 @@ import yaml
 from scipy import stats
 
 from qr_llm_evals.analysis.endpoints import JUDGE_SCORE_FIELD, execute, load_data
-from qr_llm_evals.analysis.thesis import (
+from qr_llm_evals.cards import REPO_ROOT, load_cards
+from qr_llm_evals.cards.estimates import tokens_per_arm
+from qr_llm_evals.cards.statistical_plan import StatisticalPlan
+from qr_llm_evals.models.schema import CardOverrides, StudyConfig
+from qr_llm_evals.prereg.render import render
+from qr_llm_evals.runner.tasks import load_task_module, messages_hash
+from qr_llm_evals.tier0.schema import Tier0Record
+
+STUDY_DIR = REPO_ROOT / "studies" / "thesis_prompt_or_physics"
+sys.path.insert(0, str(STUDY_DIR))
+
+import thesis  # noqa: E402
+from thesis import (  # noqa: E402
     ThesisSettings,
     base_prompt,
     bend_gap,
@@ -26,16 +39,9 @@ from qr_llm_evals.analysis.thesis import (
     tost,
     u_tolerance,
 )
-from qr_llm_evals.cards import REPO_ROOT, load_cards
-from qr_llm_evals.cards.estimates import tokens_per_arm
-from qr_llm_evals.cards.statistical_plan import StatisticalPlan
-from qr_llm_evals.models.schema import CardOverrides, StudyConfig
-from qr_llm_evals.prereg.render import render
-from qr_llm_evals.runner.tasks import load_task_module, messages_hash
-from qr_llm_evals.tier0.schema import Tier0Record
 
-STUDY = REPO_ROOT / "studies" / "thesis_prompt_or_physics.yaml"
-SETTINGS = REPO_ROOT / "studies" / "thesis_prompt_or_physics.settings.json"
+STUDY = STUDY_DIR / "study.yaml"
+SETTINGS = STUDY_DIR / "settings.json"
 QUANTUM = "qrng"
 SEEDS = ("prng_seed_1", "prng_seed_7", "prng_seed_42")
 BENT = ("prng_bent_010", "prng_bent_050")
@@ -512,3 +518,82 @@ def test_clean_view_matches_a_clean_load_and_shares_records(tmp_path: Path) -> N
         assert clean.tier0[card][QUANTUM][0] is everything.tier0[card][QUANTUM][0]
     report = decide(clean, _plan(), execute(clean, _plan()), data_all=everything)
     assert report["as_assigned"]["claim_replies_set_aside"][QUANTUM] == 1
+
+
+# ── guards added at integration ──────────────────────────────────────────────
+
+
+def test_settings_refuse_an_unknown_unit_of_analysis() -> None:
+    with pytest.raises(ValueError, match="cluster"):
+        ThesisSettings(cluster="base_prompts")
+
+
+def test_first_word_test_is_unavailable_when_brackets_cannot_be_rebuilt() -> None:
+    settings = ThesisSettings(
+        first_word=load_settings(SETTINGS).first_word.__class__(token_ids=(1,))
+    )
+    records, reference = _first_tokens(200, 0.4, seed=4)
+    # A truncated candidate list: the logged entries no longer sum to 1.
+    cut = [r.model_copy(update={"top_entries": r.top_entries[:2]}) for r in records]
+    result = first_word_test(cut, reference, settings)
+    assert result["available"] is False and "do not cover" in result["reason"]
+    # Logged brackets that disagree with the rebuilt ones.
+    moved = [r.model_copy(update={"cdf_lo": 0.25}) if r.token_id == 1 else r for r in records]
+    result = first_word_test(moved, reference, settings)
+    assert result["available"] is False and "disagree" in result["reason"]
+
+
+def _tests(**positive: bool) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {
+        name: {"available": True, "p_adjusted": 0.001 if positive.get(name) else 0.9}
+        for name in ("H1", "H2", "H3", "H4")
+    }
+    out["H0"] = {"available": True, "passed": positive.get("H0", True)}
+    out["H2"]["equivalence"] = {"equivalent": not positive.get("H2")}
+    out["H3"]["balanced_accuracy"] = 0.6 if positive.get("H3") else 0.5
+    return out
+
+
+@pytest.mark.parametrize(
+    ("positive", "expected"),
+    [
+        ({"H1": True, "H4": True}, "anomaly"),
+        ({"H1": True, "H2": True}, "anomaly"),
+        ({"H1": True, "H3": True, "H0": False}, "instrument"),
+        ({}, "insensitive"),
+        ({"H1": True}, "prompt_not_substrate"),
+    ],
+)
+def test_decision_rules_in_order(positive: dict[str, bool], expected: str) -> None:
+    checks = {name: {"available": True, "passed": True} for name in ("C1", "C2", "seed_pairs")}
+    verdict, _, _ = thesis._verdict(_tests(**positive), checks, 0.05)
+    assert expected in verdict
+
+
+def test_report_refuses_settings_that_differ_from_the_registered_hash(tmp_path: Path) -> None:
+    import thesis_report
+
+    with pytest.raises(SystemExit, match="changed after registration"):
+        thesis_report.main(
+            [
+                "decide",
+                "--run-dir", str(tmp_path),
+                "--plan", str(tmp_path / "plan.json"),
+                "--settings", str(SETTINGS),
+                "--settings-sha256", "0" * 64,
+            ]
+        )  # fmt: skip
+
+
+def test_the_package_does_not_depend_on_the_thesis_folder() -> None:
+    source = REPO_ROOT / "backend" / "src"
+    offenders = [
+        str(path.relative_to(REPO_ROOT))
+        for path in source.rglob("*.py")
+        if any(
+            line.lstrip().startswith(("import thesis", "from thesis"))
+            or "thesis_prompt_or_physics" in line
+            for line in path.read_text(encoding="utf-8").splitlines()
+        )
+    ]
+    assert not offenders, offenders

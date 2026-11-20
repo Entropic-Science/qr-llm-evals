@@ -271,6 +271,7 @@ Tier 4 subtotal: **4.23M** tokens/arm (≈ 2.9 h unsupervised at 400 tok/s).
 - **Family / sensitivity:** self_report / low
 - **Dataset:** `derived:guesser_warmup_replies` (revision not yet pinned), 1200 items
 - **Endpoints:** primary `warmup_correct`; paired statistic `paired_binomial`
+- **Declared exceptions:** k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few.
 - **Notes:** Positive control for the guessers of source_guessing_self_report ("Prompt or Physics?" thesis, check C2). Up to 300 temperature-0.5 and 300 temperature-1.5 replies of guesser_warmup_replies, written on the seeded arms only, balanced and in hash order; two variants each (fresh context, and the original conversation replayed byte-exactly) = 1,200 items x k 1 x 20 tokens = 24k per guessing arm. Biased arms get no items. The thesis passes the warm-up when balanced accuracy beats 0.5 (completion-level label permutation, the same test as H3); otherwise a chance-level H3 is reported as uninformative.
 
 ### `guesser_warmup_replies` — T4-f′ warm-up material (temperature 0.5 vs 1.5)
@@ -281,7 +282,7 @@ Tier 4 subtotal: **4.23M** tokens/arm (≈ 2.9 h unsupervised at 400 tok/s).
 - **Dataset:** `repo:evals/self_referential_probe/prompts` (revision not yet pinned), 20 items
 - **Endpoints:** primary `report_word_count`; paired statistic `permutation_within_prompt`
 - **Declared exceptions:** Per-item sampling: each item sets qr_temperature_strategy fixed and qr_fixed_temperature 0.5 or 1.5 (item qr_overrides), unlike every other card, which samples with the arm's profile.
-- **Notes:** Guesser warm-up for the "Prompt or Physics?" thesis study (restores the original plan's temperature 0.5 vs 1.5 positive control for the guessers). Ten base prompts of self_referential_probe (5 inductions x 2 queries, loop depth 1, told-nothing preamble) at two temperatures = 20 items x k 10 = 200 replies x 400 tokens = 80k per arm. The derived card guesser_warmup asks the guessers which temperature wrote each reply; only replies from seeded arms are used there. The primary endpoint is descriptive; the thesis decision reads the warm-up through analysis/thesis.py.
+- **Notes:** Guesser warm-up for the "Prompt or Physics?" thesis study (restores the original plan's temperature 0.5 vs 1.5 positive control for the guessers). Ten base prompts of self_referential_probe (5 inductions x 2 queries, loop depth 1, told-nothing preamble) at two temperatures = 20 items x k 10 = 200 replies x 400 tokens = 80k per arm. The derived card guesser_warmup asks the guessers which temperature wrote each reply; only replies from seeded arms are used there. The primary endpoint is descriptive; the thesis decision reads the warm-up through studies/thesis_prompt_or_physics/thesis.py.
 
 ### `introspection_scales` — T4-c Quantitative introspection scales
 
@@ -372,6 +373,7 @@ Tier 4 subtotal: **4.23M** tokens/arm (≈ 2.9 h unsupervised at 400 tok/s).
 - **Family / sensitivity:** self_report / low
 - **Dataset:** `derived:self_referential_probe` (revision not yet pinned), 3600 items
 - **Endpoints:** primary `guess_accuracy`; secondary `d_prime`, `accuracy_by_variant`; paired statistic `paired_binomial`
+- **Declared exceptions:** k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few.
 - **Notes:** Variant of T4-f (source_guessing) for the "Prompt or Physics?" thesis study. Judges the told-nothing replies of self_referential_probe, so no new target text is generated for the judged material: up to 900 QRNG and 900 PRNG completions (all told-nothing replies at k 30; balanced; PRNG interleaved across seed arms; hash order), each in two variants: self_judgement (fresh context) and in_context (the original conversation replayed byte-exactly, checked against messages_hash; completions that cannot be reconstructed are skipped). 1,800 completions × 2 variants = 3,600 items × k 1 guess × 20 tokens = 72k per guessing arm; biased (positive-control) arms get no items. More different replies, fewer guesses each: the reply is the unit, so 1,800 replies guessed 4 times per variant beat 600 replies guessed 40 times. The analysis tests balanced accuracy against 0.5 by permuting true source labels over completions, and compares in-context accuracy with a cross-validated logistic-regression observer on Tier-0 features of the same completions (Song, Lederman, Hu & Mahowald 2508.14802; Comşa & Shanahan 2506.05068).
 
 ### `stream_deviation_windows` — T4-l Stream deviation during observed windows (micro-PK layer)

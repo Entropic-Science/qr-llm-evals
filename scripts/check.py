@@ -59,7 +59,13 @@ PNPM = "pnpm"
 CHECKS: tuple[Check, ...] = (
     Check("lint", ((PY, "-m", "ruff", "check", "."),)),
     Check("format", ((PY, "-m", "ruff", "format", "--check", "."),)),
-    Check("types", ((PY, "-m", "mypy", "--strict", "backend/src/"),)),
+    Check(
+        "types",
+        (
+            (PY, "-m", "mypy", "--strict", "backend/src/"),
+            (PY, "-m", "mypy", "--strict", "studies/thesis_prompt_or_physics/thesis.py"),
+        ),
+    ),
     Check("security", ((PY, "-m", "bandit", "-c", "pyproject.toml", "-r", "backend/src", "-q"),)),
     Check("tests", ((PY, "-m", "pytest"),)),
     Check(

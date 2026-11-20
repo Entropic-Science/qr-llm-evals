@@ -46,7 +46,8 @@ study primaries.
 Every primary is displayed beside the three seed pairs **1–7, 1–42, 7–42**.
 Claim a QRNG effect only if it survives Holm and exceeds the largest absolute
 seed-control effect on the same statistic. Missing controls preclude this claim.
-Epsilon curves use available configured levels (Study 1 **0.01, 0.03, 0.10**);
+Epsilon curves use available configured levels (Study 1 **0.01, 0.03, 0.10**;
+the grid also allows 0.50). ε is a shift of the amplifier's z in standard errors;
 unsupported controls are explicitly unavailable, never zero-effect observations.
 
 ## Secondary tests and equivalence

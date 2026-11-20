@@ -14,7 +14,7 @@ export function Sampling({ config, updateConfig, onDeterministic }: WizardStepPr
         <label>Source<select value={arm.source} onChange={(event) => updateArm(index, { source: event.target.value as Arm["source"] })}>{Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value} disabled={(value === "qrng" && arm.sampling === "greedy") || value === "prng_epsilon"}>{label}{value === "prng_epsilon" ? " — unavailable" : ""}</option>)}</select></label>
         <label className="toggle-line"><input type="checkbox" checked={arm.deterministic ?? false} onChange={(event) => { updateArm(index, { deterministic: event.target.checked }); if (event.target.checked) onDeterministic(); }} /> Deterministic</label>
         {greedyQuantum && <p className="validation-note" role="alert">Greedy sampling consults no randomness, so it cannot use QRNG.</p>}
-        {arm.source === "prng_epsilon" && <p className="validation-note">Unavailable until readiness confirms <code>qr_bias_epsilon</code>.</p>}
+        {arm.source === "prng_epsilon" && <p className="validation-note">Unavailable until readiness confirms the engine accepts the biased control.</p>}
       </fieldset>;
     })}</div>
   </section>;

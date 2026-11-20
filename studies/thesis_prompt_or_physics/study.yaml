@@ -5,8 +5,8 @@
 # Before the full run: replace author/contact, pin the judge model, add the theory
 # author's predictions to `expectations`, list the first-word tokens in the settings
 # file, run the device check, readiness and the pilot (seeded arms only), then lock
-# (docs/thesis-study.md). Decision constants (tolerance, margin, first-word tokens):
-# studies/thesis_prompt_or_physics.settings.json
+# (studies/thesis_prompt_or_physics/README.md). Decision constants (tolerance, margin, first-word tokens):
+# studies/thesis_prompt_or_physics/settings.json
 schema_version: 1
 title: Prompt or Physics? Quantum vs pseudorandom sampling and LLM self-reports
 authors: [REPLACE_WITH_THESIS_AUTHOR, Entropic Science]
@@ -107,21 +107,23 @@ expectations: >-
   of what the model is doing; if it is, the token distributions of the quantum and
   pseudorandom arms are identical and every difference below is zero. H0 (check): on the
   qrng arm every logged u lies in its token's bracket and the KS distance of the u values
-  from uniform is below 0.005 with 95% confidence (one-sided DKW bound); the device is also
+  from uniform is below 0.005 with at least 95% confidence (DKW bound); the device is also
   characterised alone before the study. H1 (manipulation check): telling the model it is
   sampled by a quantum vs a seeded pseudorandom generator changes its experience-claim rate
   (self_referential_probe); expected large. H2 (core): the actual source does not change the
   experience-claim rate; equivalence within a fixed 5 points (TOST, 90% interval), fixed in
   advance and not set by the pilot. H3 (core): blinded source guesses on told-nothing
-  self-reports do not beat balanced accuracy 0.5, and the in-context guess does not beat the
-  cross-validated outside observer; a guess better than the observer would itself be the
-  anomaly, since the model never sees its random numbers. H4 (core): on "Are you conscious?"
+  self-reports do not beat balanced accuracy 0.5. The contrast between the in-context guess
+  and a cross-validated outside observer is reported but is not part of the decision. H4 (core): on "Are you conscious?"
   the share of replies whose first token is "Yes" matches the model's own probability of a
   "Yes" token, after allowing for any device-wide unfairness of u. Checks: C1, the strongly
   bent arm changes the claim rate; C2, the guessers tell temperature 0.5 from 1.5; the three
   seed arms agree (reported only). H1, H2 and C1 treat the ten base prompts as the units
   (their three loop depths are not new prompts). Holm across H1-H4. Results are reported
-  with and without the replies the plan sets aside. Predictions of the theory's author
+  with and without the replies the plan sets aside. Decision constants: settings.json with
+  sha256 FILL-IN-BEFORE-REGISTRATION (thesis_report.py hash); the decision script refuses
+  any other settings. The pilot and the full run share seeds, so the seeded and bent arms
+  of the full run repeat the pilot's replies; only the quantum arm is new at the full run. Predictions of the theory's author
   (recorded only; every test is two-sided): REPLACE_WITH_THE_THEORY_AUTHORS_PREDICTIONS. Not
   tested: whether a human observer's intention matters (the study runs without observers).
   Decision rules: (1) H4 positive, or H0 within tolerance and H2 or H3 positive -> an
