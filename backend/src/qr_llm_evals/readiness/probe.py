@@ -22,7 +22,7 @@ from typing import Any, Final
 import httpx
 
 from qr_llm_evals.client.openai_client import Completion, OpenAIClient, UpstreamError
-from qr_llm_evals.models.envelope import SampleContext, build_request_body
+from qr_llm_evals.models.envelope import TOP_LOGPROBS, SampleContext, build_request_body
 from qr_llm_evals.models.schema import Arm, ModelRef
 
 logger = logging.getLogger("qr_llm_evals.readiness")
@@ -97,10 +97,14 @@ class EngineProbe:
         models: Mapping[str, ModelRef],
         *,
         priority: int = 0,
+        top_logprobs: int = TOP_LOGPROBS,
     ) -> None:
         self._client = client
         self._models = dict(models)
         self._priority = priority
+        # Probe with the depth the run will request, so an engine whose
+        # --max-logprobs is below it fails readiness instead of every generation.
+        self._top_logprobs = top_logprobs
 
     def body(
         self,
@@ -112,7 +116,13 @@ class EngineProbe:
     ) -> dict[str, Any]:
         model = self._models[arm.model]
         body = build_request_body(
-            arm, model, ctx, list(PROBE_MESSAGES), priority=self._priority, stream=True
+            arm,
+            model,
+            ctx,
+            list(PROBE_MESSAGES),
+            priority=self._priority,
+            stream=True,
+            top_logprobs=self._top_logprobs,
         )
         body["request_id"] = request_id
         if extra_xargs:

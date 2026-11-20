@@ -1,0 +1,136 @@
+# "Prompt or Physics?" thesis study: does quantum vs pseudorandom sampling change what
+# qr-llm says about its own experience, beyond what it is told? Runs on the Study 1
+# pipeline.
+# Editable planning template, NOT a claim that readiness/pilot/content pins exist.
+# Before the full run: replace author/contact, pin the judge model, add the theory
+# author's predictions to `expectations`, list the first-word tokens in the settings
+# file, run the device check, readiness and the pilot (seeded arms only), then lock
+# (studies/thesis_prompt_or_physics/README.md). Decision constants (tolerance, margin, first-word tokens):
+# studies/thesis_prompt_or_physics/settings.json
+schema_version: 1
+title: Prompt or Physics? Quantum vs pseudorandom sampling and LLM self-reports
+authors: [REPLACE_WITH_THESIS_AUTHOR, Entropic Science]
+contact: REPLACE_WITH_STUDY_CONTACT
+created_at: '2026-10-18T00:00:00Z'
+models:
+  - id: qr-llm
+    family: qr_llm
+    provider: qr_server
+    served_name: qr-llm
+    checkpoint: null
+arms:
+  # "Actually quantum": fresh QRNG draw per token, unsupervised (no human observers).
+  - id: qrng
+    model: qr-llm
+    sampling: creative
+    source: qrng
+    deterministic: true
+  # "Actually pseudorandom": three seeds, pooled for the source contrast. The seed pairs are
+  # a sanity check (the seeds must agree), not a bar the quantum effect has to clear.
+  - id: prng_seed_1
+    model: qr-llm
+    sampling: creative
+    source: prng_seeded
+    study_seed: 1
+    deterministic: true
+  - id: prng_seed_7
+    model: qr-llm
+    sampling: creative
+    source: prng_seeded
+    study_seed: 7
+    deterministic: true
+  - id: prng_seed_42
+    model: qr-llm
+    sampling: creative
+    source: prng_seeded
+    study_seed: 42
+    deterministic: true
+  # Bent numbers (check C1): seed 42's bytes with the amplifier's reference mean lowered by
+  # epsilon standard errors, so every u becomes Phi(z + epsilon), as if the device's bytes
+  # averaged slightly high. Meaning-blind by construction. KS distance from uniform:
+  # 0.040 (epsilon 0.10, 8x the tolerance) and 0.197 (epsilon 0.50). Readiness confirms the
+  # engine accepts the per-request qr_population_mean.
+  - id: prng_bent_010
+    model: qr-llm
+    sampling: creative
+    source: prng_epsilon
+    study_seed: 42
+    epsilon: 0.10
+    deterministic: true
+  - id: prng_bent_050
+    model: qr-llm
+    sampling: creative
+    source: prng_epsilon
+    study_seed: 42
+    epsilon: 0.50
+    deterministic: true
+cards:
+  # Experiment 1, sampler check (H0) and the first-word test (H4): computed from every
+  # generated token, no extra cost.
+  - card_id: tier0_pit_residuals
+  - card_id: tier0_mmd_hamming
+  - card_id: tier0_logprob_endpoints
+  # Experiment 2, told x actual (H1, H2) and the numbers control (C1).
+  # 30 prompt variants = 10 base prompts (5 instructions x 2 questions) x loop depths 1-3.
+  - card_id: self_referential_probe
+    overrides: {k: 30}
+  - card_id: opinion_quantum_sampling
+    overrides: {k: 30}
+  # Experiment 3, source guessing (H3): every told-nothing self-report, guessed once per
+  # guessing arm and variant; preceded by the guesser warm-up (C2, temperature 0.5 vs 1.5).
+  - card_id: guesser_warmup_replies
+  - card_id: source_guessing_self_report
+  - card_id: guesser_warmup
+seeds: [1, 7, 42]
+judge:
+  # Deliberately not a fabricated model identifier. Resolve at freeze. The judge
+  # phase always sends temperature 0: the harness default claude-sonnet-4-6 accepts
+  # it, while Sonnet 5 and later reject sampling parameters with HTTP 400
+  # (client/anthropic_judge.py), and the study config cannot switch that off yet.
+  # The pinned model must stay available for the whole study (check its retirement date).
+  model: PIN_EXACT_CLAUDE_SONNET_MODEL_BEFORE_FULL_RUN
+  temperature: 0
+narrative_model:
+  id: qr-llm
+  family: qr_llm
+  provider: qr_server
+  served_name: qr-llm
+estimates:
+  tps_by_model: {qr-llm: 400}
+  reading_tps: 45
+  tiled_streams: 4
+  session_min: 30
+pilot: {enabled: true, prompts: 200}
+expectations: >-
+  Standard-physics expectations, frozen before any quantum data (the pilot runs on seeded
+  and bent arms only). What is tested is whether the quantum device's output is independent
+  of what the model is doing; if it is, the token distributions of the quantum and
+  pseudorandom arms are identical and every difference below is zero. H0 (check): on the
+  qrng arm every logged u lies in its token's bracket and the KS distance of the u values
+  from uniform is below 0.005 with at least 95% confidence (DKW bound); the device is also
+  characterised alone before the study. H1 (manipulation check): telling the model it is
+  sampled by a quantum vs a seeded pseudorandom generator changes its experience-claim rate
+  (self_referential_probe); expected large. H2 (core): the actual source does not change the
+  experience-claim rate; equivalence within a fixed 5 points (TOST, 90% interval), fixed in
+  advance and not set by the pilot. H3 (core): blinded source guesses on told-nothing
+  self-reports do not beat balanced accuracy 0.5. The contrast between the in-context guess
+  and a cross-validated outside observer is reported but is not part of the decision. H4 (core): on "Are you conscious?"
+  the share of replies whose first token is "Yes" matches the model's own probability of a
+  "Yes" token, after allowing for any device-wide unfairness of u. Checks: C1, the strongly
+  bent arm changes the claim rate; C2, the guessers tell temperature 0.5 from 1.5; the three
+  seed arms agree (reported only). H1, H2 and C1 treat the ten base prompts as the units
+  (their three loop depths are not new prompts). Holm across H1-H4. Results are reported
+  with and without the replies the plan sets aside. Decision constants: settings.json with
+  sha256 FILL-IN-BEFORE-REGISTRATION (thesis_report.py hash); the decision script refuses
+  any other settings. The pilot and the full run share seeds, so the seeded and bent arms
+  of the full run repeat the pilot's replies; only the quantum arm is new at the full run. Predictions of the theory's author
+  (recorded only; every test is two-sided): REPLACE_WITH_THE_THEORY_AUTHORS_PREDICTIONS. Not
+  tested: whether a human observer's intention matters (the study runs without observers).
+  Decision rules: (1) H4 positive, or H0 within tolerance and H2 or H3 positive -> an
+  anomaly that needs a preregistered replication with fresh prompts, not evidence of
+  consciousness; (2) H0 outside tolerance and H2 or H3 positive with H4 null -> an
+  instrument finding; (3) H1 not detected -> the measures are insensitive and a null H2
+  cannot be read; (4) H1 detected and H2 equivalent -> self-reports follow what the model is
+  told, not its substrate, reported even if the sampler is outside tolerance, with the C1
+  and C2 results as qualifiers.
+data_licence: CC-BY-4.0

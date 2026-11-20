@@ -212,7 +212,9 @@ sample. Never commit generated results, `*.jsonl` outside fixtures, or `*.eval`.
 6. Open the PR with the template and fill in the **eval-card checklist**:
 
 - [ ] free generation (`generation: free|short`), no forced choice / logprob scoring
-- [ ] per-prompt statistic from `k ≥ 10` (or `k: null` with `est_tokens_per_sample: 0`)
+- [ ] per-prompt statistic from `k ≥ 10` (or `k: null` with `est_tokens_per_sample: 0`); a
+      `derived:` card whose unit is the judged completion may use `k ≥ 1` if an `exceptions`
+      entry starts with `k below 10` and gives the reason
 - [ ] judge fixed at temperature 0, a different model from the target, rubric committed
 - [ ] card declares `thinking`, `k`, `est_tokens_per_sample`, `tier`; `est_gen_tokens_per_arm` arithmetic checks
 - [ ] dataset revision pinned (`hf:`/`git:`) or prompts shipped under `repo:`

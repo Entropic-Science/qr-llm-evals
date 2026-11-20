@@ -17,6 +17,11 @@ Invariants enforced here (AGENTS.md invariant 1):
   different pipelines and the study would compare amplifiers, not entropy.
 * **Arms differ only in the entropy keys** (:data:`EQUIVALENCE_KEYS`);
   :func:`equivalence_violations` is what the readiness check asserts.
+* **Biased (epsilon) arms bend the numbers, nothing else.** The engine has no
+  ``qr_bias_epsilon`` hook (DEP-2), so a ``prng_epsilon`` arm shifts the
+  z-score amplifier's reference mean instead (:func:`bent_population_mean`):
+  every ``u`` becomes ``Φ(z + ε)``, as if the bytes averaged ``ε`` standard
+  errors above 127.5. Same bytes, same amplifier, same selector.
 * **Greedy consults no randomness.** On qr lanes ``qr_fixed_temperature: 0``
   is *not* greedy (the one-hot force ignores vLLM ``temperature``); greedy is
   ``qr_bypass: true`` + ``temperature: 0`` and is refused on ``source=qrng``.
@@ -33,6 +38,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Final
 
+from qr_llm_evals.config import DEFAULT_TOP_LOGPROBS, MAX_TOP_LOGPROBS
 from qr_llm_evals.models.providers import UNKNOWN_PROFILE, ProviderProfile
 from qr_llm_evals.models.schema import Arm, ModelRef, Sampling, Source
 from qr_llm_evals.models.seeds import derive_seed
@@ -57,6 +63,27 @@ DETERMINISTIC_ENVELOPE: Final[dict[str, Any]] = {
 #: including the QRNG arm, so all arms share one pipeline up to the source.
 AMPLIFIER_PINS: Final[dict[str, Any]] = dict(DETERMINISTIC_ENVELOPE)
 
+#: SOURCE: qr-sampler ``src/qr_sampler/config/model.py`` defaults
+#: (``population_mean``, ``population_std``, ``sample_count``): the z-score
+#: amplifier's reference mean and standard deviation of one byte, and the bytes
+#: drawn per token. The harness never sends them except to bend an epsilon arm.
+POPULATION_MEAN: Final[float] = 127.5
+POPULATION_STD: Final[float] = 73.61215932167728
+SAMPLE_COUNT: Final[int] = 10_000
+#: Standard error of one token's byte mean, ``POPULATION_STD / sqrt(SAMPLE_COUNT)``.
+SAMPLE_MEAN_SE: Final[float] = POPULATION_STD / SAMPLE_COUNT**0.5
+
+
+def bent_population_mean(epsilon: float) -> float:
+    """Reference mean that turns every ``u = Φ(z)`` into ``Φ(z + epsilon)``.
+
+    The amplifier computes ``z = (M − μ0) / SE``; lowering ``μ0`` by
+    ``epsilon · SE`` adds ``epsilon`` to every ``z``. The bend is meaning-blind
+    and identical for every token, which is what a biased device would do.
+    """
+    return POPULATION_MEAN - float(epsilon) * SAMPLE_MEAN_SE
+
+
 #: SOURCE: qr-llm-research ``client/qr_args.py`` ``REFUSED_QR_KEYS`` /
 #: ``REFUSED_QR_PREFIXES`` — a local mirror of qr-sampler's server-side rejection
 #: of non-per-request fields, extended with the keys THIS builder owns (source,
@@ -73,6 +100,8 @@ REFUSED_QR_KEYS: Final[frozenset[str]] = frozenset(
         "qr_seed",
         "qr_bypass",
         "qr_bias_epsilon",
+        "qr_population_mean",
+        "qr_population_std",
         "qr_signal_amplifier_type",
         "qr_zscore_calibration_samples",
         "qr_entropy_prefetch",
@@ -104,13 +133,16 @@ SOURCE_TYPES: Final[dict[Source, str]] = {
 
 #: The only keys on which qr-llm arms of one study may differ (spec §5.2).
 EQUIVALENCE_KEYS: Final[frozenset[str]] = frozenset(
-    {"qr_entropy_source_type", "qr_seed", "qr_bias_epsilon"}
+    {"qr_entropy_source_type", "qr_seed", "qr_bias_epsilon", "qr_population_mean"}
 )
 
 GREEDY_QRNG_REASON: Final[str] = "greedy consults no randomness"
 
-#: Common body pins for qr-llm targets (spec §2.2).
-TOP_LOGPROBS: Final[int] = 20
+#: Default per-token ``top_logprobs`` depth for qr-llm targets (spec §2.2). It is a
+#: default, not a hard limit: deployments set ``QR_EVALS_TOP_LOGPROBS`` (``Settings.
+#: top_logprobs``) up to :data:`MAX_TOP_LOGPROBS`, matched by the engine's
+#: ``--max-logprobs``, and pass it to :func:`build_request_body`.
+TOP_LOGPROBS: Final[int] = DEFAULT_TOP_LOGPROBS
 
 #: Closest OpenAI-surface approximation of each sampling mode for external
 #: providers. ``creative`` cannot be reproduced outside qr-sampler (HVH drift
@@ -145,6 +177,20 @@ class SampleContext:
         return "/".join(parts)
 
 
+def check_top_logprobs(depth: int) -> int:
+    """Return ``depth`` if it is a valid per-token ``top_logprobs`` request, else raise.
+
+    ``0`` asks for the chosen token's logprob only; the ceiling is
+    :data:`MAX_TOP_LOGPROBS`. Whether the engine honours the depth is a readiness
+    question (vLLM answers ``400`` above its ``--max-logprobs``).
+    """
+    if isinstance(depth, bool) or not isinstance(depth, int):
+        raise EnvelopeError(f"top_logprobs must be an integer, got {depth!r}")
+    if not 0 <= depth <= MAX_TOP_LOGPROBS:
+        raise EnvelopeError(f"top_logprobs={depth} outside [0, {MAX_TOP_LOGPROBS}]")
+    return depth
+
+
 def validate_overrides(overrides: Mapping[str, Any] | None) -> dict[str, Any]:
     """Refuse infrastructure / owned ``qr_*`` keys and non-``qr_*`` keys (fail before the first request)."""
     out = dict(overrides or {})
@@ -174,7 +220,7 @@ def build_envelope(
     """The ``vllm_xargs`` dict for one generation on a qr-llm target.
 
     Key order is fixed (source, preset, sampling pins, seed, amplifier pins,
-    epsilon, card overrides) so the JSON bytes are reproducible; tests pin them.
+    bent reference mean, card overrides) so the JSON bytes are reproducible; tests pin them.
     """
     if arm.source == "provider":
         raise EnvelopeError(f"arm {arm.id!r}: provider arms carry no qr_* envelope")
@@ -196,8 +242,9 @@ def build_envelope(
         envelope["qr_seed"] = seed
     envelope.update(AMPLIFIER_PINS)
     if arm.source == "prng_epsilon":
-        # Proposed key (spec §2.2); the arm stays `unavailable` until readiness sees it accepted.
-        envelope["qr_bias_epsilon"] = arm.epsilon
+        # The engine has no epsilon hook (DEP-2); the bend is the amplifier's reference
+        # mean, a per-request field. The arm stays `unavailable` until readiness sees it accepted.
+        envelope["qr_population_mean"] = bent_population_mean(float(arm.epsilon or 0.0))
     envelope.update(extra)
     return envelope
 
@@ -241,7 +288,9 @@ def equivalence_violations(envelopes: Mapping[str, Mapping[str, Any]]) -> list[s
     return problems
 
 
-def _provider_sampling(arm: Arm, ctx: SampleContext, profile: ProviderProfile) -> dict[str, Any]:
+def _provider_sampling(
+    arm: Arm, ctx: SampleContext, profile: ProviderProfile, top_logprobs: int = TOP_LOGPROBS
+) -> dict[str, Any]:
     body: dict[str, Any] = {}
     for key, value in PROVIDER_SAMPLING[arm.sampling].items():
         if profile.accepts(key):
@@ -252,7 +301,7 @@ def _provider_sampling(arm: Arm, ctx: SampleContext, profile: ProviderProfile) -
     if profile.wants_logprobs:
         body["logprobs"] = True
         if profile.accepts("top_logprobs") and profile.top_logprobs_cap > 0:
-            body["top_logprobs"] = min(TOP_LOGPROBS, profile.top_logprobs_cap)
+            body["top_logprobs"] = min(top_logprobs, profile.top_logprobs_cap)
     return body
 
 
@@ -266,6 +315,7 @@ def build_request_body(
     stream: bool = True,
     overrides: Mapping[str, Any] | None = None,
     profile: ProviderProfile | None = None,
+    top_logprobs: int = TOP_LOGPROBS,
 ) -> dict[str, Any]:
     """The full chat-completions body (spec §2.2 common body).
 
@@ -273,9 +323,12 @@ def build_request_body(
     ``request_id`` / ``vllm_xargs`` / ``priority``; external targets get only what
     their :class:`ProviderProfile` accepts. The ``request_id`` is the sample's
     join key so engine-side token logs can be matched back (spec D-8).
+    ``top_logprobs`` is the deployment's configured depth (default
+    :data:`TOP_LOGPROBS`); provider arms are further capped by their profile.
     """
     if arm.model != model.id:
         raise EnvelopeError(f"arm {arm.id!r} targets {arm.model!r}, got model {model.id!r}")
+    depth = check_top_logprobs(top_logprobs)
     body: dict[str, Any] = {
         "model": model.served_name,
         "messages": messages,
@@ -294,7 +347,7 @@ def build_request_body(
         body.update(
             {
                 "logprobs": True,
-                "top_logprobs": TOP_LOGPROBS,
+                "top_logprobs": depth,
                 "chat_template_kwargs": {"enable_thinking": ctx.thinking},
                 "request_id": ctx.sample_ref(arm.id),
                 "vllm_xargs": envelope,
@@ -308,7 +361,7 @@ def build_request_body(
             f"arm {arm.id!r}: source {arm.source!r} needs the pinned qr-llm target, "
             f"not provider {model.provider!r}"
         )
-    body.update(_provider_sampling(arm, ctx, profile or UNKNOWN_PROFILE))
+    body.update(_provider_sampling(arm, ctx, profile or UNKNOWN_PROFILE, depth))
     return body
 
 
@@ -318,16 +371,23 @@ __all__ = [
     "DETERMINISTIC_ENVELOPE",
     "EQUIVALENCE_KEYS",
     "GREEDY_QRNG_REASON",
+    "MAX_TOP_LOGPROBS",
+    "POPULATION_MEAN",
+    "POPULATION_STD",
     "PROVIDER_SAMPLING",
     "REFUSED_QR_KEYS",
     "REFUSED_QR_PREFIXES",
+    "SAMPLE_COUNT",
+    "SAMPLE_MEAN_SE",
     "SAMPLING_TABLE",
     "SOURCE_TYPES",
     "TOP_LOGPROBS",
     "EnvelopeError",
     "SampleContext",
+    "bent_population_mean",
     "build_envelope",
     "build_request_body",
+    "check_top_logprobs",
     "envelope_hash",
     "envelope_json",
     "equivalence_violations",

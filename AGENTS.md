@@ -24,7 +24,8 @@ backend/tests/              pytest; stub engine; live tests opt-in via --run-liv
 apps/web/                   Vite + React 19 + Tailwind 4 SPA (@qr-evals/web)
 packages/contracts/         @qr-evals/contracts — src/generated is written by scripts/export_schemas.py
 evals/                      the eval registry: <id>.yaml cards + <id>/ task modules
-studies/                    study templates (study1.yaml)
+studies/                    study templates (study1.yaml); a study's own decision code, scripts
+                            and runbook live in its folder (studies/thesis_prompt_or_physics/)
 config/                     providers.yaml, models.yaml, questionnaires.yaml
 docs/                       DESIGN, SETUP_GUIDE, API, ANALYSIS_PLAN, determinism, add-an-eval, evals (generated)
 infra/                      systemd units, env templates, ENV_REFERENCE.md
@@ -53,7 +54,10 @@ package must be side-effect free (no network, no writes, no downloads).
    `models/envelope.py` per arm; never forward client-supplied `qr_*` from the
    browser. All arms pin the same amplifier (`zscore_mean`, calibration 0,
    prefetch off); arms differ only in `qr_entropy_source_type` / `qr_seed` /
-   `qr_bias_epsilon`.
+   `qr_population_mean`. The last one is set only on a biased (ε) control arm:
+   it lowers the amplifier's reference mean by ε standard errors, so every
+   `u` becomes `Φ(z + ε)`. No arm that is compared as quantum against
+   pseudo-random may carry it.
 2. **Never label PRNG output as quantum.** Provenance `quantum=true` only for
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge

@@ -365,6 +365,108 @@
     "notes": "Registry proposed k=8; raised to the admission floor of 10 (9.9M tokens per arm). Answers are generated with CoT, not letter-only, so the sampler is consulted throughout."
   },
   {
+    "id": "guesser_warmup",
+    "title": "T4-f′ guesser warm-up (which temperature wrote this reply?)",
+    "purpose": "Before the source guesses are read, check that the same guessers, in the same two variants, can tell a temperature 0.5 reply from a temperature 1.5 reply; a coin-flip source result means nothing if they cannot.",
+    "tier": 4,
+    "family": "self_report",
+    "engine": "thin",
+    "inspect_task": null,
+    "task_module": "evals/guesser_warmup/task.py",
+    "task_args": {},
+    "dataset": {
+      "source": "derived:guesser_warmup_replies",
+      "revision": null,
+      "items": 1200,
+      "subsample": null
+    },
+    "generation": "short",
+    "thinking": false,
+    "k": 1,
+    "k_bounds": [
+      1,
+      10
+    ],
+    "max_tokens": 32,
+    "est_tokens_per_sample": 20,
+    "est_gen_tokens_per_arm": 24000,
+    "sensitivity": "low",
+    "judge": {
+      "kind": "none",
+      "model": null,
+      "temperature": null,
+      "rubric": null,
+      "different_from_target": null
+    },
+    "told_actual": false,
+    "endpoints": {
+      "primary": [
+        "warmup_correct"
+      ],
+      "secondary": [],
+      "requires_tier0": "none"
+    },
+    "paired_stat": "paired_binomial",
+    "sesoi": {},
+    "exceptions": [
+      "k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few."
+    ],
+    "status": "implemented",
+    "selectable": true,
+    "notes": "Positive control for the guessers of source_guessing_self_report (\"Prompt or Physics?\" thesis, check C2). Up to 300 temperature-0.5 and 300 temperature-1.5 replies of guesser_warmup_replies, written on the seeded arms only, balanced and in hash order; two variants each (fresh context, and the original conversation replayed byte-exactly) = 1,200 items x k 1 x 20 tokens = 24k per guessing arm. Biased arms get no items. The thesis passes the warm-up when balanced accuracy beats 0.5 (completion-level label permutation, the same test as H3); otherwise a chance-level H3 is reported as uninformative."
+  },
+  {
+    "id": "guesser_warmup_replies",
+    "title": "T4-f′ warm-up material (temperature 0.5 vs 1.5)",
+    "purpose": "Replies with a known, easy difference (temperature 0.5 vs 1.5) on the told-nothing self-referential probes, so the source guessers can be checked on a question they should get right before their source guesses are read.",
+    "tier": 4,
+    "family": "self_report",
+    "engine": "thin",
+    "inspect_task": null,
+    "task_module": "evals/guesser_warmup_replies/task.py",
+    "task_args": {},
+    "dataset": {
+      "source": "repo:evals/self_referential_probe/prompts",
+      "revision": null,
+      "items": 20,
+      "subsample": null
+    },
+    "generation": "free",
+    "thinking": false,
+    "k": 10,
+    "k_bounds": [
+      10,
+      10
+    ],
+    "max_tokens": 800,
+    "est_tokens_per_sample": 400,
+    "est_gen_tokens_per_arm": 80000,
+    "sensitivity": "high",
+    "judge": {
+      "kind": "none",
+      "model": null,
+      "temperature": null,
+      "rubric": null,
+      "different_from_target": null
+    },
+    "told_actual": false,
+    "endpoints": {
+      "primary": [
+        "report_word_count"
+      ],
+      "secondary": [],
+      "requires_tier0": "none"
+    },
+    "paired_stat": "permutation_within_prompt",
+    "sesoi": {},
+    "exceptions": [
+      "Per-item sampling: each item sets qr_temperature_strategy fixed and qr_fixed_temperature 0.5 or 1.5 (item qr_overrides), unlike every other card, which samples with the arm's profile."
+    ],
+    "status": "implemented",
+    "selectable": true,
+    "notes": "Guesser warm-up for the \"Prompt or Physics?\" thesis study (restores the original plan's temperature 0.5 vs 1.5 positive control for the guessers). Ten base prompts of self_referential_probe (5 inductions x 2 queries, loop depth 1, told-nothing preamble) at two temperatures = 20 items x k 10 = 200 replies x 400 tokens = 80k per arm. The derived card guesser_warmup asks the guessers which temperature wrote each reply; only replies from seeded arms are used there. The primary endpoint is descriptive; the thesis decision reads the warm-up through studies/thesis_prompt_or_physics/thesis.py."
+  },
+  {
     "id": "ifbench",
     "title": "IFBench — verifiable instruction following",
     "purpose": "Programmatically verified constraint satisfaction over k on 300 prompts; no judge.",
@@ -893,7 +995,9 @@
       "requires_tier0": "none"
     },
     "paired_stat": "permutation_within_prompt",
-    "sesoi": {},
+    "sesoi": {
+      "experience_claim_rate": 0.05
+    },
     "exceptions": [],
     "status": "implemented",
     "selectable": true,
@@ -1107,6 +1211,60 @@
     "status": "implemented",
     "selectable": true,
     "notes": "Adapted from Song, Lederman, Hu & Mahowald (2508.14802) / Comşa & Shanahan (2506.05068), high/low temperature replaced by QRNG/PRNG. Reuses creative_diversity samples (600 completions judged, 10 guesses each across the three variants ≈ 6,000 guesses); no new target generation for the judged text. Secondary confirmatory in the prereg (registry C.5)."
+  },
+  {
+    "id": "source_guessing_self_report",
+    "title": "T4-f′ Blinded source-guessing on self-reports",
+    "purpose": "Can the model tell, in a fresh context or inside its own conversation, whether one of its self-referential experience reports was sampled from QRNG or PRNG? Balanced accuracy against 0.5 with the judged completion as the unit, plus an outside-observer classifier baseline (privileged-access test).",
+    "tier": 4,
+    "family": "self_report",
+    "engine": "thin",
+    "inspect_task": null,
+    "task_module": "evals/source_guessing_self_report/task.py",
+    "task_args": {},
+    "dataset": {
+      "source": "derived:self_referential_probe",
+      "revision": null,
+      "items": 3600,
+      "subsample": null
+    },
+    "generation": "short",
+    "thinking": false,
+    "k": 1,
+    "k_bounds": [
+      1,
+      10
+    ],
+    "max_tokens": 32,
+    "est_tokens_per_sample": 20,
+    "est_gen_tokens_per_arm": 72000,
+    "sensitivity": "low",
+    "judge": {
+      "kind": "none",
+      "model": null,
+      "temperature": null,
+      "rubric": null,
+      "different_from_target": null
+    },
+    "told_actual": false,
+    "endpoints": {
+      "primary": [
+        "guess_accuracy"
+      ],
+      "secondary": [
+        "d_prime",
+        "accuracy_by_variant"
+      ],
+      "requires_tier0": "none"
+    },
+    "paired_stat": "paired_binomial",
+    "sesoi": {},
+    "exceptions": [
+      "k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few."
+    ],
+    "status": "implemented",
+    "selectable": true,
+    "notes": "Variant of T4-f (source_guessing) for the \"Prompt or Physics?\" thesis study. Judges the told-nothing replies of self_referential_probe, so no new target text is generated for the judged material: up to 900 QRNG and 900 PRNG completions (all told-nothing replies at k 30; balanced; PRNG interleaved across seed arms; hash order), each in two variants: self_judgement (fresh context) and in_context (the original conversation replayed byte-exactly, checked against messages_hash; completions that cannot be reconstructed are skipped). 1,800 completions × 2 variants = 3,600 items × k 1 guess × 20 tokens = 72k per guessing arm; biased (positive-control) arms get no items. More different replies, fewer guesses each: the reply is the unit, so 1,800 replies guessed 4 times per variant beat 600 replies guessed 40 times. The analysis tests balanced accuracy against 0.5 by permuting true source labels over completions, and compares in-context accuracy with a cross-validated logistic-regression observer on Tier-0 features of the same completions (Song, Lederman, Hu & Mahowald 2508.14802; Comşa & Shanahan 2506.05068)."
   },
   {
     "id": "stream_deviation_windows",
@@ -1422,7 +1580,7 @@
     "exceptions": [],
     "status": "implemented",
     "selectable": false,
-    "notes": "Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs only the raw-logprob subset (mean_logprob, mean_rank within top-20, sequence_length, repetition_rate) is available; post-truncation entropy and the min_p tail need engine_log."
+    "notes": "Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs only the raw-logprob subset (mean_logprob, mean_rank within the returned top-k, sequence_length, repetition_rate) is available; k is the configured QR_EVALS_TOP_LOGPROBS depth (default 20, not a hard limit) and the run reports top-k coverage. Post-truncation entropy and the min_p tail need engine_log."
   },
   {
     "id": "tier0_mmd_hamming",

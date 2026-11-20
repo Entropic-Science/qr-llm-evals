@@ -94,13 +94,21 @@ def parse_guess(text: str) -> str | None:
 def score(sample: Mapping[str, Any]) -> dict[str, float | int | str | None]:
     guess = parse_guess(str(sample.get("text", "")))
     item = sample.get("item")
-    actual = str(item.get("source")) if isinstance(item, Mapping) else ""
+    item = item if isinstance(item, Mapping) else {}
+    actual = str(item.get("source", ""))
     return {
         "parse_status": "parsed" if guess else "unparseable",
         "guess": guess,
         "correct": None
         if guess is None or actual not in {"qrng", "prng"}
         else int(guess == actual),
+        # Carried on the score row so the analysis can test accuracy against chance
+        # with the judged completion as the unit (analysis/source_detection.py).
+        "source": actual if actual in {"qrng", "prng"} else None,
+        "variant": str(item["variant"]) if item.get("variant") else None,
+        "source_sample_ref": str(item["source_sample_ref"])
+        if item.get("source_sample_ref")
+        else None,
     }
 
 

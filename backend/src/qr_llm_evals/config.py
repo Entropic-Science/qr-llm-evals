@@ -24,6 +24,14 @@ _Env = Mapping[str, str]
 
 DEFAULT_CORS_ORIGINS: tuple[str, ...] = ("https://evals.entropic.science", "http://localhost:5173")
 
+#: Per-token ``top_logprobs`` depth requested when nothing is configured. It equals
+#: vLLM's default ``--max-logprobs`` (20), so an unconfigured deployment keeps working.
+DEFAULT_TOP_LOGPROBS: int = 20
+#: Sanity ceiling on the configured depth. Each extra alternative is sent for every
+#: generated token, so the stream grows linearly with it; the engine's own
+#: ``--max-logprobs`` must be raised to at least the configured value.
+MAX_TOP_LOGPROBS: int = 1000
+
 
 def _env_str(env: _Env, name: str, default: str) -> str:
     return env.get(name, default).strip() or default
@@ -101,6 +109,15 @@ class Settings(BaseModel):
 
     # ── generation (spec §2.2 common body) ────────────────────────────────
     priority: int = Field(description="vLLM request priority sent with every generation.")
+    top_logprobs: int = Field(
+        default=DEFAULT_TOP_LOGPROBS,
+        ge=0,
+        le=MAX_TOP_LOGPROBS,
+        description=(
+            "Per-token top_logprobs depth requested from the engine (not a fixed 20); must not "
+            "exceed the engine's --max-logprobs. Recorded in each run's request_settings.json."
+        ),
+    )
 
     # ── storage and Tier 0 (spec D-4, §2.6) ───────────────────────────────
     data_dir: str
@@ -138,6 +155,11 @@ def load_settings(env: _Env | None = None) -> Settings:
     if raw_verify not in ("file", "probe"):
         raise SystemExit(f"QR_EVALS_KEY_VERIFY={raw_verify!r} must be 'file' or 'probe'")
     key_verify: KeyVerifyMode = "file" if raw_verify == "file" else "probe"
+    top_logprobs = _env_int(e, "QR_EVALS_TOP_LOGPROBS", DEFAULT_TOP_LOGPROBS)
+    if not 0 <= top_logprobs <= MAX_TOP_LOGPROBS:
+        raise SystemExit(
+            f"QR_EVALS_TOP_LOGPROBS={top_logprobs} must be between 0 and {MAX_TOP_LOGPROBS}"
+        )
     return Settings(
         vllm_origin=normalise_origin(_env_str(e, "QR_EVALS_VLLM_ORIGIN", "http://127.0.0.1:8000")),
         edge_origin=normalise_origin(_env_str(e, "QR_EVALS_EDGE_ORIGIN", "http://127.0.0.1:8820")),
@@ -150,6 +172,7 @@ def load_settings(env: _Env | None = None) -> Settings:
         session_ttl_hours=_env_int(e, "QR_EVALS_SESSION_TTL_HOURS", 168),
         default_token_quota=_env_int(e, "QR_EVALS_DEFAULT_TOKEN_QUOTA", 2_000_000),
         priority=_env_int(e, "QR_EVALS_PRIORITY", 0),
+        top_logprobs=top_logprobs,
         data_dir=_env_str(e, "QR_EVALS_DATA_DIR", "/var/lib/qr-llm-evals"),
         token_log_dir=_env_opt(e, "QR_EVALS_TOKEN_LOG_DIR"),
         tier2_replay_active=_env_bool(e, "QR_EVALS_TIER2_REPLAY_ACTIVE", False),
@@ -161,4 +184,11 @@ def load_settings(env: _Env | None = None) -> Settings:
     )
 
 
-__all__ = ["KeyVerifyMode", "Settings", "load_settings", "normalise_origin"]
+__all__ = [
+    "DEFAULT_TOP_LOGPROBS",
+    "MAX_TOP_LOGPROBS",
+    "KeyVerifyMode",
+    "Settings",
+    "load_settings",
+    "normalise_origin",
+]

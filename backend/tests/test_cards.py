@@ -339,3 +339,16 @@ def test_evals_doc_lists_every_card_with_status(registry: dict[str, EvalCard]) -
 def test_gen_evals_doc_check_cli_passes() -> None:
     gen = _gen_module()
     assert gen.main(["--check"]) == 0
+
+
+def test_k_below_10_needs_a_derived_card_and_a_declared_exception() -> None:
+    low_k: dict[str, Any] = {"k": 1, "k_bounds": [1, 4]}
+    derived: dict[str, Any] = {"source": "derived:creative_diversity", "items": 10}
+    declared = ["k below 10: the reply is the unit"]
+
+    def k_problems(**overrides: Any) -> list[str]:
+        return [p for p in admission_problems(_card(**overrides)) if p.startswith("k")]
+
+    assert not k_problems(dataset=derived, exceptions=declared, **low_k)
+    assert k_problems(dataset=derived, **low_k)  # not declared
+    assert k_problems(exceptions=declared, **low_k)  # not a derived card

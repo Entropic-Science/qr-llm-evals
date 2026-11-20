@@ -20,6 +20,8 @@ Every table carries ``endpoint``/``card``, ``available`` and — when the run's
 
 from __future__ import annotations
 
+import functools
+import hashlib
 import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -32,7 +34,7 @@ from scipy import stats as sp
 from qr_llm_evals.models.schema import Tier0Source
 from qr_llm_evals.tier0.acquire import ENTROPY_RAW_TOP20_LABEL
 from qr_llm_evals.tier0.availability import CARD_ENDPOINTS, is_available, requirement_for
-from qr_llm_evals.tier0.records import group_by_sample, parse_sample_ref
+from qr_llm_evals.tier0.records import group_by_sample, independent_streams, parse_sample_ref
 from qr_llm_evals.tier0.schema import Tier0Record
 
 FloatArray = NDArray[np.float64]
@@ -70,6 +72,8 @@ __all__ = [
     "t0a_table",
     "t0b_table",
     "t0c_table",
+    "token_uniforms",
+    "topk_coverage",
     "u_vs_r_agreement",
     "unavailable",
 ]
@@ -124,20 +128,54 @@ def _bracketed(records: Iterable[Tier0Record]) -> list[Tier0Record]:
     return [r for r in records if r.cdf_lo is not None and r.cdf_hi is not None]
 
 
+_SPLITMIX_GAMMA = np.uint64(0x9E3779B97F4A7C15)
+_SPLITMIX_M1 = np.uint64(0xBF58476D1CE4E5B9)
+_SPLITMIX_M2 = np.uint64(0x94D049BB133111EB)
+
+
+@functools.lru_cache(maxsize=1 << 17)
+def _sample_key(seed: int, sample_ref: str) -> int:
+    digest = hashlib.sha256(f"pit-v\x1f{seed}\x1f{sample_ref}".encode()).digest()
+    return int.from_bytes(digest[:8], "little")
+
+
+def token_uniforms(records: Sequence[Tier0Record], seed: int = 42) -> FloatArray:
+    """One ``V ~ U(0,1)`` per record, keyed by ``(seed, sample_ref, token_index)``.
+
+    Keyed, not drawn in list order: ``V`` is independent across tokens, samples
+    and arms, and a token keeps its ``V`` however callers slice or pool the
+    records. (Drawing ``V`` by position gave every call the same sequence, so
+    per-sample calls shared it across samples and two arms shared it index by
+    index — which inflated the lag-1 and pooled uniformity tests under H0.)
+    SplitMix64 over a per-sample SHA-256 key; deterministic across processes.
+    """
+    keys = np.fromiter(
+        (_sample_key(seed, r.sample_ref) for r in records), dtype=np.uint64, count=len(records)
+    )
+    index = np.fromiter((r.token_index for r in records), dtype=np.uint64, count=len(records))
+    x = keys + (index + np.uint64(1)) * _SPLITMIX_GAMMA  # uint64 arithmetic wraps mod 2**64
+    x = (x ^ (x >> np.uint64(30))) * _SPLITMIX_M1
+    x = (x ^ (x >> np.uint64(27))) * _SPLITMIX_M2
+    x = x ^ (x >> np.uint64(31))
+    result: FloatArray = ((x >> np.uint64(11)).astype(np.float64) + 0.5) / float(1 << 53)
+    return result
+
+
 def pit_residuals(records: Iterable[Tier0Record], seed: int = 42) -> FloatArray:
     """Randomised quantile residuals ``r = F(t−1) + V·p(t)``, ``V ~ U[0,1]`` fresh and seeded.
 
     With ``cdf_lo = F(t−1)`` and ``cdf_hi = F(t)`` this is ``cdf_lo + V·(cdf_hi − cdf_lo)``
-    (2506.06975): U[0,1] i.i.d. under H0 whatever RNG chose ``t``. Records
-    without a bracket (degraded path) are skipped, never imputed. Order follows
-    the input order so callers can align residuals with their records.
+    (2506.06975): U[0,1] i.i.d. under H0 whatever RNG chose ``t``. ``V`` comes from
+    :func:`token_uniforms`, so it is independent per token even across separate
+    calls. Records without a bracket (degraded path) are skipped, never imputed.
+    Order follows the input order so callers can align residuals with their records.
     """
     recs = _bracketed(records)
     if not recs:
         return np.empty(0, dtype=np.float64)
     lo = np.array([r.cdf_lo for r in recs], dtype=np.float64)
     hi = np.array([r.cdf_hi for r in recs], dtype=np.float64)
-    v = np.random.default_rng(seed).uniform(size=lo.size)
+    v = token_uniforms(recs, seed)
     result: FloatArray = np.clip(lo + v * (hi - lo), 0.0, 1.0)
     return result
 
@@ -235,6 +273,8 @@ def t0a_table(
     blocked = _check_source("pit_ks_one_sample", tier0_source)
     if blocked is not None:
         return {**blocked, "card": "tier0_pit_residuals"}
+    # One told cell per (card, prompt, epoch): seeded arms share the stream across cells.
+    records_by_arm = {arm: independent_streams(recs) for arm, recs in records_by_arm.items()}
     arms: dict[str, Any] = {}
     for arm, recs in records_by_arm.items():
         bracketed = _bracketed(recs)
@@ -444,8 +484,35 @@ def rank_histogram(records: Iterable[Tier0Record], max_rank: int = RANK_HIST_MAX
     return counts
 
 
-def t0c_table(records_by_arm: RecordsByArm, *, tier0_source: Tier0Source | None = None) -> Table:
-    """T0-c per-arm means of every detector, with per-endpoint availability."""
+def topk_coverage(records: Iterable[Tier0Record], top_k: int) -> float | None:
+    """Share of sampled tokens that fall inside the returned top-``top_k`` (``rank_raw < top_k``).
+
+    On the ``api_logprobs`` path ``rank_raw`` equals ``top_k`` exactly when the
+    sampled token was absent from the returned alternatives, so this is the
+    fraction of tokens the rank-based detectors see in full. It tells an
+    operator whether the configured depth (``QR_EVALS_TOP_LOGPROBS``) is deep
+    enough; a value below 1 means raising the depth, not discarding tokens.
+    ``None`` for no records or ``top_k <= 0``.
+    """
+    if top_k <= 0:
+        return None
+    ranks = [r.rank_raw for r in records]
+    if not ranks:
+        return None
+    return float(np.mean([rank < top_k for rank in ranks]))
+
+
+def t0c_table(
+    records_by_arm: RecordsByArm,
+    *,
+    tier0_source: Tier0Source | None = None,
+    top_k: int | None = None,
+) -> Table:
+    """T0-c per-arm means of every detector, with per-endpoint availability.
+
+    ``top_k`` is the run's recorded ``top_logprobs`` depth; when given, each arm
+    also reports :func:`topk_coverage` and the labels name the depth.
+    """
     prompt_rows = prompt_feature_rows(records_by_arm)
     arms: dict[str, Any] = {}
     for arm, recs in records_by_arm.items():
@@ -459,6 +526,8 @@ def t0c_table(records_by_arm: RecordsByArm, *, tier0_source: Tier0Source | None 
                 float(np.mean([r["mean_entropy_raw_top20"] for r in mine])) if mine else None
             ),
         }
+        if top_k is not None:
+            summary["topk_coverage"] = topk_coverage(recs, top_k)
         for ep in T0C_ENDPOINTS:
             blocked = _check_source(ep, tier0_source)
             values = [r[ep] for r in mine if r[ep] is not None]
@@ -481,6 +550,17 @@ def t0c_table(records_by_arm: RecordsByArm, *, tier0_source: Tier0Source | None 
             "mean_entropy_raw_top20": ENTROPY_RAW_TOP20_LABEL,
             "rank_histogram": f"rank_raw counts 0..{RANK_HIST_MAX - 1}, last bin >= {RANK_HIST_MAX}",
             "tail_fraction_p001": f"fraction of tokens with post-truncation p < {TAIL_P}",
+            **(
+                {
+                    "top_logprobs": top_k,
+                    "topk_coverage": (
+                        f"share of sampled tokens inside the returned top-{top_k} "
+                        f"(rank_raw < {top_k}); below 1 means the depth should be raised"
+                    ),
+                }
+                if top_k is not None
+                else {}
+            ),
         },
         "arms": arms,
         "prompt_rows": prompt_rows,

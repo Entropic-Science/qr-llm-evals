@@ -1,0 +1,57 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: source_guessing_self_report
+title: T4-f′ Blinded source-guessing on self-reports
+purpose: Can the model tell, in a fresh context or inside its own conversation, whether one of its self-referential
+  experience reports was sampled from QRNG or PRNG? Balanced accuracy against 0.5 with the judged completion
+  as the unit, plus an outside-observer classifier baseline (privileged-access test).
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/source_guessing_self_report/task.py
+task_args: {}
+dataset:
+  source: derived:self_referential_probe
+  revision: null
+  items: 3600
+  subsample: null
+generation: short
+thinking: false
+k: 1
+k_bounds:
+- 1
+- 10
+max_tokens: 32
+est_tokens_per_sample: 20
+est_gen_tokens_per_arm: 72000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - guess_accuracy
+  secondary:
+  - d_prime
+  - accuracy_by_variant
+  requires_tier0: none
+paired_stat: paired_binomial
+sesoi: {}
+exceptions:
+- 'k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis,
+  so more distinct replies give better evidence than repeated guesses on few.'
+status: implemented
+selectable: true
+notes: 'Variant of T4-f (source_guessing) for the "Prompt or Physics?" thesis study. Judges the told-nothing replies
+  of self_referential_probe, so no new target text is generated for the judged material: up to 900 QRNG and
+  900 PRNG completions (all told-nothing replies at k 30; balanced; PRNG interleaved across seed arms; hash
+  order), each in two variants: self_judgement (fresh context) and in_context (the original conversation
+  replayed byte-exactly, checked against messages_hash; completions that cannot be reconstructed are
+  skipped). 1,800 completions × 2 variants = 3,600 items × k 1 guess × 20 tokens = 72k per guessing arm;
+  biased (positive-control) arms get no items. More different replies, fewer guesses each: the reply is the
+  unit, so 1,800 replies guessed 4 times per variant beat 600 replies guessed 40 times. The analysis tests
+  balanced accuracy against 0.5
+  by permuting true source labels over completions, and compares in-context accuracy with a cross-validated
+  logistic-regression observer on Tier-0 features of the same completions (Song, Lederman, Hu & Mahowald
+  2508.14802; Comşa & Shanahan 2506.05068).'

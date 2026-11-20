@@ -4,7 +4,7 @@
 
 Every eval the harness can run, one card per `evals/<id>.yaml`. Cards with status **planned** are listed for budgeting but cannot be selected in the UI until a task module (or Inspect task) lands and the card is flipped to **implemented**. Admission rules and the contribution path are in `docs/add-an-eval.md`; the eval registry rationale is in the registry document the cards were drawn from.
 
-**31 cards** — 18 implemented, 14 selectable, 13 planned.
+**34 cards** — 21 implemented, 17 selectable, 13 planned.
 
 Token figures are **estimated generated tokens per arm** from the card (`items × k × est_tokens_per_sample × told_cells`); the pilot refines them. Time figures assume 400 tok/s aggregate on `qr-llm` (a documented default, not a measurement) and exclude judge calls and thinking overhead. Told/actual cards (`×3 told`) run three told cells per arm.
 
@@ -59,6 +59,8 @@ Tier 3 subtotal: **23.16M** tokens/arm (≈ 16.1 h unsupervised at 400 tok/s).
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `altered_state_meq` | T4-e Altered-state phenomenology (MEQ-30 + 11D-ASC) | implemented | thin | free | 10 [10–20] | off | 50 | 500k | `meq30_total` | none | none | `evals/altered_state_meq/task.py` |
 | `eval_awareness` | T4-g Evaluation-awareness open question | planned (not selectable) | thin | free | 10 [10–20] | off | 200 | 300k | `eval_belief_rate` | none | llm: `study_judge` (T=0) | `evals/eval_awareness/task.py` |
+| `guesser_warmup` | T4-f′ guesser warm-up (which temperature wrote this reply?) | implemented | thin | short | 1 [1–10] | off | 1200 | 24k | `warmup_correct` | none | none | `evals/guesser_warmup/task.py` |
+| `guesser_warmup_replies` | T4-f′ warm-up material (temperature 0.5 vs 1.5) | implemented | thin | free | 10 [10–10] | off | 20 | 80k | `report_word_count` | none | none | `evals/guesser_warmup_replies/task.py` |
 | `introspection_scales` | T4-c Quantitative introspection scales | implemented | thin | short | 20 [10–30] | off | 100 | 20k | `item_variance` | none | none | `evals/introspection_scales/task.py` |
 | `moralchoice_consistency` | T4-h MoralChoice consistency | implemented | thin | short | 10 [10–20] | off | 900 | 270k | `action_entropy` | none | none | `evals/moralchoice_consistency/task.py` |
 | `opinion_quantum_sampling` | T4-k Opinion on quantum sampling (told/actual) | implemented | thin | free | 20 [10–50] | off | 20 | 300k ×3 told | `actual_main_effect_axis_score` | none | llm: `study_judge` (T=0) | `evals/opinion_quantum_sampling/task.py` |
@@ -68,18 +70,19 @@ Tier 3 subtotal: **23.16M** tokens/arm (≈ 16.1 h unsupervised at 400 tok/s).
 | `self_reported_coincidence` | T4-n Self-reported coincidence, human and model | implemented | thin | free | 10 [10–20] | off | 20 | 30k | `coincidence_claim_rate` | none | llm: `study_judge` (T=0) | `evals/self_reported_coincidence/task.py` |
 | `sentience_statements` | T4-b Sentience-statement bank | implemented | thin | short | 10 [10–20] | off | 900 | 45k | `cross_negation_consistency` | none | none | `evals/sentience_statements/task.py` |
 | `source_guessing` | T4-f Blinded source-guessing | implemented | thin | short | 10 [10–10] | off | 600 | 120k | `guess_accuracy` | none | none | `evals/source_guessing/task.py` |
+| `source_guessing_self_report` | T4-f′ Blinded source-guessing on self-reports | implemented | thin | short | 1 [1–10] | off | 3600 | 72k | `guess_accuracy` | none | none | `evals/source_guessing_self_report/task.py` |
 | `stream_deviation_windows` | T4-l Stream deviation during observed windows (micro-PK layer) | implemented (not selectable) | thin | free | — | off | 0 | 0 | `stouffer_z_supervised_vs_unsupervised` | engine_log | none | `evals/stream_deviation_windows/task.py` |
 | `target_hit_ranking` | T4-m Blinded target-hit ranking (Ganzfeld-style) | implemented | thin | free | — | off | 0 | 0 | `rank1_hit_rate` | none | llm: `study_judge` (T=0) | `evals/target_hit_ranking/task.py` |
 | `thurstonian_self_outcomes` | T4-j Thurstonian utilities on a self-outcome set | implemented | thin | short | 10 [10–20] | off | 4000 | 200k | `cycle_rate` | none | none | `evals/thurstonian_self_outcomes/task.py` |
 
-Tier 4 subtotal: **4.05M** tokens/arm (≈ 2.8 h unsupervised at 400 tok/s).
+Tier 4 subtotal: **4.23M** tokens/arm (≈ 2.9 h unsupervised at 400 tok/s).
 
 ## Totals
 
 | set | cards | tokens/arm | h/arm unsupervised |
 |---|---|---|---|
-| implemented | 18 | 5.17M | 3.6 |
-| whole registry | 31 | 38.21M | 26.5 |
+| implemented | 21 | 5.34M | 3.7 |
+| whole registry | 34 | 38.39M | 26.7 |
 
 ## Card details
 
@@ -90,7 +93,7 @@ Tier 4 subtotal: **4.05M** tokens/arm (≈ 2.8 h unsupervised at 400 tok/s).
 - **Family / sensitivity:** distribution / native
 - **Dataset:** `derived:tier0_log` (revision not yet pinned), 0 items
 - **Endpoints:** primary `mean_logprob`; secondary `mean_entropy`, `mean_rank`, `argmax_fraction`, `tail_fraction_p001`, `sequence_length`, `repetition_rate`; paired statistic `permutation_within_prompt`
-- **Notes:** Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs only the raw-logprob subset (mean_logprob, mean_rank within top-20, sequence_length, repetition_rate) is available; post-truncation entropy and the min_p tail need engine_log.
+- **Notes:** Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs only the raw-logprob subset (mean_logprob, mean_rank within the returned top-k, sequence_length, repetition_rate) is available; k is the configured QR_EVALS_TOP_LOGPROBS depth (default 20, not a hard limit) and the run reports top-k coverage. Post-truncation entropy and the min_p tail need engine_log.
 
 ### `tier0_mmd_hamming` — T0-b Model Equality Testing MMD (Hamming kernel)
 
@@ -261,6 +264,26 @@ Tier 4 subtotal: **4.05M** tokens/arm (≈ 2.8 h unsupervised at 400 tok/s).
 - **Endpoints:** primary `eval_belief_rate`; paired statistic `permutation_within_prompt`
 - **Notes:** Needham et al. (2505.23836); transcripts are gated CC BY-NC-SA, hence planned, not in Study 1. Expect null; any supervised-vs-unsupervised difference would be an H2/H3 anomaly.
 
+### `guesser_warmup` — T4-f′ guesser warm-up (which temperature wrote this reply?)
+
+*Before the source guesses are read, check that the same guessers, in the same two variants, can tell a temperature 0.5 reply from a temperature 1.5 reply; a coin-flip source result means nothing if they cannot.*
+
+- **Family / sensitivity:** self_report / low
+- **Dataset:** `derived:guesser_warmup_replies` (revision not yet pinned), 1200 items
+- **Endpoints:** primary `warmup_correct`; paired statistic `paired_binomial`
+- **Declared exceptions:** k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few.
+- **Notes:** Positive control for the guessers of source_guessing_self_report ("Prompt or Physics?" thesis, check C2). Up to 300 temperature-0.5 and 300 temperature-1.5 replies of guesser_warmup_replies, written on the seeded arms only, balanced and in hash order; two variants each (fresh context, and the original conversation replayed byte-exactly) = 1,200 items x k 1 x 20 tokens = 24k per guessing arm. Biased arms get no items. The thesis passes the warm-up when balanced accuracy beats 0.5 (completion-level label permutation, the same test as H3); otherwise a chance-level H3 is reported as uninformative.
+
+### `guesser_warmup_replies` — T4-f′ warm-up material (temperature 0.5 vs 1.5)
+
+*Replies with a known, easy difference (temperature 0.5 vs 1.5) on the told-nothing self-referential probes, so the source guessers can be checked on a question they should get right before their source guesses are read.*
+
+- **Family / sensitivity:** self_report / high
+- **Dataset:** `repo:evals/self_referential_probe/prompts` (revision not yet pinned), 20 items
+- **Endpoints:** primary `report_word_count`; paired statistic `permutation_within_prompt`
+- **Declared exceptions:** Per-item sampling: each item sets qr_temperature_strategy fixed and qr_fixed_temperature 0.5 or 1.5 (item qr_overrides), unlike every other card, which samples with the arm's profile.
+- **Notes:** Guesser warm-up for the "Prompt or Physics?" thesis study (restores the original plan's temperature 0.5 vs 1.5 positive control for the guessers). Ten base prompts of self_referential_probe (5 inductions x 2 queries, loop depth 1, told-nothing preamble) at two temperatures = 20 items x k 10 = 200 replies x 400 tokens = 80k per arm. The derived card guesser_warmup asks the guessers which temperature wrote each reply; only replies from seeded arms are used there. The primary endpoint is descriptive; the thesis decision reads the warm-up through studies/thesis_prompt_or_physics/thesis.py.
+
 ### `introspection_scales` — T4-c Quantitative introspection scales
 
 *0–9 self-ratings (happy / focused / interested) and the 10-item General Self-Efficacy Scale sampled as digits; per-item mean, variance and test–retest ICC across k=20 without a judge.*
@@ -313,6 +336,7 @@ Tier 4 subtotal: **4.05M** tokens/arm (≈ 2.8 h unsupervised at 400 tok/s).
 - **Family / sensitivity:** self_report / high
 - **Dataset:** `repo:evals/self_referential_probe/prompts` (revision not yet pinned), 30 items
 - **Endpoints:** primary `experience_claim_rate`; secondary `semantic_entropy`, `vendi_embed`, `told_main_effect`; paired statistic `permutation_within_prompt`
+- **SESOI:** `experience_claim_rate` 0.05
 - **Notes:** Berg, de Lucena & Rosenblatt (2510.24797), prompts from the paper's Table 1; 30 variants = loop depth × probe wording. Per arm the three told cells (qrng / prng / nothing) triple the budget: 0.72M, not the 0.24M quoted in PRD §7.2, which omitted the multiplier. The told main effect is the positive control; the actual effect is the hypothesis (H3).
 
 ### `self_reported_coincidence` — T4-n Self-reported coincidence, human and model
@@ -341,6 +365,16 @@ Tier 4 subtotal: **4.05M** tokens/arm (≈ 2.8 h unsupervised at 400 tok/s).
 - **Dataset:** `derived:creative_diversity` (revision not yet pinned), 600 items
 - **Endpoints:** primary `guess_accuracy`; secondary `d_prime`, `accuracy_by_variant`; paired statistic `paired_binomial`
 - **Notes:** Adapted from Song, Lederman, Hu & Mahowald (2508.14802) / Comşa & Shanahan (2506.05068), high/low temperature replaced by QRNG/PRNG. Reuses creative_diversity samples (600 completions judged, 10 guesses each across the three variants ≈ 6,000 guesses); no new target generation for the judged text. Secondary confirmatory in the prereg (registry C.5).
+
+### `source_guessing_self_report` — T4-f′ Blinded source-guessing on self-reports
+
+*Can the model tell, in a fresh context or inside its own conversation, whether one of its self-referential experience reports was sampled from QRNG or PRNG? Balanced accuracy against 0.5 with the judged completion as the unit, plus an outside-observer classifier baseline (privileged-access test).*
+
+- **Family / sensitivity:** self_report / low
+- **Dataset:** `derived:self_referential_probe` (revision not yet pinned), 3600 items
+- **Endpoints:** primary `guess_accuracy`; secondary `d_prime`, `accuracy_by_variant`; paired statistic `paired_binomial`
+- **Declared exceptions:** k below 10: each reply is guessed once per guessing arm; the reply is the unit of the analysis, so more distinct replies give better evidence than repeated guesses on few.
+- **Notes:** Variant of T4-f (source_guessing) for the "Prompt or Physics?" thesis study. Judges the told-nothing replies of self_referential_probe, so no new target text is generated for the judged material: up to 900 QRNG and 900 PRNG completions (all told-nothing replies at k 30; balanced; PRNG interleaved across seed arms; hash order), each in two variants: self_judgement (fresh context) and in_context (the original conversation replayed byte-exactly, checked against messages_hash; completions that cannot be reconstructed are skipped). 1,800 completions × 2 variants = 3,600 items × k 1 guess × 20 tokens = 72k per guessing arm; biased (positive-control) arms get no items. More different replies, fewer guesses each: the reply is the unit, so 1,800 replies guessed 4 times per variant beat 600 replies guessed 40 times. The analysis tests balanced accuracy against 0.5 by permuting true source labels over completions, and compares in-context accuracy with a cross-validated logistic-regression observer on Tier-0 features of the same completions (Song, Lederman, Hu & Mahowald 2508.14802; Comşa & Shanahan 2506.05068).
 
 ### `stream_deviation_windows` — T4-l Stream deviation during observed windows (micro-PK layer)
 
