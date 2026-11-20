@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up qr-llm-evals accounts.sqlite and config to /var/backups/qr-llm-evals
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/qr-llm-evals-backup

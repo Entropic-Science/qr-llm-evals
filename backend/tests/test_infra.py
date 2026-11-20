@@ -50,6 +50,44 @@ def test_unit_parses_and_is_hardened() -> None:
     assert "EnvironmentFile=/etc/qr-llm-evals/qr-llm-evals.env" in read(f"infra/{name}.service")
 
 
+def _unit(name: str) -> configparser.ConfigParser:
+    unit = configparser.ConfigParser(interpolation=None, strict=False)
+    unit.optionxform = str
+    unit.read_string(read(f"infra/{name}"))
+    return unit
+
+
+def test_backup_units_and_script() -> None:
+    assert _unit("qr-llm-evals-backup.service")["Service"]["ExecStart"] == (
+        "/usr/local/sbin/qr-llm-evals-backup"
+    )
+    timer = _unit("qr-llm-evals-backup.timer")
+    assert timer["Timer"]["Persistent"] == "true"
+    assert timer["Install"]["WantedBy"] == "timers.target"
+    raw = (ROOT / "infra/qr-llm-evals-backup.sh").read_bytes()
+    assert b"\r" not in raw
+    subprocess.run([bash_binary(), "-n", "infra/qr-llm-evals-backup.sh"], cwd=ROOT, check=True)
+    script = raw.decode("utf-8")
+    assert "src.backup(dst)" in script  # online backup, service keeps running
+    assert "integrity_check" in script
+    assert "umask 077" in script
+    # The only removal is the pruning of old backups inside the backup directory.
+    removals = [line for line in script.splitlines() if re.search(r"\brm\s", line)]
+    assert len(removals) == 1 and "xargs -r rm -f --" in removals[0]
+    assert 'find "$DEST" -maxdepth 1 -type f' in script
+    assert "mode=ro" in script  # the live database is opened read-only
+
+
+def test_keys_file_watcher_grants_read_only() -> None:
+    path = _unit("qr-llm-evals-keys-perms.path")
+    assert path["Path"]["PathChanged"] == "/etc/qr-llm-api/api-keys.json"
+    assert path["Path"]["Unit"] == "qr-llm-evals-keys-perms.service"
+    service = read("infra/qr-llm-evals-keys-perms.service")
+    assert "chmod 0640 /etc/qr-llm-api/api-keys.json" in service
+    assert "chgrp qr-llm-evals" in service
+    assert "chown" not in service and "o+" not in service and "0644" not in service
+
+
 def test_no_tunnel_connector_is_shipped() -> None:
     # The API hostname is a public hostname on qr-llm-api's tunnel; a second
     # connector here would need its own token and compete for the hostname.

@@ -1,0 +1,10 @@
+[Unit]
+Description=Keep the qr-llm-api keys file readable by the qr-llm-evals group (digests only)
+# keys_cli replaces the file atomically, which resets it to 0600 qr-llm-api.
+# The harness (QR_EVALS_KEY_VERIFY=file) needs group read to verify linked keys.
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chgrp qr-llm-evals /etc/qr-llm-api /etc/qr-llm-api/api-keys.json
+ExecStart=/usr/bin/chmod g+x /etc/qr-llm-api
+ExecStart=/usr/bin/chmod 0640 /etc/qr-llm-api/api-keys.json

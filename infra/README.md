@@ -13,6 +13,13 @@ This directory configures **only the harness**, never the shared engine or QRNG.
   holds no tunnel token.
 - **Example**: `.\infra\qr-llm-evals.env.example` contains placeholders, not
   secrets.
+- **Backup**: `.\infra\qr-llm-evals-backup.sh` with its `.service` and
+  `.timer` copies `accounts.sqlite` (online backup, integrity-checked) and
+  both `/etc` configuration directories to `/var/backups/qr-llm-evals` every
+  night. It runs as root and prunes old backups only, never live data.
+- **Keys-file access**: `.\infra\qr-llm-evals-keys-perms.path` and
+  `.service` restore the harness group's read access to qr-llm-api's keys
+  file each time that file is replaced.
 - **Release scripts**: `.\scripts\deploy.sh` and `.\scripts\rollback.sh` run
   on the Linux box as root from a reviewed checkout. Deploy refuses all
   non-ignored dirty files, archives a commit, creates a fresh venv from hashed
@@ -25,8 +32,9 @@ This directory configures **only the harness**, never the shared engine or QRNG.
 `/opt/qr-llm-evals/releases/<UTC>-<commit>/` is root-owned and not writable by
 service users. `current` and `previous` are symlinks there. The data root is
 outside all releases. A single `flock` serializes deploy and rollback.
-Unit files in `/etc/systemd/system` link through `current`, so application and
-unit definitions roll back together. The tunnel belongs to qr-llm-api: restarting
+The API unit in `/etc/systemd/system` links through `current`, so application
+and unit definition roll back together. The backup and keys-file units are
+copied instead, so they keep working whatever release is current. The tunnel belongs to qr-llm-api: restarting
 or redeploying the harness never touches it, but restarting that tunnel takes
 both `api.entropic.science` and `evals-api.entropic.science` down together.
 

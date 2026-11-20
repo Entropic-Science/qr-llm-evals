@@ -1,0 +1,9 @@
+[Unit]
+Description=Re-apply qr-llm-evals read access when the qr-llm-api keys file changes
+
+[Path]
+PathChanged=/etc/qr-llm-api/api-keys.json
+Unit=qr-llm-evals-keys-perms.service
+
+[Install]
+WantedBy=multi-user.target
