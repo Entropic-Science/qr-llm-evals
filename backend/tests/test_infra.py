@@ -179,6 +179,15 @@ def test_web_worker_config_and_spa_fallback() -> None:
     assert not (ROOT / "apps/web/public/_redirects").exists()
 
 
+def test_web_build_does_not_install_python() -> None:
+    # Cloudflare's build image installs whatever .python-version or runtime.txt
+    # names before every web build (over two minutes for 3.11). The Python
+    # version is pinned by requires-python, CI and the box instead.
+    for name in (".python-version", "runtime.txt"):
+        assert not (ROOT / name).exists(), name
+    assert 'requires-python = ">=3.11,<3.12"' in read("pyproject.toml")
+
+
 def test_web_security_headers() -> None:
     headers = read("apps/web/public/_headers")
     policy = next(line for line in headers.splitlines() if "Content-Security-Policy:" in line)

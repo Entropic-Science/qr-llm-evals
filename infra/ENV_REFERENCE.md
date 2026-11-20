@@ -92,7 +92,8 @@ They are interpreter/process settings,
 not study knobs. **QR_EVALS_COMMIT** is overridden by the release, not the host.
 
 Cloudflare Workers build variables: **NODE_VERSION=24**, **PNPM_VERSION=10.34.5**
-(match `.\package.json`), and **VITE_API_BASE=https://evals-api.entropic.science**
+(match `.\package.json`), **SKIP_DEPENDENCY_INSTALL=1** (the web build needs no
+Python packages), and **VITE_API_BASE=https://evals-api.entropic.science**
 (origin only). VITE_API_BASE is public and compiled into browser assets, never
 a place for secrets. For local development set it to an empty string to use the
 Vite `/api` proxy. Backend CORS remains explicitly configured independently.
