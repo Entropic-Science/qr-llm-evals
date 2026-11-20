@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import configparser
+import json
 import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -158,8 +160,26 @@ echo "status $status"
     assert result.stdout.splitlines() == expected
 
 
-def test_pages_policy_and_spa_fallback() -> None:
-    assert read("apps/web/public/_redirects").strip() == "/* /index.html 200"
+def _wrangler_config() -> dict[str, Any]:
+    # JSONC: whole-line comments only, which is all the file uses.
+    lines = read("wrangler.jsonc").splitlines()
+    return json.loads("\n".join(line for line in lines if not line.lstrip().startswith("//")))
+
+
+def test_web_worker_config_and_spa_fallback() -> None:
+    config = _wrangler_config()
+    assert config["name"] == "qr-llm-evals"
+    assert config["assets"] == {
+        "directory": "./apps/web/dist",
+        "not_found_handling": "single-page-application",
+    }
+    # Assets only: no Worker script, bindings, routes or variables.
+    assert set(config) == {"$schema", "name", "compatibility_date", "assets"}
+    # The Pages-style catch-all rule is replaced by not_found_handling above.
+    assert not (ROOT / "apps/web/public/_redirects").exists()
+
+
+def test_web_security_headers() -> None:
     headers = read("apps/web/public/_headers")
     policy = next(line for line in headers.splitlines() if "Content-Security-Policy:" in line)
     directives = dict(

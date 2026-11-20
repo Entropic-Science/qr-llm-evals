@@ -1,6 +1,6 @@
 # Operator setup guide
 
-Scope: Linux `qr-server`, Python 3.11, static Cloudflare Pages frontend, and a
+Scope: Linux `qr-server`, Python 3.11, static frontend on Cloudflare Workers, and a
 public hostname on qr-llm-api's existing tunnel to `127.0.0.1:8830`. This is a runbook, **not evidence
 that a live deployment or pilot has passed**. Read `.\docs\DESIGN.md`,
 `.\docs\API.md`, `.\docs\PRIVACY.md`, and `.\infra\ENV_REFERENCE.md` first.
@@ -221,30 +221,51 @@ Check external registry responses, browser CORS, and an authorized run's SSE
 stream for at least 60 seconds (including idle keep-alives). Do not cache
 `/api/*` or apply browser challenges that break API/SSE requests.
 
-## 5. Cloudflare Pages
+## 5. Cloudflare Workers (static web app)
 
-Use a Pages project connected to the selected GitHub repository, with **repo
-root** as the build root (the pnpm workspace spans more than the web app).
+The web app is deployed as a Cloudflare Worker that serves **static assets
+only**. `.\wrangler.jsonc` at the repo root names the Worker, points at the
+build output and switches on the single-page-application fallback. There is no
+Worker script: no request runs code at Cloudflare.
 
+In the dashboard, create the application from the GitHub repository (Workers
+& Pages, Create, import a repository) and set:
+
+- **Project name**: `qr-llm-evals`. It must equal `name` in `.\wrangler.jsonc`,
+  or the build refuses to deploy.
 - **Build command**: `pnpm install --frozen-lockfile && pnpm build`.
-- **Output directory**: `.\apps\web\dist` (enter `apps/web/dist` in the dashboard).
-- **Build runtime**: `NODE_VERSION=24`; `PNPM_VERSION=10.34.5`, matching the
-  package manager pin. Update together if the repository pin changes.
-- **Frontend API**: `VITE_API_BASE=https://evals-api.entropic.science` (origin
-  only, no `/api` suffix); this is public build-time configuration, never a key.
-- **Custom domain**: add `evals.entropic.science` through Pages custom domains
-  and complete its DNS verification. This hostname is served by Pages, not by the tunnel.
+- **Deploy command**: `npx wrangler deploy` (the default).
+- **Path** (root directory): `/`, the repo root. The pnpm workspace spans more
+  than the web app, and `.\wrangler.jsonc` lives there.
+- **Build variables**: `NODE_VERSION=24`; `PNPM_VERSION=10.34.5`, matching the
+  package manager pin (update together if the repository pin changes); and
+  `VITE_API_BASE=https://evals-api.entropic.science` (origin only, no `/api`
+  suffix). These are build variables, read while `pnpm build` runs.
+  `VITE_API_BASE` is public build-time configuration, never a key.
+- **API token**: let the dashboard create one for the build. It is stored by
+  Cloudflare, not in this repository.
+- **Custom domain**: after the first successful deploy, open the Worker's
+  Settings, Domains & Routes, and add the custom domain
+  `evals.entropic.science`. This hostname is served by the Worker, not by the
+  tunnel.
 
-These fields follow [Pages build configuration](https://developers.cloudflare.com/pages/configuration/build-configuration/)
-and [runtime overrides](https://developers.cloudflare.com/pages/configuration/build-image/).
-The static `.\apps\web\public\_redirects` provides SPA fallback and
-`.\apps\web\public\_headers` restricts connections to the API origin, disallows
-framing/objects, and sets privacy headers. Vite copies both into output; Pages
-interprets them as [redirect rules](https://developers.cloudflare.com/pages/configuration/redirects/)
-and [response headers](https://developers.cloudflare.com/pages/configuration/headers/).
-No Workers/Functions backend is involved. Scripts/fonts remain self-hosted;
-inline styles are permitted for React-rendered layout, but inline scripts and
-`eval` are not. SVG figures may load only from self or the API (plus data images).
+There is no output-directory field: the directory comes from
+`assets.directory` in `.\wrangler.jsonc` (`apps/web/dist`). A path that is not
+a file is answered with `index.html` and status 200
+(`assets.not_found_handling`), which is what makes client-side routes survive
+a refresh. See
+[single-page applications on Workers](https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/).
+`.\apps\web\public\_headers` restricts connections to the API origin,
+disallows framing/objects, and sets privacy headers; Vite copies it into the
+output and Workers applies it to asset responses
+([headers](https://developers.cloudflare.com/workers/static-assets/headers/)).
+Scripts/fonts remain self-hosted; inline styles are permitted for
+React-rendered layout, but inline scripts and `eval` are not. SVG figures may
+load only from self or the API (plus data images).
+
+Preview builds for other branches get their own `workers.dev` URL. Check a
+build locally before pushing with `pnpm build` then
+`npx wrangler deploy --dry-run`, or serve it with `npx wrangler dev`.
 
 Validate a deep link such as `/docs/determinism` directly and after refresh;
 check response CSP and that script assets have JavaScript MIME types, not HTML.
@@ -352,6 +373,7 @@ rollback toggles back. Failure attempts to restore the original current and
 returns nonzero; inspect the journal even if restoration succeeds. Configuration,
 data schema, and Cloudflare dashboard settings are **not** rolled back. Apply
 reviewed environment changes separately and only use compatible code releases.
-Pages rollback is separate: select a previously validated deployment in Pages,
+Web app rollback is separate: roll the Worker back to a previously validated
+version in its Deployments tab,
 then recheck browser/API contract compatibility. No deployment script publishes
 DNS changes or spends study tokens beyond preflight/health probes.

@@ -4,6 +4,7 @@ dist/
 build/
 .cache/
 .vite/
+.wrangler/
 coverage/
 
 # ── Python ───────────────────────────────────────────────────────────────────

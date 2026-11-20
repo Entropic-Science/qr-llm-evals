@@ -54,7 +54,7 @@ conventions. Operators: `docs/SETUP_GUIDE.md`. Contributing an eval:
 ## Deploy and operate
 
 Follow `.\docs\SETUP_GUIDE.md` for the Linux box, keys-file permissions, and
-Cloudflare Pages. Deployment scripts are **on-box**, committed-tree only:
+the Cloudflare Workers web app. Deployment scripts are **on-box**, committed-tree only:
 `.\scripts\deploy.sh` builds a retained release and verifies commit-specific
 health; `.\scripts\rollback.sh` restores the previous compatible release.
 Runtime data stays outside releases. No script changes DNS, starts a supervised

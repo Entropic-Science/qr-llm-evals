@@ -1,0 +1,18 @@
+// Cloudflare Workers static-assets deployment of the web app
+// (evals.entropic.science). Assets only: there is no Worker script, so no
+// request ever runs code here. The API is a separate origin
+// (evals-api.entropic.science); see docs/SETUP_GUIDE.md section 5.
+{
+	"$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+	// Must match the Worker's name in the Cloudflare dashboard.
+	"name": "qr-llm-evals",
+	"compatibility_date": "2026-11-01",
+	"assets": {
+		// Output of `pnpm build` (vite build in apps/web). `_headers` is read
+		// from here and is not itself served.
+		"directory": "./apps/web/dist",
+		// Client-side routes: any path that is not a file gets index.html
+		// with 200. This replaces the Pages `_redirects` fallback rule.
+		"not_found_handling": "single-page-application"
+	}
+}

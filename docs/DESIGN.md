@@ -13,7 +13,7 @@ shape and decisions; detailed API, analysis, and operator contracts live in
 ```mermaid
 flowchart LR
   subgraph browser [Browser]
-    SPA[Static React SPA on Cloudflare Pages<br/>evals.entropic.science]
+    SPA[Static React SPA on Cloudflare Workers<br/>evals.entropic.science]
   end
   subgraph box [qr-server]
     CF[qr-llm-api's cloudflared tunnel<br/>public hostname evals-api.entropic.science]
@@ -55,7 +55,7 @@ comparisons and cannot promise the identical pinned local pipeline.
 |---|---|---|
 | D-1 | Shared vLLM on loopback `:8000` directly; edge keys gate launch only. | [Serving contract](#serving-contract) |
 | D-2 | Python 3.11 FastAPI plus pnpm/TypeScript React SPA in one repository. | [Layering](#layering) |
-| D-3 | Static Cloudflare Pages frontend; a public hostname on qr-llm-api's cloudflared tunnel to loopback `:8830`. | [Deployment](#deployment) |
+| D-3 | Static frontend on Cloudflare Workers (assets only, no Worker script); a public hostname on qr-llm-api's cloudflared tunnel to loopback `:8830`. | [Deployment](#deployment) |
 | D-4 | SQLite index plus append-only JSONL artifacts; no Postgres. | [Storage and secrets](#storage-and-secrets) |
 | D-5 | Thin runner primary; custom Inspect `qrllm` provider for Inspect cards. | [Execution](#execution) |
 | D-6 | Per-request derived seed `H(study_seed, card_id, prompt_id, epoch)`; study seeds 1, 7, 42. | [Equivalence](#equivalence-and-provenance) |
@@ -187,7 +187,8 @@ activation, atomically flips `current`, and checks commit-specific health.
 `.\scripts\rollback.sh` restores a retained compatible release without touching
 data. Supervised start/resume is always manual, including after maintenance.
 
-Cloudflare Pages publishes the static workspace build with a narrow CSP. The
+Cloudflare Workers serves the static workspace build (assets only) with a
+narrow CSP. The
 API hostname is routed by qr-llm-api's tunnel to `127.0.0.1:8830`; no SSR, extra router, engine
 installation, or database service is introduced. See `.\docs\SETUP_GUIDE.md` for
 unit installation, group-read permissions, DNS, dependencies, pilot, and backup
