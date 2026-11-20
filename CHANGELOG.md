@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Remove `.python-version` so the Cloudflare web build no longer installs
+  Python on every run. The supported Python is still 3.11, pinned by
+  `requires-python`, CI and the box.
+
 - Deploy the web app as a Cloudflare Worker with static assets instead of a
   Pages project. `wrangler.jsonc` names the Worker, points at
   `apps/web/dist` and serves `index.html` for client-side routes; the

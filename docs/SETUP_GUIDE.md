@@ -242,6 +242,12 @@ In the dashboard, create the application from the GitHub repository (Workers
   `VITE_API_BASE=https://evals-api.entropic.science` (origin only, no `/api`
   suffix). These are build variables, read while `pnpm build` runs.
   `VITE_API_BASE` is public build-time configuration, never a key.
+- **Skip the backend install**: also set `SKIP_DEPENDENCY_INSTALL=1`.
+  Cloudflare otherwise sees `.\pyproject.toml` and runs `pip install .` on
+  every build, which the web app does not need. The build command installs
+  the Node dependencies itself, so nothing else is lost. For the same reason
+  the repository has no `.python-version` file: with one, every build
+  downloads and installs that Python (over two minutes) before it starts.
 - **API token**: let the dashboard create one for the build. It is stored by
   Cloudflare, not in this repository.
 - **Custom domain**: after the first successful deploy, open the Worker's
