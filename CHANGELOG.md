@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Ship the box's daily backup (`accounts.sqlite` and both `/etc`
+  configuration directories) and the keys-file access watcher under
+  `infra/`, and document them. `docs/SETUP_GUIDE.md` also gains: updating a
+  box that has no GitHub access with a git bundle, issuing a key for a new
+  user, restoring accounts from a backup, and deploying later releases.
+
 - Deploy the web app as a Cloudflare Worker with static assets instead of a
   Pages project. `wrangler.jsonc` names the Worker, points at
   `apps/web/dist` and serves `index.html` for client-side routes; the

@@ -16,15 +16,27 @@ Never paste bearer keys, tunnel tokens, or participant data into a PR or journal
    and systemd using the box's approved package sources. Run
    `python3.11 --version`. The harness runs no cloudflared of its own; it needs
    `qr-llm-api-cloudflared.service` (qr-llm-api's tunnel) to be running.
-3. Use the repository remote chosen by the owner. The original spec names
-   `Entropic-Science/qr-llm-evals`; the requested new remote is
-   `Entropic-Science/evals.entropic.science`. The commands below use the latter;
-   deployment does not rename repositories or alter an existing remote.
+3. Put a checkout of `Entropic-Science/qr-llm-evals` at `/srv/qr-llm-evals`.
+   The repository is private. If the box has GitHub credentials, clone it:
 
 ```bash
-sudo git clone https://github.com/Entropic-Science/evals.entropic.science.git /srv/qr-llm-evals
+sudo git clone https://github.com/Entropic-Science/qr-llm-evals.git /srv/qr-llm-evals
 cd /srv/qr-llm-evals
 sudo git status --short
+```
+
+   If it has none (the production box does not), carry the commits over SSH as
+   a git bundle from a machine that has the repository. No credential is stored
+   on the box this way:
+
+```bash
+# On the machine with the repository, on an up-to-date main:
+git bundle create evals.bundle main
+scp evals.bundle qr:/tmp/evals.bundle
+# On the box, first time:
+sudo git clone -b main /tmp/evals.bundle /srv/qr-llm-evals
+# On the box, every later update:
+sudo git -C /srv/qr-llm-evals pull --ff-only /tmp/evals.bundle main
 ```
 
 Use a root-owned, reviewed checkout when executing deployment as root; do not
@@ -87,6 +99,26 @@ Three settings in `/etc/qr-llm-evals/qr-llm-evals.env` control this:
 | `QR_EVALS_DEFAULT_TOKEN_QUOTA` | `2000000` | Lifetime budget of qr-server generation tokens per account. `0` is unlimited. |
 | `QR_EVALS_ALLOW_KEY_LAUNCH` | `0` | `1` lets a bare `qrk_` key launch without an account. Those runs are not metered and bypass quotas, so keep it `0` in production. |
 
+The default quota is the operator's choice. The template ships `2000000`; a
+deployment that should not limit anyone sets `0` and gives individual accounts
+a limit later from the admin page.
+
+Each person needs their own api.entropic.science key before they can sign up,
+because one key links to one account. Keys are issued with qr-llm-api's tool,
+which prints the key once and stores only its SHA-256. Hand it over a private
+channel; a lost key cannot be recovered, only replaced:
+
+```bash
+KC="sudo -u qr-llm-api /opt/qr-llm-api/.venv/bin/python -m qr_llm_api.keys_cli"
+$KC new --name <person> --rpm 600 --concurrency 6 --append /etc/qr-llm-api/api-keys.json
+$KC list                       # names and limits, never digests
+$KC disable --name <person>    # also stops that account from launching
+```
+
+The key's name is shown on the account page. `--rpm` and `--concurrency` are
+the edge's own limits for direct API use; the harness token quota is separate.
+The edge reloads the file within seconds and needs no restart.
+
 Nobody is an admin until an operator says so. After the first person has
 signed up, grant the flag on the box, as the service user so the database
 keeps its owner:
@@ -142,9 +174,24 @@ sudo chmod 0640 /etc/qr-llm-api/api-keys.json
 sudo -u qr-llm-evals test -r /etc/qr-llm-api/api-keys.json
 ```
 
-Do not copy keys into this repository or make the file world-readable. Recheck
-both edge and harness access after rotation (atomic replacement can reset
-permissions). If that cross-repo permission change cannot be approved, use
+qr-llm-api's key tool replaces the file atomically, which resets it to mode
+0600 owned by `qr-llm-api`. Every new, updated or disabled key would then lock
+the harness out, and signup and launch would refuse every key. Install the
+watcher that puts the group and mode back whenever the file changes:
+
+```bash
+sudo install -o root -g root -m 0644 infra/qr-llm-evals-keys-perms.service \
+  infra/qr-llm-evals-keys-perms.path /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now qr-llm-evals-keys-perms.path
+```
+
+Check it after the next key change with the `test -r` line above. These two
+units are copied, not linked into the release, so re-install them when they
+change in the repository.
+
+Do not copy keys into this repository or make the file world-readable. If that
+cross-repo permission change cannot be approved, use
 `QR_EVALS_KEY_VERIFY=probe` and verify the edge at `127.0.0.1:8820`. A launch-key
 probe may spend one generation token. Provider/judge keys are entered by hosts
 in the UI and held only in memory; never put them in these environment files.
@@ -180,6 +227,18 @@ and its release retained. Read the journal; do not repeatedly restart blindly.
 sudo journalctl -u qr-llm-evals.service -n 80 --no-pager
 sudo systemd-analyze verify /etc/systemd/system/qr-llm-evals.service
 ```
+
+Later releases repeat only the update and the deploy. Merge to `main`, bring
+the commit to the box (step 3 of section 1), then:
+
+```bash
+cd /srv/qr-llm-evals
+sudo git log --oneline -1          # the commit you reviewed
+sudo bash scripts/deploy.sh HEAD
+```
+
+A change that touches only the web app, documentation or tests does not need
+a backend deploy; the web app is deployed by Cloudflare from `main` (section 5).
 
 No inbound public firewall rule is needed for 8830 or 8000. Confirm the API
 socket using `ss -ltnp`; do not change the bind address to bypass the tunnel.
@@ -352,13 +411,68 @@ Operator tooling that launches with a bare key, such as `scripts/smoke.py
 `QR_EVALS_ALLOW_KEY_LAUNCH=0`. Set it to `1` for the acceptance window,
 restart, run the check, then set it back and restart again.
 
-Pause active runs at generation boundaries before maintenance. Take a consistent
-backup of the complete data tree, `accounts.sqlite` included: unlike
-`index.sqlite` it cannot be rebuilt from the artifacts, and losing it loses
-every account, quota and usage record. To back it up: stop the harness while copying SQLite and its
-WAL together with artifacts, or use SQLite's online backup API plus a coordinated
-artifact snapshot. Encrypt backups, restrict access, test restores offline, and
-record commit/schema versions. Never delete paid-for artifacts; use quarantine
+### Daily backup of accounts and configuration
+
+`accounts.sqlite` cannot be rebuilt: unlike `index.sqlite` it is not derived
+from the artifacts, and losing it loses every account, quota and usage record.
+Install the daily backup once:
+
+```bash
+sudo install -o root -g root -m 0755 infra/qr-llm-evals-backup.sh /usr/local/sbin/qr-llm-evals-backup
+sudo install -o root -g root -m 0644 infra/qr-llm-evals-backup.service \
+  infra/qr-llm-evals-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now qr-llm-evals-backup.timer
+sudo systemctl start qr-llm-evals-backup.service     # take the first one now
+sudo ls -l /var/backups/qr-llm-evals
+```
+
+Every night at 03:30 it writes two files to `/var/backups/qr-llm-evals`
+(root only) and keeps the newest 60 of each:
+
+- `accounts-<UTC>.sqlite`: a copy taken with SQLite's online backup API, so
+  the service keeps running, and checked with `PRAGMA integrity_check`.
+- `etc-<UTC>.tgz`: `/etc/qr-llm-evals` and `/etc/qr-llm-api` (environment
+  files, the tunnel token, key digests).
+
+`accounts-latest.sqlite` and `etc-latest.tgz` point at the newest pair. Like
+the watcher, these files are copied, not linked into the release.
+
+A backup on the same disk does not survive losing the box. Pull the newest
+pair to another machine regularly and compare checksums:
+
+```bash
+f=$(ssh qr 'sudo readlink /var/backups/qr-llm-evals/accounts-latest.sqlite')
+ssh qr "sudo cat /var/backups/qr-llm-evals/$f" > "$f"
+ssh qr "sudo sha256sum /var/backups/qr-llm-evals/$f"; sha256sum "$f"
+```
+
+The off-box copy holds password hashes, key digests and, in the `etc`
+archive, the tunnel token: keep it private and out of any repository.
+
+To restore accounts, stop the service, put the backup in place with the
+service user as owner, and start again. The current database and its `-wal`
+and `-shm` files are moved aside first, never deleted:
+
+```bash
+sudo systemctl stop qr-llm-evals.service
+sudo install -d -o root -g root -m 0700 /var/backups/qr-llm-evals/replaced-<UTC>
+sudo mv /var/lib/qr-llm-evals/accounts.sqlite* /var/backups/qr-llm-evals/replaced-<UTC>/
+sudo install -o qr-llm-evals -g qr-llm-evals -m 0600 \
+  /var/backups/qr-llm-evals/accounts-<UTC>.sqlite /var/lib/qr-llm-evals/accounts.sqlite
+sudo systemctl start qr-llm-evals.service
+```
+
+This backup does **not** cover run artifacts under `/var/lib/qr-llm-evals`
+(samples, judge rows, bundles). Those are paid-for data and need their own
+snapshot before a study produces any.
+
+### Maintenance
+
+Pause active runs at generation boundaries before maintenance. For the run
+artifacts, stop the harness while copying the data tree, or coordinate an
+artifact snapshot with a paused run. Encrypt backups, restrict access, test
+restores offline, and record commit/schema versions. Never delete paid-for artifacts; use quarantine
 or withdrawal labels. Neither deployment nor rollback purges data or old releases.
 
 ```bash
