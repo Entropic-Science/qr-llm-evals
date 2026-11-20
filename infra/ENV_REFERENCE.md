@@ -87,11 +87,11 @@ never appear in this unit's environment:
 These are not backend configuration reads and must not be added to the backend
 settings model. The root-owned release environment also fixes **PYTHONPATH**
 to its archived source tree. Unit constants **PYTHONDONTWRITEBYTECODE=1** and
-**HOME=/var/lib/qr-llm-evals** avoid writes into read-only release directories;
-the connector has its own state HOME. They are interpreter/process settings,
+**HOME=/var/lib/qr-llm-evals** avoid writes into read-only release directories.
+They are interpreter/process settings,
 not study knobs. **QR_EVALS_COMMIT** is overridden by the release, not the host.
 
-Cloudflare Pages build settings: **NODE_VERSION=24**, **PNPM_VERSION=10.34.5**
+Cloudflare Workers build variables: **NODE_VERSION=24**, **PNPM_VERSION=10.34.5**
 (match `.\package.json`), and **VITE_API_BASE=https://evals-api.entropic.science**
 (origin only). VITE_API_BASE is public and compiled into browser assets, never
 a place for secrets. For local development set it to an empty string to use the

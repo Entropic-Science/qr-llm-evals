@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Deploy the web app as a Cloudflare Worker with static assets instead of a
+  Pages project. `wrangler.jsonc` names the Worker, points at
+  `apps/web/dist` and serves `index.html` for client-side routes; the
+  Pages-only `_redirects` file is removed (`docs/SETUP_GUIDE.md` section 5).
+
 - Serve `evals-api.entropic.science` through qr-llm-api's existing tunnel
   instead of a dedicated one. The harness no longer ships a cloudflared unit
   or a tunnel token file, and `scripts/deploy.sh` no longer expects the unit
