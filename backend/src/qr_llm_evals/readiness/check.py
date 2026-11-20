@@ -9,12 +9,14 @@ Six steps, in order, against the shared vLLM + qr-sampler on loopback:
    External-provider arms are not probed here (their BYO key arrives at launch).
 3. Amplifier equivalence — the resolved ``qr_*`` dicts of all qr-llm arms may
    differ **only** in ``qr_entropy_source_type`` / ``qr_seed`` /
-   ``qr_bias_epsilon``; otherwise the study would compare pipelines, not
-   entropy, and the check **refuses** (:class:`EquivalenceError`).
+   ``qr_bias_epsilon`` / ``qr_population_mean`` (the bend of an ε arm);
+   otherwise the study would compare pipelines, not entropy, and the check
+   **refuses** (:class:`EquivalenceError`).
 4. Determinism tier — :mod:`~qr_llm_evals.readiness.determinism`.
 5. ``qr_token_log`` accepted **and** the log file appears under
    ``QR_EVALS_TOKEN_LOG_DIR`` ⇒ ``tier0_source=engine_log`` (DEP-1), else the
-   degraded ``api_logprobs``; ``qr_bias_epsilon`` accepted ⇒ ε arms available (DEP-2).
+   degraded ``api_logprobs``; a bent ``qr_population_mean`` accepted on the seeded
+   source ⇒ ε arms available (the stand-in for the DEP-2 epsilon hook).
 6. Throughput probe (opt-in) — :mod:`~qr_llm_evals.readiness.throughput`.
 
 The report is persisted through the store when a ``RunStore`` is given
@@ -41,7 +43,13 @@ import httpx
 
 from qr_llm_evals.client.openai_client import OpenAIClient
 from qr_llm_evals.config import Settings
-from qr_llm_evals.models.envelope import EnvelopeError, build_envelope, equivalence_violations
+from qr_llm_evals.models.envelope import (
+    TOP_LOGPROBS,
+    EnvelopeError,
+    bent_population_mean,
+    build_envelope,
+    equivalence_violations,
+)
 from qr_llm_evals.models.schema import (
     EPSILON_LEVELS,
     Arm,
@@ -109,6 +117,7 @@ class ReadinessConfig:
     priority: int = 0
     token_log_dir: str | None = None
     tier2_replay_active: bool = False
+    top_logprobs: int = TOP_LOGPROBS
     replays: int = DEFAULT_REPLAYS
     replay_tokens: int = DEFAULT_REPLAY_TOKENS
     load_streams: int = DEFAULT_LOAD_STREAMS
@@ -129,6 +138,7 @@ class ReadinessConfig:
             priority=settings.priority,
             token_log_dir=settings.token_log_dir,
             tier2_replay_active=settings.tier2_replay_active,
+            top_logprobs=settings.top_logprobs,
             throughput_probe=throughput_probe,
         )
 
@@ -259,7 +269,9 @@ def run_readiness(
         config.vllm_origin, timeout=config.request_timeout_s, transport=transport
     )
     models = _models(study)
-    probe = EngineProbe(gen_client, models, priority=config.priority)
+    probe = EngineProbe(
+        gen_client, models, priority=config.priority, top_logprobs=config.top_logprobs
+    )
 
     # 1. entropy health
     entropy = fetch_entropy_health(
@@ -401,7 +413,7 @@ def _annotate(
         if arm.source == "prng_epsilon" and not epsilon_supported:
             # Either the dry-run already got the engine's 400 (keep its text) or the
             # capability probe failed later; both mean DEP-2 is absent.
-            reason = "qr_bias_epsilon (DEP-2) not accepted by the engine"
+            reason = "bent qr_population_mean (epsilon arms) not accepted by the engine"
             if entry.reason:
                 reason = f"{reason}: {entry.reason}"
             out[arm.id] = entry.model_copy(update={"available": False, "reason": reason})
@@ -447,17 +459,22 @@ def detect_tier0_source(
 
 
 def detect_epsilon_support(probe: EngineProbe, seeded_arm: Arm) -> tuple[bool, str]:
-    """DEP-2: is ``qr_bias_epsilon`` accepted on the seeded source?"""
+    """Can ε arms run: is a bent ``qr_population_mean`` accepted on the seeded source?
+
+    The engine has no ``qr_bias_epsilon`` hook (DEP-2); ε arms bend ``u`` by
+    shifting the amplifier's reference mean (``models/envelope.bent_population_mean``).
+    """
     eps = EPSILON_LEVELS[0]
+    mean = bent_population_mean(eps)
     result = probe.generate(
         seeded_arm,
         probe_context("epsilon"),
         request_id=request_id(seeded_arm.id, "epsilon"),
-        extra_xargs={"qr_bias_epsilon": eps},
+        extra_xargs={"qr_population_mean": mean},
     )
     if result.accepted:
-        return True, f"qr_bias_epsilon={eps} accepted"
-    return False, f"qr_bias_epsilon refused: {result.reason}"
+        return True, f"qr_population_mean={mean} (epsilon {eps}) accepted"
+    return False, f"qr_population_mean refused: {result.reason}"
 
 
 # ── persistence ──────────────────────────────────────────────────────────────

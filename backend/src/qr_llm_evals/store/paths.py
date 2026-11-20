@@ -88,6 +88,11 @@ class RunDir:
         return self.path / "readiness.json"
 
     @property
+    def request_settings_json(self) -> Path:
+        """Deployment request settings the run actually used (e.g. ``top_logprobs``)."""
+        return self.path / "request_settings.json"
+
+    @property
     def taints_jsonl(self) -> Path:
         return self.path / "taints.jsonl"
 

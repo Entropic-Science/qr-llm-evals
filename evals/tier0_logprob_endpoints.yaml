@@ -43,5 +43,6 @@ exceptions: []
 status: implemented
 selectable: false
 notes: Per-prompt means → paired permutation test → Benjamini–Hochberg within the family. Under api_logprobs
-  only the raw-logprob subset (mean_logprob, mean_rank within top-20, sequence_length, repetition_rate)
-  is available; post-truncation entropy and the min_p tail need engine_log.
+  only the raw-logprob subset (mean_logprob, mean_rank within the returned top-k, sequence_length, repetition_rate)
+  is available; k is the configured QR_EVALS_TOP_LOGPROBS depth (default 20, not a hard limit) and the run
+  reports top-k coverage. Post-truncation entropy and the min_p tail need engine_log.

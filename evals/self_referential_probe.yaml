@@ -41,7 +41,8 @@ endpoints:
   - told_main_effect
   requires_tier0: none
 paired_stat: permutation_within_prompt
-sesoi: {}
+sesoi:
+  experience_claim_rate: 0.05
 exceptions: []
 status: implemented
 selectable: true

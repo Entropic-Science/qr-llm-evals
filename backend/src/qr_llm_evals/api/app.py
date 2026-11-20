@@ -138,6 +138,7 @@ def default_orchestrator_factory(
             token_log_dir=settings.token_log_dir,
             determinism_tier=run.determinism_tier,
             repo_root=repo_root,
+            top_logprobs=settings.top_logprobs,
         )
         return Orchestrator(
             study,

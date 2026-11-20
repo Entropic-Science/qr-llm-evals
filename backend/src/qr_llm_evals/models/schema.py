@@ -72,7 +72,9 @@ SOURCE_LABELS: dict[str, str] = {
 #: Study 1 seeds (PRD §7.1); each seed runs the full suite.
 DEFAULT_SEEDS: tuple[int, ...] = (1, 7, 42)
 #: Pre-registered ε grid for the biased-PRNG positive control (spec §4.1 Arm.epsilon).
-EPSILON_LEVELS: tuple[float, ...] = (0.01, 0.03, 0.10)
+#: ε is a shift of the amplifier's z in standard errors (``u' = Φ(z + ε)``,
+#: ``models/envelope.bent_population_mean``); 0.50 is the thesis study's strong bend.
+EPSILON_LEVELS: tuple[float, ...] = (0.01, 0.03, 0.10, 0.50)
 #: ``qr_seed`` and study seeds are non-negative 63-bit integers (spec §2.2 derive_seed).
 SEED_MAX_EXCLUSIVE = 2**63
 #: Sources whose randomness is fixed by a study seed.

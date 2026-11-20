@@ -124,7 +124,7 @@ def test_study1_fixture_matches_prd(study1: StudyConfig) -> None:
         (_arm(source="prng_seeded"), "requires study_seed"),
         (_arm(source="qrng", study_seed=1), "meaningless"),
         (_arm(source="prng_epsilon", study_seed=1), "requires epsilon"),
-        (_arm(source="prng_epsilon", study_seed=1, epsilon=0.5), "requires epsilon"),
+        (_arm(source="prng_epsilon", study_seed=1, epsilon=0.7), "requires epsilon"),
         (_arm(source="prng_seeded", study_seed=1, epsilon=0.01), "only valid for source"),
         (_arm(sampling="greedy", source="qrng"), "greedy consults no randomness"),
         (_arm(availability="unavailable"), "unavailable_reason"),

@@ -12,11 +12,11 @@ run from disk.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from qr_llm_evals.config import Settings
 from qr_llm_evals.models.schema import StudyConfig
@@ -118,6 +118,15 @@ class RunStore:
         if not self.run_dir.readiness_json.is_file():
             return None
         return ReadinessReport.model_validate(read_json(self.run_dir.readiness_json))
+
+    def write_request_settings(self, settings: Mapping[str, Any]) -> None:
+        """Snapshot the deployment-level request settings this run generates with."""
+        write_json(self.run_dir.request_settings_json, dict(settings))
+
+    def read_request_settings(self) -> dict[str, Any] | None:
+        if not self.run_dir.request_settings_json.is_file():
+            return None
+        return read_json(self.run_dir.request_settings_json)
 
     # -- generation phase (append-only) ------------------------------------
 

@@ -1,0 +1,46 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: guesser_warmup
+title: T4-f′ guesser warm-up (which temperature wrote this reply?)
+purpose: Before the source guesses are read, check that the same guessers, in the same two variants, can tell
+  a temperature 0.5 reply from a temperature 1.5 reply; a coin-flip source result means nothing if they cannot.
+tier: 4
+family: self_report
+engine: thin
+inspect_task: null
+task_module: evals/guesser_warmup/task.py
+task_args: {}
+dataset:
+  source: derived:guesser_warmup_replies
+  revision: null
+  items: 1200
+  subsample: null
+generation: short
+thinking: false
+k: 1
+k_bounds:
+- 1
+- 10
+max_tokens: 32
+est_tokens_per_sample: 20
+est_gen_tokens_per_arm: 24000
+sensitivity: low
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - warmup_correct
+  secondary: []
+  requires_tier0: none
+paired_stat: paired_binomial
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: 'Positive control for the guessers of source_guessing_self_report ("Prompt or Physics?" thesis,
+  check C2). Up to 300 temperature-0.5 and 300 temperature-1.5 replies of guesser_warmup_replies, written
+  on the seeded arms only, balanced and in hash order; two variants each (fresh context, and the original
+  conversation replayed byte-exactly) = 1,200 items x k 1 x 20 tokens = 24k per guessing arm. Biased arms
+  get no items. The thesis passes the warm-up when balanced accuracy beats 0.5 (completion-level label
+  permutation, the same test as H3); otherwise a chance-level H3 is reported as uninformative.'

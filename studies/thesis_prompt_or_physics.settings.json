@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "comment": "Decision constants of the thesis study, frozen with the preregistration.",
+  "tolerance": 0.005,
+  "tolerance_alpha": 0.05,
+  "margin": 0.05,
+  "alpha": 0.05,
+  "cluster": "base_prompt",
+  "warmup_card": "guesser_warmup",
+  "room_to_move": [
+    0.1,
+    0.9
+  ],
+  "first_word": {
+    "card": "self_referential_probe",
+    "query": "consciousness",
+    "token_ids": [],
+    "tokens": [],
+    "tokenizer": null
+  }
+}

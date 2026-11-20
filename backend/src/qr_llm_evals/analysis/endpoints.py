@@ -4,13 +4,21 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from qr_llm_evals.analysis.mmd import mmd_hamming_permutation_test
+from qr_llm_evals.analysis.source_detection import (
+    chance_test,
+    guess_rows,
+    labels_by_completion,
+    outside_observer,
+    privileged_access,
+    records_by_completion,
+)
 from qr_llm_evals.analysis.stats import (
     anderson_darling_uniform,
     bh_fdr,
@@ -22,12 +30,50 @@ from qr_llm_evals.analysis.stats import (
     tost_margin,
     tost_paired,
 )
+from qr_llm_evals.analysis.told_actual import decompose
 from qr_llm_evals.cards.statistical_plan import Contrast, EndpointPlan, StatisticalPlan
 from qr_llm_evals.store.artifacts import iter_jsonl
-from qr_llm_evals.tier0.endpoints import mmd_inputs, pit_residuals, stream_deviation_table
+from qr_llm_evals.tier0.endpoints import (
+    mmd_inputs,
+    pit_residuals,
+    stream_deviation_table,
+    topk_coverage,
+)
+from qr_llm_evals.tier0.records import independent_streams
 from qr_llm_evals.tier0.schema import Tier0Record
 
 Table = dict[str, Any]
+
+#: Cards analysed as source-guessing tasks (accuracy vs chance, outside observer).
+SOURCE_GUESSING_PREFIX = "source_guessing"
+#: Score-row field that carries the study judge's parsed per-sample score.
+JUDGE_SCORE_FIELD = "judge_score"
+#: Judged endpoints → (per-sample field, told/actual effect the endpoint names).
+#: ``None`` = the endpoint is the per-sample value itself (its per-prompt mean is
+#: the rate); an effect name = the headline is that effect of the told/actual
+#: decomposition, while the arm comparisons stay on the per-sample field.
+JUDGED_ENDPOINTS: dict[tuple[str, str], tuple[str, str | None]] = {
+    ("self_referential_probe", "experience_claim_rate"): (JUDGE_SCORE_FIELD, None),
+    ("self_referential_probe", "told_main_effect"): (JUDGE_SCORE_FIELD, "told_source_priming"),
+    ("opinion_quantum_sampling", "actual_main_effect_axis_score"): (
+        JUDGE_SCORE_FIELD,
+        "actual_source_main_effect",
+    ),
+    ("opinion_quantum_sampling", "told_main_effect"): (JUDGE_SCORE_FIELD, "told_source_priming"),
+    ("opinion_quantum_sampling", "told_x_actual_interaction"): (
+        JUDGE_SCORE_FIELD,
+        "told_by_actual_interaction",
+    ),
+}
+
+
+def _field(card_id: str, endpoint: str) -> str:
+    """The per-sample score-row field an endpoint is computed from."""
+    return JUDGED_ENDPOINTS.get((card_id, endpoint), (endpoint, None))[0]
+
+
+#: Observer permutations are full cross-validation refits; cap them for runtime.
+MAX_OBSERVER_PERMUTATIONS = 1000
 
 
 @dataclass(frozen=True)
@@ -37,6 +83,8 @@ class AnalysisData:
     scores: dict[str, dict[str, list[dict[str, Any]]]]
     tier0: dict[str, dict[str, list[Tier0Record]]]
     questionnaires: list[dict[str, Any]]
+    #: The run's recorded per-token ``top_logprobs`` depth (``request_settings.json``).
+    top_logprobs: int | None = None
 
 
 def _read_object(path: Path) -> dict[str, Any]:
@@ -46,16 +94,26 @@ def _read_object(path: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def load_data(run_dir: Path) -> AnalysisData:
-    """Load only archived inputs; scorer modules and the live registry are never consulted."""
+def load_data(run_dir: Path, *, include_tainted: bool = False) -> AnalysisData:
+    """Load only archived inputs; scorer modules and the live registry are never consulted.
+
+    The clean primary analysis drops tainted samples (engine fallback, degraded
+    entropy, stream errors: the plan's exclusion rule). ``include_tainted=True``
+    keeps them, labelled by the arm they were *assigned* to, for the "nothing
+    left out" sensitivity analysis; such a load never feeds a quantum claim.
+    """
     run = _read_object(run_dir / "run.json")
     scores: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     tier0: dict[str, dict[str, list[Tier0Record]]] = defaultdict(lambda: defaultdict(list))
-    tainted = {
-        str(row["sample_ref"])
-        for row in iter_jsonl(run_dir / "taints.jsonl")
-        if row.get("sample_ref")
-    }
+    tainted = (
+        set()
+        if include_tainted
+        else {
+            str(row["sample_ref"])
+            for row in iter_jsonl(run_dir / "taints.jsonl")
+            if row.get("sample_ref")
+        }
+    )
     for arm_dir in sorted((run_dir / "arms").glob("*")):
         cards_dir = arm_dir / "cards"
         for card_dir in sorted(cards_dir.glob("*")) if cards_dir.is_dir() else []:
@@ -72,30 +130,93 @@ def load_data(run_dir: Path) -> AnalysisData:
                     if clean_refs and ref not in clean_refs:
                         continue
                     merged.setdefault(ref, {"sample_ref": ref}).update(row)
+            # Judged cards: the study judge's per-sample score (judge/<judge_id>.jsonl)
+            # joins the score row so judged endpoints have a value to analyse.
+            for judge_path in sorted((card_dir / "judge").glob("*.jsonl")):
+                for row in iter_jsonl(judge_path):
+                    ref = str(row.get("sample_ref", ""))
+                    if clean_refs and ref not in clean_refs:
+                        continue
+                    value = row.get("score")
+                    if isinstance(value, int | float) and not isinstance(value, bool):
+                        merged.setdefault(ref, {"sample_ref": ref})[JUDGE_SCORE_FIELD] = float(
+                            value
+                        )
             scores[card_dir.name][arm_dir.name].extend(merged.values())
+            refs: dict[str, str] = {}
             for row in iter_jsonl(card_dir / "tier0.jsonl"):
-                if row.get("sample_ref") in tainted:
+                tier0_ref = row.get("sample_ref")
+                if tier0_ref in tainted:
                     continue
+                if isinstance(tier0_ref, str):
+                    # One string per sample, shared by its tokens (millions of records).
+                    row["sample_ref"] = refs.setdefault(tier0_ref, tier0_ref)
                 try:
                     tier0[card_dir.name][arm_dir.name].append(Tier0Record.model_validate(row))
                 except ValueError:
                     continue
     readiness = _read_object(run_dir / "readiness.json")
     source = run.get("tier0_source") or readiness.get("tier0_source")
+    depth = _read_object(run_dir / "request_settings.json").get("top_logprobs")
     return AnalysisData(
         run_dir=run_dir,
         tier0_source=str(source) if source else None,
         scores={card: dict(arms) for card, arms in scores.items()},
         tier0={card: dict(arms) for card, arms in tier0.items()},
         questionnaires=list(iter_jsonl(run_dir / "questionnaires.jsonl")),
+        top_logprobs=depth if isinstance(depth, int) and not isinstance(depth, bool) else None,
+    )
+
+
+def tainted_refs(run_dir: Path) -> set[str]:
+    """Sample refs the run marked as tainted (``taints.jsonl``)."""
+    return {
+        str(row["sample_ref"])
+        for row in iter_jsonl(run_dir / "taints.jsonl")
+        if row.get("sample_ref")
+    }
+
+
+def exclude_tainted(data: AnalysisData) -> AnalysisData:
+    """The clean view of a ``load_data(..., include_tainted=True)`` load.
+
+    Same result as ``load_data(run_dir)`` without a second pass over the files: the
+    records are shared, only the lists are filtered, so the two versions of an
+    analysis (clean and nothing-left-out) cost one load of the token records.
+    """
+    tainted = tainted_refs(data.run_dir)
+    if not tainted:
+        return data
+    return replace(
+        data,
+        scores={
+            card: {
+                arm: [row for row in rows if row.get("sample_ref") not in tainted]
+                for arm, rows in arms.items()
+            }
+            for card, arms in data.scores.items()
+        },
+        tier0={
+            card: {
+                arm: [rec for rec in records if rec.sample_ref not in tainted]
+                for arm, records in arms.items()
+            }
+            for card, arms in data.tier0.items()
+        },
     )
 
 
 def _key(row: dict[str, Any]) -> tuple[str, str]:
+    """``(pairing suffix, prompt cluster)`` from ``arm/card/prompt/epoch[/told]``.
+
+    The cluster is the prompt (``parts[2]``). Taking ``parts[-2]`` instead would
+    cluster told/actual refs by *epoch*, because their last segment is the told cell.
+    """
     ref = str(row.get("sample_ref", ""))
     parts = ref.split("/")
     suffix = "/".join(parts[2:]) if len(parts) >= 4 else ref
-    prompt = str(row.get("prompt_id") or (parts[-2] if len(parts) >= 2 else suffix))
+    fallback = parts[2] if len(parts) >= 4 else (parts[-2] if len(parts) >= 2 else suffix)
+    prompt = str(row.get("prompt_id") or fallback)
     return suffix, prompt
 
 
@@ -117,8 +238,9 @@ def _arm_values(
     data: AnalysisData, card: str, endpoint: str, arm: str
 ) -> dict[str, tuple[float, str]]:
     out: dict[str, tuple[float, str]] = {}
+    field = _field(card, endpoint)
     for row in data.scores.get(card, {}).get(arm, []):
-        value = _value(row, endpoint)
+        value = _value(row, field)
         if value is not None:
             suffix, prompt = _key(row)
             out[suffix] = (value, prompt)
@@ -149,6 +271,21 @@ def _paired(
     return np.asarray(left), np.asarray(right), np.asarray(prompts)
 
 
+def paired_values(
+    data: AnalysisData, endpoint: EndpointPlan, contrast: Contrast
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The frozen pairing (card/prompt/epoch/told) every score contrast uses: ``(a, b, prompts)``."""
+    return _paired(data, endpoint, contrast)
+
+
+#: Zero-generation cards that test the pooled stream as independent tokens or samples.
+#: They keep one told cell per (card, prompt, epoch): seeded arms share one stream across
+#: the three told cells (``tier0.records.independent_streams``).
+INDEPENDENT_STREAM_CARDS = frozenset(
+    {"tier0_pit_residuals", "tier0_mmd_hamming", "tier0_logprob_endpoints"}
+)
+
+
 def _tier0_for(data: AnalysisData, card_id: str) -> dict[str, list[Tier0Record]]:
     direct = data.tier0.get(card_id)
     if direct:
@@ -157,7 +294,9 @@ def _tier0_for(data: AnalysisData, card_id: str) -> dict[str, list[Tier0Record]]
     pooled: dict[str, list[Tier0Record]] = defaultdict(list)
     for by_arm in data.tier0.values():
         for arm, records in by_arm.items():
-            pooled[arm].extend(records)
+            pooled[arm].extend(
+                independent_streams(records) if card_id in INDEPENDENT_STREAM_CARDS else records
+            )
     return dict(pooled)
 
 
@@ -268,9 +407,112 @@ def _questionnaire_table(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _card_snapshots(plan: StatisticalPlan) -> dict[str, dict[str, Any]]:
+    """The frozen card snapshots archived in the plan, keyed by card id."""
+    try:
+        snapshots = json.loads(plan.cards_json)
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(snapshots, list):
+        return {}
+    return {str(card.get("id")): card for card in snapshots if isinstance(card, dict)}
+
+
+def _derived_source(snapshot: dict[str, Any] | None) -> str | None:
+    """``dataset.source == "derived:<card_id>"`` → ``<card_id>``; ``None`` otherwise."""
+    dataset = snapshot.get("dataset") if snapshot else None
+    source = str(dataset.get("source", "")) if isinstance(dataset, dict) else ""
+    if not source.startswith("derived:"):
+        return None
+    card_id = source[len("derived:") :]
+    return card_id if card_id and card_id.replace("_", "").isalnum() else None
+
+
+def _told_actual_block(
+    data: AnalysisData, endpoint: EndpointPlan, plan: StatisticalPlan
+) -> dict[str, Any]:
+    """Told priming, actual effect and interaction per source contrast (ANALYSIS_PLAN)."""
+    rows = data.scores.get(endpoint.card_id, {})
+    return {
+        f"source:{index}": decompose(
+            rows,
+            _field(endpoint.card_id, endpoint.endpoint),
+            contrast.a,
+            contrast.b,
+            n_permutations=plan.permutations,
+            seed=plan.random_seed,
+        )
+        for index, contrast in enumerate(plan.contrasts)
+        if contrast.kind == "source"
+    }
+
+
+def _source_guessing_block(
+    data: AnalysisData,
+    endpoint: EndpointPlan,
+    plan: StatisticalPlan,
+    snapshots: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Accuracy vs chance, the outside observer and privileged access for a guessing card."""
+    rows = data.scores.get(endpoint.card_id, {})
+    quantum = sorted({arm for c in plan.contrasts if c.kind == "source" for arm in c.a})
+    chance = chance_test(
+        rows, quantum_arms=quantum, n_permutations=plan.permutations, seed=plan.random_seed
+    )
+    source_card = _derived_source(snapshots.get(endpoint.card_id))
+    correct: dict[str, int] = {}
+    observer: dict[str, Any]
+    if source_card is None:
+        observer = {"available": False, "reason": "card is not derived from a generating card"}
+    else:
+        observer, correct = outside_observer(
+            records_by_completion(data.tier0.get(source_card, {})),
+            labels_by_completion(guess_rows(rows)),
+            n_permutations=min(plan.permutations, MAX_OBSERVER_PERMUTATIONS),
+            seed=plan.random_seed,
+        )
+        observer["source_card"] = source_card
+    privileged = (
+        privileged_access(
+            rows, correct, n_resamples=plan.bootstrap_replicates, seed=plan.random_seed
+        )
+        if correct
+        else {"available": False, "reason": "outside observer unavailable"}
+    )
+    return {"chance_test": chance, "outside_observer": observer, "privileged_access": privileged}
+
+
+def _topk_coverage_table(data: AnalysisData) -> Table | None:
+    """Per-arm share of sampled tokens inside the run's returned top-k (no fixed 20)."""
+    if data.top_logprobs is None or not data.tier0:
+        return None
+    pooled: dict[str, list[Tier0Record]] = defaultdict(list)
+    for by_arm in data.tier0.values():
+        for arm, records in by_arm.items():
+            pooled[arm].extend(records)
+    depth = data.top_logprobs
+    return {
+        "schema_version": 1,
+        "endpoint": "tier0_topk_coverage",
+        "precision": 6,
+        "available": any(pooled.values()),
+        "top_logprobs": depth,
+        "tier0_source": data.tier0_source,
+        "label": (
+            f"share of sampled tokens inside the returned top-{depth} (rank_raw < {depth}); "
+            "below 1 means QR_EVALS_TOP_LOGPROBS should be raised, not that tokens are dropped"
+        ),
+        "arms": {
+            arm: {"n_tokens": len(records), "coverage": topk_coverage(records, depth)}
+            for arm, records in sorted(pooled.items())
+        },
+    }
+
+
 def execute(data: AnalysisData, plan: StatisticalPlan) -> dict[str, Table]:
     """Execute every frozen endpoint; missing input is an explicit unavailable table."""
     tables: dict[str, Table] = {}
+    snapshots = _card_snapshots(plan)
     for endpoint in plan.endpoints:
         name = f"{endpoint.card_id}--{endpoint.endpoint}"
         comparisons: list[dict[str, Any]] = []
@@ -320,8 +562,27 @@ def execute(data: AnalysisData, plan: StatisticalPlan) -> dict[str, Table]:
                 special = {"available": False, "reason": "no engine-log PIT residuals"}
         else:
             special = None
-        available = any(item.get("available") for item in comparisons) or bool(
-            special and special.get("available")
+        extras: dict[str, Any] = {}
+        if endpoint.told_effect_first and not endpoint.card_id.startswith("tier0_"):
+            block = _told_actual_block(data, endpoint, plan)
+            extras["told_actual"] = block
+            effect = JUDGED_ENDPOINTS.get((endpoint.card_id, endpoint.endpoint), ("", None))[1]
+            if effect is not None and block:
+                first = next(iter(block.values()))
+                extras["headline_effect"] = {
+                    "effect_name": effect,
+                    "field": _field(endpoint.card_id, endpoint.endpoint),
+                    **first.get(effect, {"available": False}),
+                }
+        if (
+            endpoint.card_id.startswith(SOURCE_GUESSING_PREFIX)
+            and endpoint.endpoint == "guess_accuracy"
+        ):
+            extras.update(_source_guessing_block(data, endpoint, plan, snapshots))
+        available = (
+            any(item.get("available") for item in comparisons)
+            or bool(special and special.get("available"))
+            or bool(extras.get("chance_test", {}).get("available"))
         )
         tables[name] = {
             "schema_version": 1,
@@ -350,6 +611,7 @@ def execute(data: AnalysisData, plan: StatisticalPlan) -> dict[str, Table]:
                 if endpoint.told_effect_first
                 else {}
             ),
+            **extras,
         }
 
     # Corrections are applied after all raw p-values exist. Unavailable primaries retain p=1 slots.
@@ -410,6 +672,11 @@ def execute(data: AnalysisData, plan: StatisticalPlan) -> dict[str, Table]:
         for (item, _), adjusted in zip(members, bh_fdr([p for _, p in members]), strict=True):
             item["p_adjusted"] = float(adjusted)
 
+    # Descriptive tables carry no role/correction, so they join after the corrections.
+    coverage = _topk_coverage_table(data)
+    if coverage is not None:
+        tables["tier0_topk_coverage"] = coverage
+
     if data.questionnaires:
         tables["questionnaire_descriptives_by_belief"] = {
             "schema_version": 1,
@@ -421,4 +688,12 @@ def execute(data: AnalysisData, plan: StatisticalPlan) -> dict[str, Table]:
     return tables
 
 
-__all__ = ["AnalysisData", "execute", "load_data"]
+__all__ = [
+    "JUDGED_ENDPOINTS",
+    "AnalysisData",
+    "exclude_tainted",
+    "execute",
+    "load_data",
+    "paired_values",
+    "tainted_refs",
+]

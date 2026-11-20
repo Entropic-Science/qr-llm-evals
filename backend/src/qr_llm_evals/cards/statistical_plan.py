@@ -27,6 +27,8 @@ PRIMARY_TESTS = {
 }
 CONFIRMATORY_SECONDARIES = {
     ("source_guessing", "guess_accuracy"),
+    # T4-f variant on self-reports (thesis study); same construct as source_guessing.
+    ("source_guessing_self_report", "guess_accuracy"),
     ("opinion_quantum_sampling", "actual_main_effect_axis_score"),
 }
 
