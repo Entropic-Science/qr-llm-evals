@@ -164,12 +164,40 @@ class CardSelection(_Strict):
     overrides: CardOverrides = Field(default_factory=CardOverrides)
 
 
+#: The study judge when a study names none: the current Claude Haiku.
+DEFAULT_JUDGE_MODEL = "claude-haiku-5-5"
+JudgeThinking = Literal["disabled", "model_default"]
+
+
 class JudgeSpec(_Strict):
-    """The study's shared judge (spec D-9: Anthropic Messages API, temperature 0)."""
+    """The study's shared judge: an Anthropic Messages API call on the user's own key.
+
+    Every field is part of the study configuration and so of its
+    pre-registration hash; a judge cannot be re-tuned after registration
+    without the hashes changing.
+    """
 
     provider: Literal["anthropic"] = "anthropic"
-    model: str = Field(min_length=1)
-    temperature: float = Field(default=0.0, ge=0, le=0, description="Always 0 (registry rule).")
+    model: str = Field(default=DEFAULT_JUDGE_MODEL, min_length=1)
+    temperature: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description=(
+            "Sampling temperature sent with each judge call; None sends none. Current Claude "
+            "models reject the parameter, so it is only for older models that accept it."
+        ),
+    )
+    max_tokens: int = Field(
+        default=1024, ge=64, le=16000, description="Output cap of one judge call."
+    )
+    thinking: JudgeThinking = Field(
+        default="disabled",
+        description=(
+            "'disabled' asks for a single pass with no extended thinking; 'model_default' sends "
+            "nothing and lets the model decide (needed for models that refuse 'disabled')."
+        ),
+    )
     rubric_hash: Sha256Hex | None = None
 
 
@@ -323,7 +351,9 @@ __all__ = [
     "Display",
     "DisplaySettings",
     "EstimateAssumptions",
+    "DEFAULT_JUDGE_MODEL",
     "JudgeSpec",
+    "JudgeThinking",
     "ModelFamily",
     "ModelId",
     "ModelRef",

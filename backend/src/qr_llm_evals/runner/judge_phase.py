@@ -42,7 +42,38 @@ from qr_llm_evals.runner.tasks import LoadedTask
 from qr_llm_evals.store.schema import GenerationRow, JudgeRow, Usage
 from qr_llm_evals.store.store import RunStore
 
-JUDGE_MAX_TOKENS = 1024
+
+def judge_client(
+    spec: JudgeSpec,
+    api_key: str,
+    *,
+    transport: httpx.BaseTransport | None = None,
+    sleep: bool = True,
+) -> AnthropicJudgeClient:
+    """The one place a study's judge settings become a client.
+
+    The judge phase, the Inspect grader and the "test judge" route all build
+    their client here, so they cannot drift apart.
+    """
+    return AnthropicJudgeClient(
+        api_key,
+        model=spec.model,
+        max_tokens=spec.max_tokens,
+        temperature=spec.temperature,
+        thinking="disabled" if spec.thinking == "disabled" else None,
+        transport=transport,
+        sleep=sleep,
+    )
+
+
+def needs_study_judge(cards: Iterable[EvalCard]) -> bool:
+    """True iff some card is scored by the study's shared (Anthropic) judge."""
+    return any(
+        card.judge.kind == "llm" and (card.judge.model or STUDY_JUDGE) == STUDY_JUDGE
+        for card in cards
+    )
+
+
 _SCORE_LINE = re.compile(r"(?im)^\s*score\s*[:=]\s*(-?\d+(?:\.\d+)?)\s*$")
 _NUMBER = re.compile(r"-?\d+(?:\.\d+)?")
 
@@ -124,12 +155,10 @@ def _anthropic_call(
     key = secrets.get("anthropic")
     if not key:
         raise NeedsKeysError("anthropic")
-    client = AnthropicJudgeClient(key, model=spec.model, transport=transport, sleep=False)
+    client = judge_client(spec, key, transport=transport, sleep=False)
 
     def call(system: str, user: str) -> JudgeReply:
-        resp = client.judge(
-            JudgeRequest(system=system, user=user, judge_run_id=run_id, max_tokens=JUDGE_MAX_TOKENS)
-        )
+        resp = client.judge(JudgeRequest(system=system, user=user, judge_run_id=run_id))
         return JudgeReply(
             resp.text,
             Usage(
@@ -181,7 +210,7 @@ def _provider_call(
             "model": ref.served_name,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
             "temperature": 0.0,
-            "max_tokens": JUDGE_MAX_TOKENS,
+            "max_tokens": spec.max_tokens,
         }
         completion = client.complete(body)
         raw = completion.usage or {}
@@ -330,7 +359,8 @@ class JudgePhase:
 
 
 __all__ = [
-    "JUDGE_MAX_TOKENS",
+    "judge_client",
+    "needs_study_judge",
     "JudgeCall",
     "JudgePhase",
     "NeedsKeysError",

@@ -1,7 +1,7 @@
 import type {
   AdminUsersResponse, AdminUserUpdate, AdminUserView, AuthResponse, LinkKeyRequest, LoginRequest,
   SettleRequest, SignupRequest, StorageResponse, UsageResponse, UserView,
-  CardsResponse, CreateSessionRequest, EstimatesResponse, LaunchRequest, LaunchResponse,
+  CardsResponse, CreateSessionRequest, JudgeCheckRequest, JudgeCheckResponse, EstimatesResponse, LaunchRequest, LaunchResponse,
   ModelsResponse, PreregRenderRequest, PreregRenderResponse, ReadinessReport, ReadinessRequest,
   RunControlRequest, RunControlResponse, RunKeysRequest, RunKeysResponse, RunView,
   SessionControlRequest, SessionControlResponse, SessionJoinRequest, SessionJoinResponse,
@@ -41,6 +41,7 @@ export const api = {
   adminSettle: (userId: string, body: SettleRequest, bearer: string) => apiFetch<AdminUserView, SettleRequest>(`/api/admin/users/${encodeURIComponent(userId)}/settle`, { body, auth: { bearer } }),
   adminUsers: (bearer: string) => apiFetch<AdminUsersResponse>("/api/admin/users", { auth: { bearer } }),
   adminUpdateUser: (userId: string, body: AdminUserUpdate, bearer: string) => apiFetch<AdminUserView, AdminUserUpdate>(`/api/admin/users/${encodeURIComponent(userId)}`, { body, auth: { bearer } }),
+  judgeCheck: (body: JudgeCheckRequest, bearer: string) => apiFetch<JudgeCheckResponse, JudgeCheckRequest>("/api/judge/check", { body, auth: { bearer } }),
   cards: () => apiFetch<CardsResponse>("/api/cards"),
   models: () => apiFetch<ModelsResponse>("/api/models"),
   estimates: (body: StudyConfig) => apiFetch<EstimatesResponse, StudyConfig>("/api/estimates", { body }),

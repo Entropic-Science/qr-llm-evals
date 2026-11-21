@@ -747,3 +747,46 @@ def test_a_failed_migration_rolls_back_and_can_be_retried(
     versions = [r["version"] for r in acc._conn.execute("SELECT version FROM schema_migrations")]
     assert sorted(versions) == [1, 2, 3]
     acc.close()
+
+
+# ── POST /judge/check ─────────────────────────────────────────────────────────
+
+
+async def test_judge_check_tries_the_settings_with_the_users_key(
+    site: Site, caplog: pytest.LogCaptureFixture
+) -> None:
+    alice, _ = await site.signup()
+    body = {"judge": {"model": "claude-haiku-5-5", "max_tokens": 200}, "api_key": ANTHROPIC}
+    assert (await site.c.post(f"{API}/judge/check", json=body)).status_code == 401
+
+    with caplog.at_level("DEBUG"):
+        ok = await site.c.post(f"{API}/judge/check", json=body, headers=alice)
+    assert ok.status_code == 200, ok.text
+    assert ok.json() == {
+        "ok": True,
+        "status": 200,
+        "model": "claude-haiku-5-5",
+        "detail": "The judge answered.",
+    }
+    sent = site.h.judge.calls[-1]
+    assert sent["model"] == "claude-haiku-5-5" and sent["max_tokens"] == 200
+    assert sent["thinking"] == {"type": "disabled"} and "temperature" not in sent
+    # the key was used once and appears nowhere else
+    assert ANTHROPIC not in ok.text and ANTHROPIC not in caplog.text
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400, json={"error": {"message": "temperature is not supported on this model"}}
+        )
+
+    site.h.state.judge_transport = httpx.MockTransport(refuse)
+    hot = {"judge": {"model": "claude-haiku-5-5", "temperature": 0.5}, "api_key": ANTHROPIC}
+    bad = await site.c.post(f"{API}/judge/check", json=hot, headers=alice)
+    assert bad.status_code == 200
+    assert bad.json()["ok"] is False and bad.json()["status"] == 400
+    assert "temperature is not supported" in bad.json()["detail"]
+
+    out_of_range = {"judge": {"temperature": 3}, "api_key": ANTHROPIC}
+    assert (
+        await site.c.post(f"{API}/judge/check", json=out_of_range, headers=alice)
+    ).status_code == 400

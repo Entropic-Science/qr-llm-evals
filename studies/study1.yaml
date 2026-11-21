@@ -102,9 +102,12 @@ cards:
     overrides: {k: 10}
 seeds: [1, 7, 42]
 judge:
-  # Deliberately not a fabricated latest model identifier. Resolve at freeze.
-  model: PIN_EXACT_CLAUDE_SONNET_MODEL_BEFORE_FULL_RUN
-  temperature: 0
+  # The current Claude Haiku, called on the launching account's own Anthropic key.
+  # It rejects a sampling temperature, so none is sent. Check the model's
+  # retirement date before a long study and change it here if needed.
+  model: claude-haiku-5-5
+  max_tokens: 1024
+  thinking: disabled
 narrative_model:
   id: qr-llm
   family: qr_llm

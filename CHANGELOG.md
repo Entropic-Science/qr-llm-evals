@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The study judge defaults to the current Claude Haiku (`claude-haiku-5-5`) and
+  has settings: model, longest answer (`max_tokens`), extended thinking (off by
+  default) and temperature (not sent by default, because current Claude models
+  reject it). They are part of the study configuration and its pre-registration
+  hash, and the wizard's Judge step edits them. `JudgeSpec` changed shape, so
+  configuration hashes of existing study files change; the `PIN_...` placeholder
+  is gone from the templates.
+- A study with judged evals cannot launch without the launching account's own
+  Anthropic key (`400 param=provider_keys`); before, the run generated
+  everything and then stopped for the key. `POST /judge/check` and the "Test
+  the judge" button try the settings with the key first.
+- Every judge call path (judge phase, Inspect grader) now takes its parameters
+  from the study; the Inspect grader no longer uses a different output limit.
+
 - Token usage is shown as four numbers: input and output tokens on the
   qr-server engine, separately for quantum arms (QRNG) and for everything
   else (PRNG). Each is priced (default $20 / $80 per million input / output

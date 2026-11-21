@@ -83,13 +83,14 @@ cards:
   - card_id: guesser_warmup
 seeds: [1, 7, 42]
 judge:
-  # Deliberately not a fabricated model identifier. Resolve at freeze. The judge
-  # phase always sends temperature 0: the harness default claude-sonnet-4-6 accepts
-  # it, while Sonnet 5 and later reject sampling parameters with HTTP 400
-  # (client/anthropic_judge.py), and the study config cannot switch that off yet.
-  # The pinned model must stay available for the whole study (check its retirement date).
-  model: PIN_EXACT_CLAUDE_SONNET_MODEL_BEFORE_FULL_RUN
-  temperature: 0
+  # The current Claude Haiku, called on the launching account's own Anthropic key.
+  # It rejects a sampling temperature, so none is sent; extended thinking is off,
+  # which keeps each judgement a single pass. All four settings are part of the
+  # registered configuration. The model must stay available for the whole study
+  # (check its retirement date before registering).
+  model: claude-haiku-5-5
+  max_tokens: 1024
+  thinking: disabled
 narrative_model:
   id: qr-llm
   family: qr_llm

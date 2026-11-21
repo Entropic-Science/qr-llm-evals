@@ -45,6 +45,7 @@ from qr_llm_evals.api.schema import (
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.runner.control import RunControlError
+from qr_llm_evals.runner.judge_phase import needs_study_judge
 from qr_llm_evals.store.schema import Run
 
 log = logging.getLogger("qr_llm_evals.api.runs")
@@ -67,6 +68,22 @@ def _check_cards(state: AppState, config: StudyConfig) -> None:
     if unselectable:
         raise ApiError(
             400, f"cards not selectable in this registry: {unselectable}", param="config.cards"
+        )
+
+
+def _check_judge_key(state: AppState, config: StudyConfig, secrets: SecretBag) -> None:
+    """Refuse a study the shared judge must score when no Anthropic key came with it.
+
+    The judge runs on the launching user's own key. Without this check the
+    run would generate everything and only then stop for the key.
+    """
+    cards = [state.cards[c.card_id] for c in config.cards]
+    if needs_study_judge(cards) and not secrets.get("anthropic"):
+        raise ApiError(
+            400,
+            "this study has evals scored by an LLM judge, which runs on your own Anthropic "
+            "key; add the key (provider_keys.anthropic) and launch again",
+            param="provider_keys",
         )
 
 
@@ -127,10 +144,12 @@ def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
 @router.post("/runs", response_model=LaunchResponse, status_code=201)
 async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> LaunchResponse:
     _check_cards(state, body.config)
+    secrets = SecretBag(_clean_keys(body.provider_keys))
     check_external_models(state, body.config)
     _check_quota(state, key.quota_id)
     check_owner_can_generate(state, key.owner_id, body.config)
     _check_token_quota(state, key, body)
+    _check_judge_key(state, body.config, secrets)
 
     try:
         prereg_md = state.prereg_renderer(body.config, body.readiness)
@@ -146,7 +165,6 @@ async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> Laun
     frozen_hash = study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0]
     prereg_stale = body.prereg_hash != frozen_hash
 
-    secrets = SecretBag(_clean_keys(body.provider_keys))
     host_token = new_host_token()
     run = Run(
         run_id=new_run_id(),

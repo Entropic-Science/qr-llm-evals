@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "JudgeCheckResponse.json",
+  "additionalProperties": false,
+  "properties": {
+    "ok": {
+      "title": "Ok",
+      "type": "boolean"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "HTTP status the Anthropic API answered with.",
+      "title": "Status"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The model that answered.",
+      "title": "Model"
+    },
+    "detail": {
+      "description": "What happened, or the provider's error text.",
+      "title": "Detail",
+      "type": "string"
+    }
+  },
+  "required": [
+    "ok",
+    "status",
+    "detail"
+  ],
+  "title": "JudgeCheckResponse",
+  "type": "object"
+}

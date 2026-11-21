@@ -1,25 +1,31 @@
-"""Anthropic judge client (spec §2.3, D-9): temperature 0, frozen system prompt,
-``metadata.user_id`` = judge run id, native Messages headers, retries and
-error excerpts that never carry the key. ``httpx.MockTransport`` only.
+"""Anthropic judge client (spec §2.3, D-9): the study's model and call
+parameters, a frozen system prompt, ``metadata.user_id`` = judge run id, native
+Messages headers, retries and error excerpts that never carry the key.
+``httpx.MockTransport`` only.
 """
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 
+from qr_llm_evals.cards.loader import load_cards
 from qr_llm_evals.client.anthropic_judge import (
     ANTHROPIC_VERSION,
     DEFAULT_JUDGE_MODEL,
-    JUDGE_TEMPERATURE,
     AnthropicJudgeClient,
     JudgeError,
     JudgeRequest,
 )
+from qr_llm_evals.models.schema import DEFAULT_JUDGE_MODEL as SPEC_DEFAULT_JUDGE_MODEL
+from qr_llm_evals.models.schema import JudgeSpec
+from qr_llm_evals.runner.judge_phase import judge_client, needs_study_judge
 
+FIXTURES = Path(__file__).parent / "fixtures"
 KEY = "sk-ant-" + "api03-judge-secret-0123456789"
 RUBRIC = "You are a frozen rubric. Score 1-5. Answer with JSON."
 REQ = JudgeRequest(system=RUBRIC, user="PROMPT: x\nOUTPUT: y", judge_run_id="judge_run_abc")
@@ -51,27 +57,53 @@ class _Recorder:
         )
 
 
-def test_build_body_pins_determinism() -> None:
+def test_default_body_is_the_current_haiku_in_a_single_pass() -> None:
     body = AnthropicJudgeClient(KEY).build_body(REQ)
     assert body == {
-        "model": DEFAULT_JUDGE_MODEL,
-        "max_tokens": 2048,
-        "temperature": 0.0,
+        "model": "claude-haiku-5-5",
+        "max_tokens": 1024,
         "system": RUBRIC,
         "messages": [{"role": "user", "content": REQ.user}],
         "metadata": {"user_id": "judge_run_abc"},
+        "thinking": {"type": "disabled"},
     }
-    assert JUDGE_TEMPERATURE == 0.0
-    assert "thinking" not in body  # single deterministic pass
-    assert body["system"] is REQ.system or body["system"] == RUBRIC
+    # current Claude models answer a sampling parameter with a 400, so none is sent
+    assert "temperature" not in body
+    assert DEFAULT_JUDGE_MODEL == SPEC_DEFAULT_JUDGE_MODEL == "claude-haiku-5-5"
     assert len(REQ.system_sha256) == 64
 
 
-def test_send_temperature_false_for_models_that_reject_sampling_params() -> None:
-    body = AnthropicJudgeClient(KEY, model="claude-sonnet-5", send_temperature=False).build_body(
-        REQ
+def test_the_study_settings_reach_the_request_body() -> None:
+    spec = JudgeSpec(
+        model="claude-sonnet-4-6", temperature=0.0, max_tokens=300, thinking="model_default"
     )
-    assert "temperature" not in body and body["model"] == "claude-sonnet-5"
+    body = judge_client(spec, KEY).build_body(REQ)
+    assert body["model"] == "claude-sonnet-4-6"
+    assert body["temperature"] == 0.0 and body["max_tokens"] == 300
+    assert "thinking" not in body, "'model_default' sends nothing and lets the model decide"
+
+    default = judge_client(JudgeSpec(), KEY).build_body(REQ)
+    assert default == AnthropicJudgeClient(KEY).build_body(REQ)
+
+
+def test_a_request_can_override_the_output_limit() -> None:
+    req = JudgeRequest(system=RUBRIC, user="u", judge_run_id="r", max_tokens=64)
+    assert AnthropicJudgeClient(KEY, max_tokens=900).build_body(req)["max_tokens"] == 64
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"temperature": 1.5}, {"temperature": -0.1}, {"max_tokens": 8}, {"thinking": "on"}],
+)
+def test_judge_spec_refuses_out_of_range_settings(bad: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        JudgeSpec.model_validate(bad)
+
+
+def test_only_llm_cards_on_the_shared_judge_need_the_key() -> None:
+    cards = load_cards(FIXTURES / "registry/evals")
+    assert needs_study_judge(cards.values()) is True
+    assert needs_study_judge(c for c in cards.values() if c.judge.kind != "llm") is False
 
 
 def test_stop_sequences_are_forwarded() -> None:
@@ -89,7 +121,7 @@ def test_judge_sends_native_messages_request_and_parses_text_blocks() -> None:
     assert request.headers["anthropic-version"] == ANTHROPIC_VERSION
     assert "authorization" not in request.headers
     sent = json.loads(request.content)
-    assert sent["temperature"] == 0.0
+    assert "temperature" not in sent and sent["thinking"] == {"type": "disabled"}
     assert sent["metadata"] == {"user_id": "judge_run_abc"}
     assert sent["system"] == RUBRIC
 

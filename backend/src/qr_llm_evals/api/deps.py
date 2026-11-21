@@ -113,6 +113,7 @@ class AppState:
     engine_transport: httpx.AsyncBaseTransport | None = None
     readiness_transport: httpx.BaseTransport | None = None
     analysis_transport: httpx.BaseTransport | None = None
+    judge_transport: httpx.BaseTransport | None = None
     repo_root: Path | None = None
     version: str = "0.0.0"
     commit: str | None = None

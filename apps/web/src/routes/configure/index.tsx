@@ -7,6 +7,7 @@ import { LaunchDialog } from "../../components/run/LaunchDialog";
 import { api } from "../../lib/api";
 import { configHash, loadConfig, saveConfig, studyOneTemplate, type WizardStudyConfig } from "../../lib/config-store";
 import { estimateSelection } from "../../lib/estimates";
+import { needsStudyJudge } from "../../lib/judge";
 import { getSession } from "../../lib/session";
 import { Evals } from "./Evals";
 import { Judge } from "./Judge";
@@ -91,6 +92,7 @@ export function Configure() {
   const closeBriefing = () => { window.sessionStorage.setItem(ACK_KEY, "yes"); setBriefingOpen(false); };
   const launch = () => {
     if (!getSession()) { setLaunchState("Sign in before launching (step 06 has the link). The study configuration is kept; provider keys need typing again."); return; }
+    if (needsStudyJudge(config, cards) && !keys.anthropic) { setLaunchState("This study has evals scored by the judge, which runs on your own Anthropic key. Add the key on step 06, then launch."); return; }
     setLaunchState("");
     setLaunchOpen(true);
   };

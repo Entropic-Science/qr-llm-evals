@@ -1,5 +1,6 @@
 import { StudyConfigSchema, type StudyConfig } from "@qr-evals/contracts";
 import studyOneJson from "../../../../packages/contracts/fixtures/study1.json";
+import { DEFAULT_JUDGE } from "./judge";
 
 export type WizardStudyConfig = StudyConfig & { title: string };
 
@@ -46,7 +47,7 @@ export function studyOneTemplate(): WizardStudyConfig {
     { card_id: "opinion_quantum_sampling", overrides: { k: 20 } }, { card_id: "stream_deviation_windows" }, { card_id: "target_hit_ranking" },
     { card_id: "self_reported_coincidence", overrides: { k: 10 } },
   ];
-  source.judge = { model: "PIN_EXACT_CLAUDE_SONNET_MODEL_BEFORE_FULL_RUN", temperature: 0 };
+  source.judge = { ...DEFAULT_JUDGE };
   const parsed = validate(source);
   if (!parsed) throw new Error("The bundled Study 1 template does not match StudyConfig.");
   return parsed;
