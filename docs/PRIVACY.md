@@ -37,7 +37,8 @@ part of a published bundle:
   prompt text and no model output is stored there.
 
 Operators and accounts flagged as admin can see every account's username,
-key name, token totals and quota. Choose a username you are content for them
+key name, token totals, quota, the amount owed for those tokens and the
+disk space the account's runs use. Choose a username you are content for them
 to see; it does not need to be your name. An account can be disabled but is
 not deleted, because runs keep a reference to the account that launched them.
 To have an account's records removed, contact the operator.

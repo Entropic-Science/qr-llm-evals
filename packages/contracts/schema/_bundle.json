@@ -151,6 +151,12 @@
     },
     "AdminUserUpdate": {
       "$ref": "#/$defs/AdminUserUpdate"
+    },
+    "SettleRequest": {
+      "$ref": "#/$defs/SettleRequest"
+    },
+    "StorageResponse": {
+      "$ref": "#/$defs/StorageResponse"
     }
   },
   "required": [
@@ -202,7 +208,9 @@
     "UsageResponse",
     "AdminUserView",
     "AdminUsersResponse",
-    "AdminUserUpdate"
+    "AdminUserUpdate",
+    "SettleRequest",
+    "StorageResponse"
   ],
   "additionalProperties": false,
   "$defs": {
@@ -279,6 +287,16 @@
         },
         "totals": {
           "$ref": "#/$defs/UsageTotalsView"
+        },
+        "outstanding_microusd": {
+          "title": "Outstanding Microusd",
+          "type": "integer"
+        },
+        "storage_bytes": {
+          "description": "Disk used by the account's run artifacts.",
+          "minimum": 0,
+          "title": "Storage Bytes",
+          "type": "integer"
         }
       },
       "required": [
@@ -286,7 +304,9 @@
         "disabled",
         "token_quota",
         "quota",
-        "totals"
+        "totals",
+        "outstanding_microusd",
+        "storage_bytes"
       ],
       "title": "AdminUserView",
       "type": "object"
@@ -299,6 +319,20 @@
           "title": "Default Token Quota",
           "type": "integer"
         },
+        "prices": {
+          "$ref": "#/$defs/PricesView"
+        },
+        "disk_free_bytes": {
+          "description": "Free space on the data volume.",
+          "minimum": 0,
+          "title": "Disk Free Bytes",
+          "type": "integer"
+        },
+        "disk_total_bytes": {
+          "minimum": 0,
+          "title": "Disk Total Bytes",
+          "type": "integer"
+        },
         "users": {
           "items": {
             "$ref": "#/$defs/AdminUserView"
@@ -309,6 +343,9 @@
       },
       "required": [
         "default_token_quota",
+        "prices",
+        "disk_free_bytes",
+        "disk_total_bytes",
         "users"
       ],
       "title": "AdminUsersResponse",
@@ -531,6 +568,39 @@
         "expires_at"
       ],
       "title": "AuthResponse",
+      "type": "object"
+    },
+    "BillingView": {
+      "additionalProperties": false,
+      "properties": {
+        "outstanding_microusd": {
+          "description": "Priced lifetime usage minus recorded payments, in 1e-6 USD.",
+          "title": "Outstanding Microusd",
+          "type": "integer"
+        },
+        "paid_microusd": {
+          "title": "Paid Microusd",
+          "type": "integer"
+        },
+        "prices": {
+          "$ref": "#/$defs/PricesView"
+        },
+        "settlements": {
+          "description": "Newest first (20 at most).",
+          "items": {
+            "$ref": "#/$defs/SettlementView"
+          },
+          "title": "Settlements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outstanding_microusd",
+        "paid_microusd",
+        "prices",
+        "settlements"
+      ],
+      "title": "BillingView",
       "type": "object"
     },
     "CardEstimate": {
@@ -2392,6 +2462,40 @@
       "title": "PreregRenderResponse",
       "type": "object"
     },
+    "PricesView": {
+      "additionalProperties": false,
+      "description": "US dollars per million tokens.",
+      "properties": {
+        "qrng_input": {
+          "minimum": 0,
+          "title": "Qrng Input",
+          "type": "number"
+        },
+        "qrng_output": {
+          "minimum": 0,
+          "title": "Qrng Output",
+          "type": "number"
+        },
+        "prng_input": {
+          "minimum": 0,
+          "title": "Prng Input",
+          "type": "number"
+        },
+        "prng_output": {
+          "minimum": 0,
+          "title": "Prng Output",
+          "type": "number"
+        }
+      },
+      "required": [
+        "qrng_input",
+        "qrng_output",
+        "prng_input",
+        "prng_output"
+      ],
+      "title": "PricesView",
+      "type": "object"
+    },
     "Progress": {
       "additionalProperties": false,
       "properties": {
@@ -3608,6 +3712,59 @@
       "title": "SettingsByDisplay",
       "type": "object"
     },
+    "SettleRequest": {
+      "additionalProperties": false,
+      "description": "Record that an account paid everything it owes right now.",
+      "properties": {
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "title": "SettleRequest",
+      "type": "object"
+    },
+    "SettlementView": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_microusd": {
+          "title": "Amount Microusd",
+          "type": "integer"
+        },
+        "settled_at": {
+          "format": "date-time",
+          "title": "Settled At",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        }
+      },
+      "required": [
+        "amount_microusd",
+        "settled_at",
+        "note"
+      ],
+      "title": "SettlementView",
+      "type": "object"
+    },
     "SignupRequest": {
       "additionalProperties": false,
       "properties": {
@@ -3808,6 +3965,66 @@
         "contrasts"
       ],
       "title": "StatisticalPlan",
+      "type": "object"
+    },
+    "StorageResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "total_bytes": {
+          "minimum": 0,
+          "title": "Total Bytes",
+          "type": "integer"
+        },
+        "runs": {
+          "description": "Largest first.",
+          "items": {
+            "$ref": "#/$defs/StorageRunView"
+          },
+          "title": "Runs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "total_bytes",
+        "runs"
+      ],
+      "title": "StorageResponse",
+      "type": "object"
+    },
+    "StorageRunView": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "study_id",
+        "state",
+        "created_at",
+        "size_bytes"
+      ],
+      "title": "StorageRunView",
       "type": "object"
     },
     "StudyConfig": {
@@ -4599,6 +4816,9 @@
         "quota": {
           "$ref": "#/$defs/QuotaView"
         },
+        "billing": {
+          "$ref": "#/$defs/BillingView"
+        },
         "totals": {
           "$ref": "#/$defs/UsageTotalsView"
         },
@@ -4637,6 +4857,7 @@
       },
       "required": [
         "quota",
+        "billing",
         "totals",
         "by_kind",
         "by_source",
@@ -4648,40 +4869,56 @@
     },
     "UsageTotalsView": {
       "additionalProperties": false,
+      "description": "Tokens by lane. Input = prompt tokens, output = generated tokens.",
       "properties": {
         "calls": {
           "minimum": 0,
           "title": "Calls",
           "type": "integer"
         },
-        "prompt_tokens": {
+        "qrng_input": {
+          "description": "Shared engine, quantum arm.",
           "minimum": 0,
-          "title": "Prompt Tokens",
+          "title": "Qrng Input",
           "type": "integer"
         },
-        "completion_tokens": {
+        "qrng_output": {
           "minimum": 0,
-          "title": "Completion Tokens",
+          "title": "Qrng Output",
           "type": "integer"
         },
-        "reasoning_tokens": {
+        "prng_input": {
+          "description": "Shared engine, every other call.",
           "minimum": 0,
-          "title": "Reasoning Tokens",
+          "title": "Prng Input",
           "type": "integer"
         },
-        "charged_tokens": {
-          "description": "Tokens counted against the quota (qr-server generations only).",
+        "prng_output": {
           "minimum": 0,
-          "title": "Charged Tokens",
+          "title": "Prng Output",
+          "type": "integer"
+        },
+        "own_key_tokens": {
+          "description": "Input + output on the user's own provider key; not billed here.",
+          "minimum": 0,
+          "title": "Own Key Tokens",
+          "type": "integer"
+        },
+        "cost_microusd": {
+          "description": "Price of the four billed numbers, in 1e-6 USD.",
+          "minimum": 0,
+          "title": "Cost Microusd",
           "type": "integer"
         }
       },
       "required": [
         "calls",
-        "prompt_tokens",
-        "completion_tokens",
-        "reasoning_tokens",
-        "charged_tokens"
+        "qrng_input",
+        "qrng_output",
+        "prng_input",
+        "prng_output",
+        "own_key_tokens",
+        "cost_microusd"
       ],
       "title": "UsageTotalsView",
       "type": "object"

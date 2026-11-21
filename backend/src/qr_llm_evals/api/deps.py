@@ -43,6 +43,7 @@ from qr_llm_evals.api.errors import ApiError
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
 from qr_llm_evals.api.registry import LiveRun, OrchestratorFactory, RunRegistry
 from qr_llm_evals.api.session_runtime import restore_sessions
+from qr_llm_evals.api.storage import StorageMeter
 from qr_llm_evals.api.usage import UsageRecorder
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.config import Settings
@@ -108,6 +109,7 @@ class AppState:
     registry: RunRegistry = field(default_factory=RunRegistry)
     sessions: SessionRegistry = field(default_factory=SessionRegistry)
     limiter: TokenBucketLimiter = field(default_factory=TokenBucketLimiter)
+    storage: StorageMeter = field(default_factory=StorageMeter)
     engine_transport: httpx.AsyncBaseTransport | None = None
     readiness_transport: httpx.BaseTransport | None = None
     analysis_transport: httpx.BaseTransport | None = None

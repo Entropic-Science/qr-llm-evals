@@ -93,6 +93,20 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX usage_events_run ON usage_events(run_id);
         """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE settlements (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id          TEXT NOT NULL REFERENCES users(user_id),
+            amount_microusd  INTEGER NOT NULL,
+            settled_at       TEXT NOT NULL,
+            settled_by       TEXT NOT NULL,
+            note             TEXT
+        );
+        CREATE INDEX settlements_user ON settlements(user_id);
+        """,
+    ),
 )
 
 

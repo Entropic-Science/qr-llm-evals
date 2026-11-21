@@ -1,4 +1,4 @@
-import type { AdminUsersResponse, UsageResponse } from "@qr-evals/contracts";
+import type { AdminUsersResponse, StorageResponse, UsageResponse } from "@qr-evals/contracts";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 import { App } from "../App";
@@ -10,15 +10,20 @@ function memoryStorage(): Storage {
   const values = new Map<string, string>();
   return { get length() { return values.size; }, clear: () => values.clear(), getItem: (key) => values.get(key) ?? null, key: (index) => [...values.keys()][index] ?? null, removeItem: (key) => { values.delete(key); }, setItem: (key, value) => { values.set(key, value); } };
 }
-const totals = (calls: number, prompt: number, completion: number, charged: number) => ({ calls, prompt_tokens: prompt, completion_tokens: completion, reasoning_tokens: 0, charged_tokens: charged });
+const PRICES = { qrng_input: 20, qrng_output: 80, prng_input: 5, prng_output: 20 };
+/** Totals priced the way the server prices them, so the fixtures stay consistent. */
+const totals = (calls: number, qrngIn: number, qrngOut: number, prngIn: number, prngOut: number, ownKey = 0) => ({ calls, qrng_input: qrngIn, qrng_output: qrngOut, prng_input: prngIn, prng_output: prngOut, own_key_tokens: ownKey, cost_microusd: qrngIn * 20 + qrngOut * 80 + prngIn * 5 + prngOut * 20 });
+const all = totals(30, 500_000, 120_000, 494_567, 120_000, 5433);
 const usage: UsageResponse = {
   quota: { limit: 2_000_000, used: 1_234_567, remaining: 765_433, exhausted: false },
-  totals: totals(30, 1_000_000, 240_000, 1_234_567),
-  by_kind: [{ key: "generation", totals: totals(24, 994_567, 240_000, 1_234_567) }, { key: "judge", totals: totals(6, 5433, 0, 0) }],
-  by_source: [{ key: "quantum", totals: totals(12, 500_000, 120_000, 620_000) }, { key: "seeded_prng", totals: totals(12, 494_567, 120_000, 614_567) }],
-  by_day: [{ key: "2026-11-18", totals: totals(30, 1_000_000, 240_000, 1_234_567) }],
-  by_run: [{ key: "run_abc", totals: totals(30, 1_000_000, 240_000, 1_234_567) }],
+  billing: { outstanding_microusd: all.cost_microusd - 4_000_000, paid_microusd: 4_000_000, prices: PRICES, settlements: [{ amount_microusd: 4_000_000, settled_at: "2026-11-19T10:00:00Z", note: "invoice 7" }] },
+  totals: all,
+  by_kind: [{ key: "generation", totals: totals(24, 500_000, 120_000, 494_567, 120_000) }, { key: "judge", totals: totals(6, 0, 0, 0, 0, 5433) }],
+  by_source: [{ key: "quantum", totals: totals(12, 500_000, 120_000, 0, 0) }, { key: "seeded_prng", totals: totals(12, 0, 0, 494_567, 120_000) }],
+  by_day: [{ key: "2026-11-18", totals: all }],
+  by_run: [{ key: "run_abc", totals: all }],
 };
+const storage: StorageResponse = { total_bytes: 3 * 1024 ** 3, runs: [{ run_id: "run_abc", study_id: "s_0123456789ab", state: "complete", created_at: "2026-11-18T09:00:00Z", size_bytes: 3 * 1024 ** 3 }] };
 
 function renderAt(path: string) { window.history.pushState({}, "", path); return render(<App />); }
 
@@ -27,6 +32,7 @@ beforeEach(() => {
   Object.defineProperty(window, "sessionStorage", { configurable: true, value: memoryStorage() });
   clearSession();
   vi.spyOn(api, "me").mockImplementation(() => Promise.resolve(getSession()!.user));
+  vi.spyOn(api, "storage").mockResolvedValue(storage);
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.pushState({}, "", "/"); });
 
@@ -87,8 +93,41 @@ describe("account page", () => {
     expect(screen.getByRole("rowheader", { name: "Quantum (QRNG)" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Seeded PRNG" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: "Judge" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "run_abc" })).toHaveAttribute("href", "/runs/run_abc");
+    expect(screen.getAllByRole("link", { name: "run_abc" })[0]).toHaveAttribute("href", "/runs/run_abc");
     expect(screen.queryByRole("link", { name: "All accounts" })).not.toBeInTheDocument();
+  });
+
+  it("splits tokens into QRNG and PRNG, input and output, and prices them", async () => {
+    setSession(authResponse());
+    vi.spyOn(api, "usage").mockResolvedValue(usage);
+    renderAt("/account");
+    const quantum = (await screen.findByRole("rowheader", { name: "Quantum (QRNG)" })).closest("tr")!;
+    // 500,000 in at $20 and 120,000 out at $80 per million
+    expect([...quantum.querySelectorAll("td")].map((cell) => cell.textContent)).toEqual(["500,000", "120,000", "0", "0", "$19.60"]);
+    expect(screen.getAllByRole("columnheader", { name: "QRNG in" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("columnheader", { name: /Counted/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Completion" })).not.toBeInTheDocument();
+    // judge calls ran on the user's own key: shown, not priced
+    expect(screen.getAllByText(/5,433 tokens on your own provider key/).length).toBeGreaterThan(0);
+  });
+
+  it("shows what is owed and the payments already recorded", async () => {
+    setSession(authResponse());
+    vi.spyOn(api, "usage").mockResolvedValue(usage);
+    renderAt("/account");
+    // $10.00 + $9.60 + $2.47 + $2.40 of usage, less the $4.00 already paid
+    expect(await screen.findByText("$20.47")).toBeInTheDocument();
+    expect(screen.getByText(/QRNG \$20 in and \$80 out, PRNG \$5 in and \$20 out/)).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Payments recorded" })).toHaveTextContent("$4.00 paid (invoice 7)");
+  });
+
+  it("lists stored runs and asks for a download", async () => {
+    setSession(authResponse());
+    vi.spyOn(api, "usage").mockResolvedValue(usage);
+    renderAt("/account");
+    expect(await screen.findByText(/Download your finished runs/)).toBeInTheDocument();
+    expect(screen.getByText("3.0 GB", { selector: "strong" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download the data of run_abc" })).toHaveAttribute("href", expect.stringContaining("/studies/s_0123456789ab/bundle.tar.zst"));
   });
 
   it("says so when the quota is used up", async () => {
@@ -135,9 +174,12 @@ describe("admin page", () => {
   const admin = authResponse({ is_admin: true });
   const listing: AdminUsersResponse = {
     default_token_quota: 2_000_000,
+    prices: PRICES,
+    disk_free_bytes: 1600 * 1024 ** 3,
+    disk_total_bytes: 1900 * 1024 ** 3,
     users: [
-      { user: admin.user, disabled: false, token_quota: null, quota: { limit: 2_000_000, used: 0, remaining: 2_000_000, exhausted: false }, totals: totals(0, 0, 0, 0) },
-      { user: { ...admin.user, user_id: "usr_2", username: "bob", is_admin: false, key_name: "bob-key" }, disabled: false, token_quota: 500, quota: { limit: 500, used: 640, remaining: 0, exhausted: true }, totals: totals(8, 400, 240, 640) },
+      { user: admin.user, disabled: false, token_quota: null, quota: { limit: 2_000_000, used: 0, remaining: 2_000_000, exhausted: false }, totals: totals(0, 0, 0, 0, 0), outstanding_microusd: 0, storage_bytes: 0 },
+      { user: { ...admin.user, user_id: "usr_2", username: "bob", is_admin: false, key_name: "bob-key" }, disabled: false, token_quota: 500, quota: { limit: 500, used: 640, remaining: 0, exhausted: true }, totals: totals(8, 1_000_000, 500_000, 0, 0), outstanding_microusd: 60_000_000, storage_bytes: 5 * 1024 ** 2 },
     ],
   };
 
@@ -192,6 +234,28 @@ describe("admin page", () => {
     fireEvent.submit(input.closest("form")!);
     expect(await screen.findByText("Whole number, 0, or empty")).toBeInTheDocument();
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("shows what each account owes and records a payment after a confirm", async () => {
+    setSession(admin);
+    vi.spyOn(api, "adminUsers").mockResolvedValue(listing);
+    const settle = vi.spyOn(api, "adminSettle").mockResolvedValue(listing.users[1]!);
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderAt("/admin");
+    const bob = (await screen.findByRole("rowheader", { name: /bob/ })).closest("tr")!;
+    expect(bob).toHaveTextContent("$60.00");
+    expect(bob).toHaveTextContent("5.0 MB");
+    expect(screen.getByText(/1\.6 TB free of 1\.9 TB/)).toBeInTheDocument();
+    // an account that owes nothing has no button
+    expect(screen.queryByRole("button", { name: "Mark alice as paid" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark bob as paid" }));
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("bob has paid $60.00"));
+    expect(settle).not.toHaveBeenCalled();
+
+    confirm.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: "Mark bob as paid" }));
+    await waitFor(() => expect(settle).toHaveBeenCalledWith("usr_2", {}, admin.session_token));
   });
 
   it("signs out when an admin change is rejected as unauthenticated", async () => {

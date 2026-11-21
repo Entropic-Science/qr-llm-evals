@@ -1,7 +1,7 @@
 import type { AdminUsersResponse, AdminUserUpdate, AdminUserView } from "@qr-evals/contracts";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { Link } from "wouter";
-import { formatTokens } from "../components/UsageTotalsTable";
+import { formatBytes, formatTokens, formatUsd } from "../components/UsageTotalsTable";
 import { api, ApiError } from "../lib/api";
 import { clearSession, useSession } from "../lib/session";
 
@@ -57,24 +57,37 @@ export function Admin() {
     }
   }
 
+  async function markPaid(row: AdminUserView) {
+    if (!token) return;
+    const owed = formatUsd(row.outstanding_microusd);
+    if (!window.confirm(`Record that ${row.user.username} has paid ${owed}? Their usage history stays; only the balance returns to zero.`)) return;
+    try { await api.adminSettle(row.user.user_id, {}, token); await load(); } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) { clearSession(); return; }
+      setError(cause instanceof Error ? cause.message : "The payment was not recorded.");
+    }
+  }
+
   return <div className="account-page">
     <header className="configure-header"><div><p className="eyebrow">Admin</p><h1>All accounts</h1></div><Link className="button button--secondary" href="/account">Your account</Link></header>
     {error ? <p className="prereg-error" role="alert">{error}</p> : null}
     {data === null ? (error ? null : <p className="usage-empty" role="status">Loading accounts…</p>) : <>
       <p className="step-intro">Default quota: {data.default_token_quota === 0 ? "unlimited" : `${formatTokens(data.default_token_quota)} tokens`}. Leave a quota empty to follow the default; enter 0 for unlimited.</p>
+      <p className="step-intro">Prices per million tokens: QRNG ${data.prices.qrng_input} in and ${data.prices.qrng_output} out, PRNG ${data.prices.prng_input} in and ${data.prices.prng_output} out. Disk: {formatBytes(data.disk_free_bytes)} free of {formatBytes(data.disk_total_bytes)}.</p>
       <div className="table-frame usage-table"><table>
-        <caption className="sr-only">Every account with its token usage and quota</caption>
-        <thead><tr><th scope="col">Account</th><th scope="col">Key</th><th scope="col" className="num">Calls</th><th scope="col" className="num">Prompt</th><th scope="col" className="num">Completion</th><th scope="col" className="num">Counted</th><th scope="col">Quota</th><th scope="col">Set quota</th><th scope="col">Access</th></tr></thead>
+        <caption className="sr-only">Every account with its token usage, balance, storage and quota</caption>
+        <thead><tr><th scope="col">Account</th><th scope="col">Key</th><th scope="col" className="num">QRNG in</th><th scope="col" className="num">QRNG out</th><th scope="col" className="num">PRNG in</th><th scope="col" className="num">PRNG out</th><th scope="col" className="num">Outstanding</th><th scope="col" className="num">Storage</th><th scope="col">Quota</th><th scope="col">Set quota</th><th scope="col">Access</th></tr></thead>
         <tbody>{data.users.map((row) => {
           const self = row.user.user_id === session.user.user_id;
           return <tr key={row.user.user_id} className={row.disabled ? "is-disabled" : undefined}>
             <th scope="row">{row.user.username}{row.user.is_admin ? <span className="badge">admin</span> : null}{row.disabled ? <span className="badge">disabled</span> : null}</th>
             <td>{row.user.key_name ?? row.user.key_fingerprint}</td>
-            <td className="num">{formatTokens(row.totals.calls)}</td>
-            <td className="num">{formatTokens(row.totals.prompt_tokens)}</td>
-            <td className="num">{formatTokens(row.totals.completion_tokens)}</td>
-            <td className="num">{formatTokens(row.quota.used)}{row.quota.exhausted ? <span className="badge">used up</span> : null}</td>
-            <td>{quotaLabel(row, data.default_token_quota)}</td>
+            <td className="num">{formatTokens(row.totals.qrng_input)}</td>
+            <td className="num">{formatTokens(row.totals.qrng_output)}</td>
+            <td className="num">{formatTokens(row.totals.prng_input)}</td>
+            <td className="num">{formatTokens(row.totals.prng_output)}</td>
+            <td className="num"><span className="outstanding-cell">{formatUsd(row.outstanding_microusd)}{row.outstanding_microusd > 0 ? <button className="button button--secondary" type="button" aria-label={`Mark ${row.user.username} as paid`} onClick={() => void markPaid(row)}>Mark paid</button> : null}</span></td>
+            <td className="num">{formatBytes(row.storage_bytes)}</td>
+            <td>{quotaLabel(row, data.default_token_quota)}{row.quota.exhausted ? <span className="badge">used up</span> : null}</td>
             <td><QuotaEditor key={`${row.user.user_id}:${row.token_quota ?? "default"}`} row={row} onSave={(body) => update(row.user.user_id, body)} /></td>
             <td><button className="button button--secondary" type="button" disabled={self} title={self ? "You cannot disable your own account" : undefined} aria-label={`${row.disabled ? "Enable" : "Disable"} ${row.user.username}`} onClick={() => void update(row.user.user_id, { disabled: !row.disabled })}>{row.disabled ? "Enable" : "Disable"}</button></td>
           </tr>;

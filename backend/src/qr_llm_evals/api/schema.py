@@ -376,13 +376,41 @@ class LogoutResponse(_Strict):
 
 
 class UsageTotalsView(_Strict):
+    """Tokens by lane. Input = prompt tokens, output = generated tokens."""
+
     calls: int = Field(ge=0)
-    prompt_tokens: int = Field(ge=0)
-    completion_tokens: int = Field(ge=0)
-    reasoning_tokens: int = Field(ge=0)
-    charged_tokens: int = Field(
-        ge=0, description="Tokens counted against the quota (qr-server generations only)."
+    qrng_input: int = Field(ge=0, description="Shared engine, quantum arm.")
+    qrng_output: int = Field(ge=0)
+    prng_input: int = Field(ge=0, description="Shared engine, every other call.")
+    prng_output: int = Field(ge=0)
+    own_key_tokens: int = Field(
+        ge=0, description="Input + output on the user's own provider key; not billed here."
     )
+    cost_microusd: int = Field(ge=0, description="Price of the four billed numbers, in 1e-6 USD.")
+
+
+class PricesView(_Strict):
+    """US dollars per million tokens."""
+
+    qrng_input: float = Field(ge=0)
+    qrng_output: float = Field(ge=0)
+    prng_input: float = Field(ge=0)
+    prng_output: float = Field(ge=0)
+
+
+class SettlementView(_Strict):
+    amount_microusd: int
+    settled_at: AwareDatetime
+    note: str | None
+
+
+class BillingView(_Strict):
+    outstanding_microusd: int = Field(
+        description="Priced lifetime usage minus recorded payments, in 1e-6 USD."
+    )
+    paid_microusd: int
+    prices: PricesView
+    settlements: list[SettlementView] = Field(description="Newest first (20 at most).")
 
 
 class UsageBucketView(_Strict):
@@ -399,6 +427,7 @@ class QuotaView(_Strict):
 
 class UsageResponse(_Strict):
     quota: QuotaView
+    billing: BillingView
     totals: UsageTotalsView
     by_kind: list[UsageBucketView] = Field(description="generation / judge / narrative.")
     by_source: list[UsageBucketView] = Field(
@@ -414,11 +443,35 @@ class AdminUserView(_Strict):
     token_quota: int | None = Field(description="Per-account override; None = the default.")
     quota: QuotaView
     totals: UsageTotalsView
+    outstanding_microusd: int
+    storage_bytes: int = Field(ge=0, description="Disk used by the account's run artifacts.")
 
 
 class AdminUsersResponse(_Strict):
     default_token_quota: int = Field(ge=0)
+    prices: PricesView
+    disk_free_bytes: int = Field(ge=0, description="Free space on the data volume.")
+    disk_total_bytes: int = Field(ge=0)
     users: list[AdminUserView]
+
+
+class SettleRequest(_Strict):
+    """Record that an account paid everything it owes right now."""
+
+    note: str | None = Field(default=None, max_length=200)
+
+
+class StorageRunView(_Strict):
+    run_id: str
+    study_id: str
+    state: str
+    created_at: AwareDatetime
+    size_bytes: int = Field(ge=0)
+
+
+class StorageResponse(_Strict):
+    total_bytes: int = Field(ge=0)
+    runs: list[StorageRunView] = Field(description="Largest first.")
 
 
 class AdminUserUpdate(_Strict):
@@ -436,7 +489,13 @@ __all__ = [
     "AdminUserView",
     "AdminUsersResponse",
     "AuthResponse",
+    "BillingView",
+    "PricesView",
     "QuotaView",
+    "SettleRequest",
+    "SettlementView",
+    "StorageResponse",
+    "StorageRunView",
     "UsageBucketView",
     "UsageResponse",
     "UsageTotalsView",

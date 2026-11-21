@@ -57,6 +57,8 @@ export interface Contracts {
   AdminUserView: AdminUserView;
   AdminUsersResponse: AdminUsersResponse;
   AdminUserUpdate: AdminUserUpdate;
+  SettleRequest: SettleRequest;
+  StorageResponse: StorageResponse;
 }
 /**
  * Everything the prereg freezes. ``config_hash(study)`` is its identity.
@@ -1316,6 +1318,7 @@ export interface AuthResponse {
  */
 export interface UsageResponse {
   quota: QuotaView;
+  billing: BillingView;
   totals: UsageTotalsView;
   /**
    * generation / judge / narrative.
@@ -1352,17 +1355,67 @@ export interface QuotaView {
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "BillingView".
+ */
+export interface BillingView {
+  /**
+   * Priced lifetime usage minus recorded payments, in 1e-6 USD.
+   */
+  outstanding_microusd: number;
+  paid_microusd: number;
+  prices: PricesView;
+  /**
+   * Newest first (20 at most).
+   */
+  settlements: SettlementView[];
+}
+/**
+ * US dollars per million tokens.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "PricesView".
+ */
+export interface PricesView {
+  qrng_input: number;
+  qrng_output: number;
+  prng_input: number;
+  prng_output: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SettlementView".
+ */
+export interface SettlementView {
+  amount_microusd: number;
+  settled_at: string;
+  note: string | null;
+}
+/**
+ * Tokens by lane. Input = prompt tokens, output = generated tokens.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "UsageTotalsView".
  */
 export interface UsageTotalsView {
   calls: number;
-  prompt_tokens: number;
-  completion_tokens: number;
-  reasoning_tokens: number;
   /**
-   * Tokens counted against the quota (qr-server generations only).
+   * Shared engine, quantum arm.
    */
-  charged_tokens: number;
+  qrng_input: number;
+  qrng_output: number;
+  /**
+   * Shared engine, every other call.
+   */
+  prng_input: number;
+  prng_output: number;
+  /**
+   * Input + output on the user's own provider key; not billed here.
+   */
+  own_key_tokens: number;
+  /**
+   * Price of the four billed numbers, in 1e-6 USD.
+   */
+  cost_microusd: number;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -1385,6 +1438,11 @@ export interface AdminUserView {
   token_quota: number | null;
   quota: QuotaView;
   totals: UsageTotalsView;
+  outstanding_microusd: number;
+  /**
+   * Disk used by the account's run artifacts.
+   */
+  storage_bytes: number;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -1392,6 +1450,12 @@ export interface AdminUserView {
  */
 export interface AdminUsersResponse {
   default_token_quota: number;
+  prices: PricesView;
+  /**
+   * Free space on the data volume.
+   */
+  disk_free_bytes: number;
+  disk_total_bytes: number;
   users: AdminUserView[];
 }
 /**
@@ -1407,4 +1471,35 @@ export interface AdminUserUpdate {
   token_quota?: number | null;
   disabled?: boolean | null;
   is_admin?: boolean | null;
+}
+/**
+ * Record that an account paid everything it owes right now.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SettleRequest".
+ */
+export interface SettleRequest {
+  note?: string | null;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "StorageResponse".
+ */
+export interface StorageResponse {
+  total_bytes: number;
+  /**
+   * Largest first.
+   */
+  runs: StorageRunView[];
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "StorageRunView".
+ */
+export interface StorageRunView {
+  run_id: string;
+  study_id: string;
+  state: string;
+  created_at: string;
+  size_bytes: number;
 }

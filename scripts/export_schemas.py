@@ -66,7 +66,9 @@ from qr_llm_evals.api.schema import (
     SessionPresenceResponse,
     SessionQuestionnaireRequest,
     SessionView,
+    SettleRequest,
     SignupRequest,
+    StorageResponse,
     StudyView,
     UsageResponse,
     UserView,
@@ -148,6 +150,8 @@ EXPORTS: tuple[type[BaseModel], ...] = (
     AdminUserView,
     AdminUsersResponse,
     AdminUserUpdate,
+    SettleRequest,
+    StorageResponse,
 )
 
 #: Hand-written files that live next to the generated ones and must survive ``--check``.

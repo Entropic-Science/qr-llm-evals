@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Token usage is shown as four numbers: input and output tokens on the
+  qr-server engine, separately for quantum arms (QRNG) and for everything
+  else (PRNG). Each is priced (default $20 / $80 per million input / output
+  tokens for QRNG, $5 / $20 for PRNG; `QR_EVALS_PRICE_*`) and the account and
+  admin pages show what an account owes as "Outstanding". An admin marks an
+  account paid from the admin page or with `accounts.cli settle`; that records
+  a payment and leaves the usage history alone. The Calls / Prompt /
+  Completion / Counted columns are gone. `UsageTotalsView` changed shape, and
+  `accounts.sqlite` gains a `settlements` table (migration 3).
+- The account page shows the disk space each run uses and asks people to
+  download their finished runs; the admin page shows storage per account and
+  the free space on the data volume (`GET /me/storage`).
+
 - The thesis study's offline dry run is small by default and finishes in about
   five minutes; `--full` runs it close to the real study's size. Inside the
   simulator the store keeps artifact files open between rows; the real store

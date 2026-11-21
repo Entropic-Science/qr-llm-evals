@@ -52,6 +52,19 @@ def _env_int(env: _Env, name: str, default: int) -> int:
         raise SystemExit(f"{name}={raw!r} is not an integer") from err
 
 
+def _env_float(env: _Env, name: str, default: float) -> float:
+    raw = env.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError as err:
+        raise SystemExit(f"{name}={raw!r} is not a number") from err
+    if not 0 <= value < float("inf"):
+        raise SystemExit(f"{name}={raw!r} must be zero or a positive number")
+    return value
+
+
 def _env_bool(env: _Env, name: str, default: bool) -> bool:
     raw = env.get(name, "").strip().lower()
     if not raw:
@@ -106,6 +119,10 @@ class Settings(BaseModel):
         ge=0,
         description="Lifetime qr-server generation tokens per account; 0 = unlimited.",
     )
+    price_qrng_input: float = Field(ge=0, description="USD per million QRNG input tokens.")
+    price_qrng_output: float = Field(ge=0, description="USD per million QRNG output tokens.")
+    price_prng_input: float = Field(ge=0, description="USD per million PRNG input tokens.")
+    price_prng_output: float = Field(ge=0, description="USD per million PRNG output tokens.")
 
     # ── generation (spec §2.2 common body) ────────────────────────────────
     priority: int = Field(description="vLLM request priority sent with every generation.")
@@ -171,6 +188,10 @@ def load_settings(env: _Env | None = None) -> Settings:
         allow_key_launch=_env_bool(e, "QR_EVALS_ALLOW_KEY_LAUNCH", False),
         session_ttl_hours=_env_int(e, "QR_EVALS_SESSION_TTL_HOURS", 168),
         default_token_quota=_env_int(e, "QR_EVALS_DEFAULT_TOKEN_QUOTA", 2_000_000),
+        price_qrng_input=_env_float(e, "QR_EVALS_PRICE_QRNG_INPUT", 20.0),
+        price_qrng_output=_env_float(e, "QR_EVALS_PRICE_QRNG_OUTPUT", 80.0),
+        price_prng_input=_env_float(e, "QR_EVALS_PRICE_PRNG_INPUT", 5.0),
+        price_prng_output=_env_float(e, "QR_EVALS_PRICE_PRNG_OUTPUT", 20.0),
         priority=_env_int(e, "QR_EVALS_PRIORITY", 0),
         top_logprobs=top_logprobs,
         data_dir=_env_str(e, "QR_EVALS_DATA_DIR", "/var/lib/qr-llm-evals"),

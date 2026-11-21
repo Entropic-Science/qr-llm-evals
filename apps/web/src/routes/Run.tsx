@@ -9,6 +9,7 @@ import { ReadinessPanel } from "../components/run/ReadinessPanel";
 import { TaintList } from "../components/run/TaintList";
 import { api, openEvents, type RunEvent } from "../lib/api";
 import { getHostToken } from "../lib/host-token";
+import { downloadUrl } from "../lib/results";
 import { clearRefetchSignal, reduceRunEvent, runEventState, type RunEventState } from "../lib/run-events";
 
 type RouteProps = { params: { runId: string } };
@@ -87,6 +88,7 @@ export function Run({ params }: RouteProps) {
     <header className="run-header"><div><p className="eyebrow"><Link href="/">Instrument</Link> / Run</p><h1>Live run record</h1><code className="run-id">{run.run_id}</code></div><div className="run-status" aria-live="polite"><span className={`run-status__lamp run-status__lamp--${run.state ?? "unknown"}`} aria-hidden="true" /><div><small>Run state</small><strong>{run.state ?? "unavailable"}</strong><span>{view.live ? "worker active" : "server record"} · {view.subscribers ?? 0} viewer{view.subscribers === 1 ? "" : "s"}</span></div></div></header>
     {run.prereg_stale ? <div className="run-alert run-alert--warning" role="alert"><strong>Pre-registration is stale</strong><span>The hash supplied at launch does not match the configuration frozen by the server. Treat comparisons accordingly.</span></div> : null}
     {run.state === "paused" && view.owner_quota_exhausted ? <div className="run-alert run-alert--warning" role="alert"><strong>Token quota used up</strong><span>The account that launched this run has no tokens left, so the run was paused. It can be resumed once an admin raises the quota.</span></div> : null}
+    {run.state === "complete" && run.study_id ? <div className="run-alert run-alert--note" role="note"><strong>Keep your own copy</strong><span>This run is finished. <a className="text-link" href={downloadUrl(run.study_id, "bundle.tar.zst")}>Download its data</a> to your machine; the server is working storage, not an archive.</span></div> : null}
     {run.needs_keys || run.state === "needs_keys" ? <NeedsKeys runId={runId} hostToken={hostToken} onSupplied={() => void query.refetch()} /> : null}
     <TaintList taints={run.taints} />
     <ControlBar hostToken={hostToken} state={run.state} busy={controlBusy} message={controlMessage} onAction={(action) => void control(action)} />

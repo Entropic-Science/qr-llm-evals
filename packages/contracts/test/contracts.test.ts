@@ -146,6 +146,8 @@ describe("run-time records", () => {
       "AdminUserView",
       "AdminUsersResponse",
       "AdminUserUpdate",
+      "SettleRequest",
+      "StorageResponse",
     ]);
   });
 });

@@ -11,6 +11,8 @@ opens the same ``<QR_EVALS_DATA_DIR>/accounts.sqlite``::
     reset-password <username>    prompts for the new password; signs the user out
     set-quota <username> <n>     lifetime token budget: a number, 0 = unlimited,
                                  'default' = follow QR_EVALS_DEFAULT_TOKEN_QUOTA
+    balance <username>           what the account owes at the configured prices
+    settle <username> [--note]   record that the account paid what it owes now
 
 There is no ``delete``: runs keep their ``owner_id``, so accounts are disabled,
 never removed.
@@ -22,6 +24,7 @@ import argparse
 import getpass
 import sys
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 
 from qr_llm_evals.accounts.service import (
@@ -30,7 +33,8 @@ from qr_llm_evals.accounts.service import (
     Accounts,
     User,
 )
-from qr_llm_evals.config import load_settings
+from qr_llm_evals.accounts.usage import MICRO, Prices, UsageLedger
+from qr_llm_evals.config import Settings, load_settings
 
 PasswordPrompt = Callable[[str], str]
 
@@ -45,7 +49,28 @@ def _parser() -> argparse.ArgumentParser:
     quota = sub.add_parser("set-quota")
     quota.add_argument("username")
     quota.add_argument("tokens", help="a non-negative integer, or 'default'")
+    sub.add_parser("balance").add_argument("username")
+    settle = sub.add_parser("settle")
+    settle.add_argument("username")
+    settle.add_argument("--note", help="free text kept with the settlement (e.g. an invoice id)")
     return parser
+
+
+def _ledger(accounts: Accounts, settings: Settings) -> UsageLedger:
+    return UsageLedger(
+        accounts,
+        default_quota=settings.default_token_quota,
+        prices=Prices(
+            qrng_input=settings.price_qrng_input,
+            qrng_output=settings.price_qrng_output,
+            prng_input=settings.price_prng_input,
+            prng_output=settings.price_prng_output,
+        ),
+    )
+
+
+def _usd(microusd: int) -> str:
+    return f"${microusd / MICRO:,.2f}"
 
 
 def _row(user: User) -> str:
@@ -67,7 +92,8 @@ def _require(accounts: Accounts, username: str) -> User:
 
 def run(argv: Sequence[str] | None = None, *, prompt: PasswordPrompt = getpass.getpass) -> int:
     args = _parser().parse_args(argv)
-    db = Path(args.db) if args.db else Path(load_settings().data_dir) / ACCOUNTS_DB_NAME
+    settings = load_settings()
+    db = Path(args.db) if args.db else Path(settings.data_dir) / ACCOUNTS_DB_NAME
     accounts = Accounts(db)
     try:
         if args.command == "list":
@@ -92,6 +118,15 @@ def run(argv: Sequence[str] | None = None, *, prompt: PasswordPrompt = getpass.g
                 accounts.set_quota(user.user_id, int(args.tokens))
             else:
                 raise AccountError("tokens must be a non-negative integer or 'default'")
+        elif args.command == "balance":
+            print(f"{user.username}: {_usd(_ledger(accounts, settings).outstanding(user.user_id))}")
+            return 0
+        elif args.command == "settle":
+            settlement = _ledger(accounts, settings).settle(
+                user.user_id, settled_by="cli", at=datetime.now(UTC), note=args.note
+            )
+            print(f"settle: {user.username} paid {_usd(settlement.amount_microusd)}")
+            return 0
         else:
             first = prompt("New password: ")
             if first != prompt("Repeat: "):
