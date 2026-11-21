@@ -505,9 +505,41 @@ sudo install -o qr-llm-evals -g qr-llm-evals -m 0600 \
 sudo systemctl start qr-llm-evals.service
 ```
 
-This backup does **not** cover run artifacts under `/var/lib/qr-llm-evals`
-(samples, judge rows, bundles). Those are paid-for data and need their own
-snapshot before a study produces any.
+### Backup of run artifacts
+
+The same nightly job copies the run artifacts (samples, token records, judge
+rows; everything under `studies/` and `_quarantine/`) to
+`/var/backups/qr-llm-evals/runs/`. Files only ever arrive in that copy:
+nothing is deleted from it, so a run removed or quarantined in the live data
+by mistake is still there. When a file changed since the last night, the
+copy's previous version is first moved to `runs/changed-<UTC>/`, so a file
+that was damaged or cut short in the live data cannot silently replace a good
+copy. A finished run does not change and adds nothing there; a run that is
+still generating adds its growing files once per night. The job never removes
+these folders. Once a study is finished and pulled off the box, an operator
+may remove old `changed-*` folders by hand.
+
+`index.sqlite` is not copied: it is rebuilt from the artifacts.
+
+This copy sits on the same disk as the data. It guards against a mistake, not
+against losing the disk. Pull it to another machine, together with the
+accounts database, with the script in the repository:
+
+```bash
+mkdir -p ~/Backups/qr-llm-evals && cd ~/Backups/qr-llm-evals
+bash /path/to/qr-llm-evals/scripts/pull-backup.sh --runs
+```
+
+It downloads the newest accounts database and configuration archive and checks
+their SHA-256 against the box, then downloads one `runs-<UTC>.tar.gz` with
+every run and checks that the archive reads back and holds at least as many
+files as the box reported. Without `--runs` it pulls only the first two. It
+changes nothing on the box. Do this after the pilot, after the full run, and
+before any maintenance on the box.
+
+Disk space: the admin page shows the free space on the data volume and the
+space each account's runs use. A full thesis run is a few gigabytes; the copy
+doubles that.
 
 ### Maintenance
 

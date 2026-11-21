@@ -83,7 +83,7 @@ never appear in this unit's environment:
 * `QR_PRESET` — sampling presets are chosen per request by the envelope builder.
 * `QR_ENTROPY_SOURCE_TYPE` — the entropy source is an **arm** property, never a process default.
 * `QR_FALLBACK_MODE` — refused per-request key; engine-owned.
-* `QR_GRPC_SERVER_ADDRESS` / `QR_GRPC_API_KEY` — Qbert0G is never called directly (spec §1.3).
+* `QR_GRPC_SERVER_ADDRESS` / `QR_GRPC_API_KEY` — Qbert0G is never called directly (spec §1.3). The one exception is outside this service: the operator tool `studies/thesis_prompt_or_physics/thesis_device_dump.py`, which reads both from the engine's own environment file to dump raw device bytes for the thesis device check.
 * `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` — BYO keys arrive in the launch body and live only in the run's `SecretBag` (spec D-14); never in the environment.
 
 

@@ -104,7 +104,14 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
 ## With access: the run sequence
 
 1. **Characterise the device alone.** Dump about 2 GB of raw bytes from the
-   entropy server (`GetEntropy`, the call qr-sampler makes) and run
+   entropy server with the same `GetEntropy` call qr-sampler makes, in requests
+   of the size it draws per token. Run this on the box while no study is
+   generating; it reads the server address and key from the engine's
+   environment file and can be interrupted and continued:
+   ```bash
+   sudo /opt/vllm-venv/bin/python studies/thesis_prompt_or_physics/thesis_device_dump.py --out /var/lib/qr-llm-evals/device/device.bin --bytes 2000000000
+   ```
+   It writes `device.bin.json` with the file's SHA-256. Then run
    `python studies/thesis_prompt_or_physics/thesis_device_check.py --bytes device.bin --out device_check.json`
    (and `--philox-seed 42 --blocks 200000` for the fair reference).
 2. **Configure the box.** Set qr-sampler's `QR_TOKEN_LOG_DIR` and the harness's
@@ -154,10 +161,29 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    folder. `hashes.json` holds the four hashes: `config_hash`, `plan_hash`,
    `prereg_hash` and the settings hash. It refuses a study that still has
    template placeholders, or whose expectations do not contain the settings
-   hash, or when the token log is not available. Register the four hashes on a
-   public registry with a timestamp before the full run. Keep the folder: the
-   full run is launched from it, and `plan.json` is the plan the decision
-   script needs.
+   hash, or when the token log is not available. Keep the folder: the full run
+   is launched from it, and `plan.json` is the plan the decision script needs.
+
+   Then register, before the full run. Write the registration text:
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_report.py register --lock registration/ --commit <deployed commit>
+   ```
+   This writes `registration/REGISTRATION.md`: the four hashes, what each one
+   fixes, and how anyone can recompute it. File it on the Open Science
+   Framework (osf.io), which records the date and cannot be edited afterwards:
+   1. Sign in and create a project for the study (private is fine for now).
+   2. In the project, choose Registrations, then New registration, and pick the
+      "Open-Ended Registration" template.
+   3. In its summary field paste the contents of `REGISTRATION.md`. Attach
+      `prereg.md` and `REGISTRATION.md` as files.
+   4. Choose whether to make it public now or under an embargo (up to four
+      years), then submit. OSF timestamps the registration at submission in
+      both cases; an embargoed registration becomes public on its end date.
+   5. Note the registration's URL and DOI in the lock folder. The post on
+      entropic.science (`POST_DRAFT.md` in this folder) links to it.
+
+   A registration cannot be changed. If the study has to change after this
+   point, lock again and file a new registration that names the old one.
 7. **Full run.** Launch from the lock folder:
    ```bash
    python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> launch --lock registration/ --start
@@ -179,6 +205,14 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <registered hash>
    ```
    refuses settings whose hash differs from the registered one, and writes `thesis/tables/`, `thesis/decisions.json` and `thesis/decisions.md`.
+   Draw the figures from the decision file (script-made, like every figure):
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_report.py figures --decisions <study>/runs/<full_id>/thesis/decisions.json
+   ```
+   It writes `effects`, `sampler` and `first_word` as SVG and PNG into
+   `thesis/figures/`. The analysis runs on the box: a full run's token records
+   take about 5 GB of memory. Afterwards pull the run off the box
+   (`scripts/pull-backup.sh --runs`).
 
 ## What the thesis added to the harness
 

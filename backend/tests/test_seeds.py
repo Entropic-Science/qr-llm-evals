@@ -8,7 +8,7 @@ from __future__ import annotations
 import hashlib
 
 import pytest
-from hypothesis import given
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
 from qr_llm_evals.models.schema import DEFAULT_SEEDS, SEED_MAX_EXCLUSIVE
@@ -45,6 +45,11 @@ def test_pairing_key_is_the_hashed_string() -> None:
     assert pairing_key(7, "card", "p1", 2) == "7|card|p1|2"
 
 
+# The first draw of unrestricted text builds Hypothesis's Unicode tables, which
+# can take seconds on a busy machine (it tripped right after the Inspect
+# subprocess tests). How long inputs take to generate is not what this test
+# checks, so that one health check is off; every other check stays on.
+@settings(suppress_health_check=[HealthCheck.too_slow])
 @given(
     study_seed=st.integers(min_value=0, max_value=SEED_MAX_EXCLUSIVE - 1),
     card_id=st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789_", min_size=1, max_size=32),
