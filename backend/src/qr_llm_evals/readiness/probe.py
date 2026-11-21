@@ -128,6 +128,10 @@ class EngineProbe:
         if extra_xargs:
             xargs = dict(body.get("vllm_xargs") or {})
             xargs.update(extra_xargs)
+            if xargs.get("qr_token_log"):
+                # The engine names the log file after this id; it must be the
+                # id actually dispatched, unique suffix included.
+                xargs["qr_request_id"] = request_id
             body["vllm_xargs"] = xargs
         return body
 

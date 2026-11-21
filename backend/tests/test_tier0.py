@@ -411,3 +411,77 @@ def test_task_modules_score_from_tier0(arms: dict[str, list[Tier0Record]]) -> No
     assert logprob_task.score(sample)["sequence_length"] == 24
     stream = load("stream_deviation_windows").score_from_tier0(arms["qrng"], permutations=10)
     assert stream["card"] == "stream_deviation_windows"
+
+
+# ── a log written by qr-sampler itself ───────────────────────────────────────
+
+SAMPLER_LOG = FIXTURES / "sampler_token_log.jsonl"
+
+
+def test_a_log_written_by_qr_sampler_parses_into_records() -> None:
+    """``sampler_token_log.jsonl`` was produced by qr-sampler's own writer
+    (``qr_sampler.logging.token_log``) for a six-token seeded request."""
+    rows = acquire.parse_engine_log(SAMPLER_LOG)
+    assert [r["token_index"] for r in rows] == list(range(6))
+    api = [{"token": f"t{i}", "logprob": -0.5, "top_logprobs": []} for i in range(6)]
+    recs = acquire.build_records("qrng/card/p0/0", api, SAMPLER_LOG)
+    assert len(recs) == 6
+    for rec in recs:
+        assert rec.u is not None and rec.cdf_lo is not None and rec.cdf_hi is not None
+        assert rec.cdf_lo <= rec.u < rec.cdf_hi or rec.cdf_hi == 1.0
+        assert rec.p_post == pytest.approx(rec.cdf_hi - rec.cdf_lo, abs=1e-6)
+        assert rec.temperature is not None and rec.n_candidates == 64
+        assert rec.is_fallback is False
+    first, later = recs[0], recs[1:]
+    # only the first token carries the candidate list and the source name
+    assert first.top_entries is not None and first.entropy_source_used == "seeded_prng"
+    assert sum(p for _, p in first.top_entries) >= 0.999
+    assert first.token_id in {token for token, _ in first.top_entries}
+    assert all(r.top_entries is None and r.entropy_source_used is None for r in later)
+    # the bracket rebuilt from the logged candidates is the logged bracket
+    position = 0.0
+    for token, prob in first.top_entries:
+        if token == first.token_id:
+            break
+        position += prob
+    assert position == pytest.approx(first.cdf_lo, abs=1e-6)
+    # a later row is small: no candidate list, no timings
+    assert max(len(json.dumps(r)) for r in rows[1:]) < 400
+
+
+def test_a_sampler_log_with_the_wrong_token_count_is_refused() -> None:
+    api = [{"token": "t", "logprob": -0.5, "top_logprobs": []}] * 5
+    with pytest.raises(acquire.AcquisitionError, match="6 tokens but the API returned 5"):
+        acquire.build_records("ref", api, SAMPLER_LOG)
+
+
+def test_shared_fields_set_keeps_records_equal_and_much_smaller() -> None:
+    import tracemalloc
+
+    api = [{"token": f"t{i}", "logprob": -0.5, "top_logprobs": []} for i in range(6)]
+    template = acquire.build_records("ref", api, SAMPLER_LOG)[1].model_dump()
+
+    def load(shared: bool, n: int = 4000) -> tuple[list[Tier0Record], float]:
+        pool: records.FieldsSetPool = {}
+        tracemalloc.start()
+        out = []
+        for i in range(n):
+            rec = Tier0Record.model_validate({**template, "token_index": i})
+            out.append(records.share_fields_set(rec, pool) if shared else rec)
+        size, _peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        if shared:
+            assert len(pool) == 1, "one shape, one shared set"
+        return out, size / n
+
+    plain, plain_bytes = load(shared=False)
+    lean, lean_bytes = load(shared=True)
+    # nothing about a record changes: equality, dump and the fields that were set
+    assert lean == plain
+    assert lean[7].model_dump_json() == plain[7].model_dump_json()
+    assert lean[7].model_fields_set == plain[7].model_fields_set
+    assert lean[7].model_dump(exclude_unset=True) == plain[7].model_dump(exclude_unset=True)
+    # a copy gets its own set, so changing a copy cannot leak into its siblings
+    copy = lean[0].model_copy(update={"session_id": "s"})
+    assert copy.model_fields_set is not lean[1].model_fields_set
+    assert lean_bytes < plain_bytes / 3, (plain_bytes, lean_bytes)

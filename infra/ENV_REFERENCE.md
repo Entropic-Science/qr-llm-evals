@@ -51,7 +51,7 @@ Each row gives **name / required / example / source**.
 | Variable | Required | Example | Source / notes |
 |---|---|---|---|
 | `QR_EVALS_DATA_DIR` | no (default `/var/lib/qr-llm-evals`) | `/var/lib/qr-llm-evals` | SQLite index + JSONL artifact root (spec D-4, §4.5). Never deleted; `store.quarantine()` only. |
-| `QR_EVALS_TOKEN_LOG_DIR` | no (unset = DEP-1 unavailable) | `/var/lib/qr-sampler/token-log` | Engine-side per-request token log export (spec §2.6 DEP-1). Unset ⇒ `tier0_source=api_logprobs` (degraded, labelled). |
+| `QR_EVALS_TOKEN_LOG_DIR` | no (unset = DEP-1 unavailable; must equal qr-sampler's `QR_TOKEN_LOG_DIR`) | `/var/lib/qr-sampler/token-log` | Engine-side per-request token log export (spec §2.6 DEP-1). Unset ⇒ `tier0_source=api_logprobs` (degraded, labelled). |
 
 ## Readiness check (spec §2.7)
 

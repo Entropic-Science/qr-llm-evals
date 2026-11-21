@@ -114,6 +114,8 @@ class RunnerConfig:
     max_inflight: int = 3
     priority: int = 0
     token_log_dir: str | None = None
+    #: How long to wait for a sample's engine token log before using API logprobs.
+    token_log_wait_s: float = 0.5
     determinism_tier: str = "none"
     repo_root: Path | None = None
     #: Per-token ``top_logprobs`` depth (``Settings.top_logprobs``); not a hard 20.
@@ -248,6 +250,16 @@ def _qr_overrides(card: EvalCard, item: Mapping[str, Any]) -> dict[str, Any] | N
         **dict(item.get("qr_overrides") or {}),
     }
     return merged or None
+
+
+def _wait_for_file(path: Path, timeout_s: float) -> bool:
+    """True once ``path`` exists, polling for at most ``timeout_s`` seconds."""
+    deadline = time.monotonic() + max(0.0, timeout_s)
+    while not path.is_file():
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.02)
+    return True
 
 
 class Orchestrator:
@@ -735,6 +747,7 @@ class Orchestrator:
             overrides=qr_overrides,
             profile=profile,
             top_logprobs=self._top_logprobs,
+            token_log=bool(self.config.token_log_dir),
         )
         envelope: Mapping[str, Any] = (
             build_envelope(arm, ctx, qr_overrides) if model.provider == "qr_server" else {}
@@ -946,7 +959,10 @@ class Orchestrator:
         log_path: Path | None = None
         if self.config.token_log_dir:
             candidate = engine_log_path(Path(self.config.token_log_dir), job.sample_ref)
-            if candidate.is_file():
+            # The engine creates the file when the request starts and flushes a
+            # row per token, so it is normally complete by now; the short wait
+            # covers a slow shared filesystem.
+            if _wait_for_file(candidate, self.config.token_log_wait_s):
                 log_path = candidate
         try:
             return build_records(

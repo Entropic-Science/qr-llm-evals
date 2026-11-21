@@ -196,7 +196,10 @@ def test_probe_bodies_are_harness_owned() -> None:
         arm, probe_context("x"), request_id="r", extra_xargs={"qr_token_log": True}
     )
     assert with_extra["vllm_xargs"]["qr_token_log"] is True
+    # qr-sampler names the log file after qr_request_id, so it is the dispatched id
+    assert with_extra["vllm_xargs"]["qr_request_id"] == with_extra["request_id"] == "r"
     assert "qr_token_log" not in body["vllm_xargs"]
+    assert "qr_request_id" not in body["vllm_xargs"]
 
 
 def OpenAIClientFor(engine: StubEngine) -> Any:  # noqa: N802 - test helper reads as a factory

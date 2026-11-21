@@ -31,6 +31,7 @@ from qr_llm_evals.models.envelope import (
     envelope_hash,
     envelope_json,
     equivalence_violations,
+    token_log_xargs,
     validate_overrides,
 )
 from qr_llm_evals.models.providers import load_provider_profiles
@@ -402,3 +403,36 @@ def test_live_lane_descriptions_agree_with_copied_constants() -> None:
     assert "creative_sampling" in creative
     det = by_id["qr-llm-deterministic"]["description"].lower()
     assert "seed" in det and "no quantum entropy" in det
+
+
+# ── per-token log request ────────────────────────────────────────────────────
+
+
+def test_token_log_keys_ride_the_request_not_the_hashed_envelope() -> None:
+    ctx = SampleContext(card_id="c", prompt_id="p", epoch=2, max_tokens=64)
+    arm = STUDY1_ARMS["prng_seed_7"]
+    envelope = build_envelope(arm, ctx)
+    plain = build_request_body(arm, QR_LLM, ctx, MESSAGES)
+    logged = build_request_body(arm, QR_LLM, ctx, MESSAGES, token_log=True)
+
+    assert plain["vllm_xargs"] == envelope
+    assert logged["vllm_xargs"] == {
+        **envelope,
+        "qr_token_log": True,
+        "qr_request_id": "prng_seed_7/c/p/2",
+    }
+    # the engine names the log after the id the harness reads it back by
+    assert logged["vllm_xargs"]["qr_request_id"] == logged["request_id"]
+    assert token_log_xargs("a/b") == {"qr_token_log": True, "qr_request_id": "a/b"}
+    # what the pre-registration and the provenance pin is unchanged
+    assert not {"qr_token_log", "qr_request_id"} & set(envelope)
+    assert {k: v for k, v in logged.items() if k != "vllm_xargs"} == {
+        k: v for k, v in plain.items() if k != "vllm_xargs"
+    }
+
+
+def test_a_greedy_arm_asks_for_no_token_log() -> None:
+    ctx = SampleContext(card_id="c", prompt_id="p", epoch=0, max_tokens=8)
+    greedy = _arm("greedy_prng", sampling="greedy", source="prng_system")
+    body = build_request_body(greedy, QR_LLM, ctx, MESSAGES, token_log=True)
+    assert body["vllm_xargs"] == {"qr_bypass": True}

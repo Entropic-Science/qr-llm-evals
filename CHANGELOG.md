@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The engine's per-token log is requested for real generations, not only by
+  the readiness probe. When `QR_EVALS_TOKEN_LOG_DIR` is set, every generation
+  on the engine sends `qr_token_log` and `qr_request_id` (the sample
+  reference); qr-sampler now writes the log (its `QR_TOKEN_LOG_DIR`). The two
+  keys are log controls and stay out of the sampling envelope, so envelope,
+  configuration and pre-registration hashes do not change. The readiness probe
+  sends the request id too, which qr-sampler requires.
+- A full thesis run's analysis fits in a few gigabytes of memory. Loaded
+  Tier-0 records share their field bookkeeping (`share_fields_set`): about
+  0.55 KB per record instead of 2.9 KB, measured, which is about 5 GB instead
+  of 26 GB for 9.8 million tokens. The log itself keeps the candidate list for
+  the first token of a reply only, so a stored record is about 0.45 KB instead
+  of several kilobytes. This replaces the earlier note that a full run needs
+  an analysis machine with tens of gigabytes.
+
 - The study judge defaults to the current Claude Haiku (`claude-haiku-5-5`) and
   has settings: model, longest answer (`max_tokens`), extended thinking (off by
   default) and temperature (not sent by default, because current Claude models
