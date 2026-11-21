@@ -41,6 +41,8 @@ KEY_A = "qrk_" + "alice_key_0123456789abcdef"
 KEY_B = "qrk_" + "bob_key_0123456789abcdefgh"
 KEY_UNKNOWN = "qrk_" + "nobody_key_0123456789abcd"
 PASSWORD = "correct horse battery"
+#: The stub study has a judged card, so every launch carries a judge key.
+JUDGE_KEY = {"anthropic": "sk-ant-" + "api03-accounts-judge-0123456789"}
 FAST_N = 2**4  # scrypt cost for tests; the default takes ~50 ms per hash
 
 
@@ -380,7 +382,7 @@ async def test_link_a_different_key(client: httpx.AsyncClient) -> None:
 
 async def test_session_launch_records_the_owner(client: httpx.AsyncClient) -> None:
     data = await _signup(client)
-    body = {"config": _study_dict(), "kind": "pilot"}
+    body = {"config": _study_dict(), "kind": "pilot", "provider_keys": JUDGE_KEY}
     resp = await client.post(f"{API}/runs", json=body, headers=_bearer(data["session_token"]))
     assert resp.status_code == 201, resp.text
     run_id = resp.json()["run_id"]
@@ -398,7 +400,7 @@ async def test_session_launch_records_the_owner(client: httpx.AsyncClient) -> No
 async def test_bare_key_launch_is_refused_unless_the_operator_allows_it(
     client: httpx.AsyncClient, tmp_path: Path
 ) -> None:
-    body = {"config": _study_dict(), "kind": "pilot"}
+    body = {"config": _study_dict(), "kind": "pilot", "provider_keys": JUDGE_KEY}
     refused = await client.post(f"{API}/runs", json=body, headers=_bearer(KEY_B))
     assert "sign in" in _error(refused, 401)["message"]
     _error(await client.post(f"{API}/readiness", json=body, headers=_bearer(KEY_B)), 401)
@@ -423,7 +425,7 @@ async def test_launch_is_refused_once_the_linked_key_stops_working(
     _write_keys(
         Path(settings.keys_file), a_disabled=change == "disabled", with_a=change != "removed"
     )
-    body = {"config": _study_dict(), "kind": "pilot"}
+    body = {"config": _study_dict(), "kind": "pilot", "provider_keys": JUDGE_KEY}
     err = _error(await client.post(f"{API}/runs", json=body, headers=_bearer(token)), status)
     assert "link a working key" in err["message"]
     # the account still works: the user can sign in and link another key
@@ -434,7 +436,7 @@ async def test_launch_is_refused_once_the_linked_key_stops_working(
 
 
 async def test_expired_session_cannot_launch(client: httpx.AsyncClient) -> None:
-    body = {"config": _study_dict(), "kind": "pilot"}
+    body = {"config": _study_dict(), "kind": "pilot", "provider_keys": JUDGE_KEY}
     resp = await client.post(f"{API}/runs", json=body, headers=_bearer("qrs_" + "y" * 43))
     _error(resp, 401)
 

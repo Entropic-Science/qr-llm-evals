@@ -47,7 +47,7 @@ The harness pins the same amplifier (`zscore_mean`), calibration (`0`) and prefe
 {% for model in config.models -%}
 | {{ model.id | md }} | {{ model.provider | md }} | {{ model.served_name | md }} | {{ (model.checkpoint or 'UNPINNED') | md }} |
 {% endfor %}
-**Judge:** {{ config.judge.provider | md }} / {{ config.judge.model | md }}, temperature {{ config.judge.temperature | md }}; rubric hash {{ (config.judge.rubric_hash or 'UNPINNED') | md }}. Judge must differ from target. An exact model string is frozen, never resolved through “latest” during analysis; native Anthropic has no promised deterministic seed control.
+**Judge:** {{ config.judge.provider | md }} / {{ config.judge.model | md }}; temperature {{ ('not sent (the model fixes its own sampling)' if config.judge.temperature is none else config.judge.temperature) | md }}; output limit {{ config.judge.max_tokens | md }} tokens; extended thinking {{ ('off' if config.judge.thinking == 'disabled' else 'left to the model') | md }}; rubric hash {{ (config.judge.rubric_hash or 'UNPINNED') | md }}. The judge runs on the launching account's own Anthropic key. Judge must differ from target. An exact model string is frozen, never resolved through “latest” during analysis; native Anthropic has no promised deterministic seed control.
 
 **Narrative model:** {{ config.narrative_model.id | md }} / {{ config.narrative_model.served_name | md }}. Its summary is labelled LLM-written and must pass numeric verification against script-produced tables.
 

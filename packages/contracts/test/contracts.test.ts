@@ -124,6 +124,8 @@ describe("run-time records", () => {
       "RunControlResponse",
       "RunKeysRequest",
       "RunKeysResponse",
+      "JudgeCheckRequest",
+      "JudgeCheckResponse",
       "CreateSessionRequest",
       "SessionView",
       "SessionControlRequest",

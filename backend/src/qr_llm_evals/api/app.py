@@ -38,7 +38,7 @@ from qr_llm_evals.api.session_runtime import SessionDispatch, SessionOrchestrato
 from qr_llm_evals.api.usage import UsageRecorder
 from qr_llm_evals.cards.loader import REPO_ROOT, load_cards
 from qr_llm_evals.cards.schema import EvalCard
-from qr_llm_evals.client.anthropic_judge import AnthropicJudgeClient, JudgeRequest
+from qr_llm_evals.client.anthropic_judge import JudgeRequest
 from qr_llm_evals.config import Settings
 from qr_llm_evals.inspect_bridge.subprocess_runner import run_inspect_card
 from qr_llm_evals.keys.secrets import SecretBag
@@ -49,7 +49,7 @@ from qr_llm_evals.models.schema import Arm
 from qr_llm_evals.prereg import load_renderer
 from qr_llm_evals.runner.control import RunControl
 from qr_llm_evals.runner.events import EventSink
-from qr_llm_evals.runner.judge_phase import NeedsKeysError
+from qr_llm_evals.runner.judge_phase import NeedsKeysError, judge_client
 from qr_llm_evals.runner.orchestrator import Orchestrator, RunnerConfig
 from qr_llm_evals.runner.tasks import effective_k
 from qr_llm_evals.store.schema import Run
@@ -89,9 +89,7 @@ def default_orchestrator_factory(
                 raise NeedsKeysError("anthropic")
             if any(message["role"] not in {"system", "user"} for message in messages):
                 raise ValueError("Inspect grader requires system/user messages")
-            client = AnthropicJudgeClient(
-                key, model=orch.study.judge.model, transport=judge_transport
-            )
+            client = judge_client(orch.study.judge, key, transport=judge_transport)
             return client.judge(
                 JudgeRequest(
                     system="\n\n".join(m["content"] for m in messages if m["role"] == "system"),
@@ -174,6 +172,7 @@ def create_app(
     engine_transport: httpx.AsyncBaseTransport | None = None,
     readiness_transport: httpx.BaseTransport | None = None,
     analysis_transport: httpx.BaseTransport | None = None,
+    judge_transport: httpx.BaseTransport | None = None,
     repo_root: Path | None = None,
     commit: str | None = None,
 ) -> FastAPI:
@@ -234,6 +233,7 @@ def create_app(
         engine_transport=engine_transport,
         readiness_transport=readiness_transport,
         analysis_transport=analysis_transport,
+        judge_transport=judge_transport,
         repo_root=root,
         version=package_version(),
         commit=commit if commit is not None else settings.commit,

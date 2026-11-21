@@ -279,7 +279,11 @@ async def test_route_open_rate_limited_and_export_launch_hash_parity(tmp_path: P
         assert app.state.qr.store.list_runs() == []
         launched = await client.post(
             "/api/runs",
-            json={**body, "prereg_hash": exported["prereg_hash"]},
+            json={
+                **body,
+                "prereg_hash": exported["prereg_hash"],
+                "provider_keys": {"anthropic": "sk-ant-" + "api03-prereg-judge-0123456789"},
+            },
             headers={"Authorization": f"Bearer {key}"},
         )
         assert launched.status_code == 201, launched.text

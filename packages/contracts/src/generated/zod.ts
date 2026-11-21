@@ -32,6 +32,8 @@ import RunControlRequestJson from "../../schema/RunControlRequest.json";
 import RunControlResponseJson from "../../schema/RunControlResponse.json";
 import RunKeysRequestJson from "../../schema/RunKeysRequest.json";
 import RunKeysResponseJson from "../../schema/RunKeysResponse.json";
+import JudgeCheckRequestJson from "../../schema/JudgeCheckRequest.json";
+import JudgeCheckResponseJson from "../../schema/JudgeCheckResponse.json";
 import CreateSessionRequestJson from "../../schema/CreateSessionRequest.json";
 import SessionViewJson from "../../schema/SessionView.json";
 import SessionControlRequestJson from "../../schema/SessionControlRequest.json";
@@ -86,6 +88,8 @@ export const RunControlRequestSchema = z.fromJSONSchema(RunControlRequestJson as
 export const RunControlResponseSchema = z.fromJSONSchema(RunControlResponseJson as unknown as Schema) as unknown as z.ZodType<T.RunControlResponse>;
 export const RunKeysRequestSchema = z.fromJSONSchema(RunKeysRequestJson as unknown as Schema) as unknown as z.ZodType<T.RunKeysRequest>;
 export const RunKeysResponseSchema = z.fromJSONSchema(RunKeysResponseJson as unknown as Schema) as unknown as z.ZodType<T.RunKeysResponse>;
+export const JudgeCheckRequestSchema = z.fromJSONSchema(JudgeCheckRequestJson as unknown as Schema) as unknown as z.ZodType<T.JudgeCheckRequest>;
+export const JudgeCheckResponseSchema = z.fromJSONSchema(JudgeCheckResponseJson as unknown as Schema) as unknown as z.ZodType<T.JudgeCheckResponse>;
 export const CreateSessionRequestSchema = z.fromJSONSchema(CreateSessionRequestJson as unknown as Schema) as unknown as z.ZodType<T.CreateSessionRequest>;
 export const SessionViewSchema = z.fromJSONSchema(SessionViewJson as unknown as Schema) as unknown as z.ZodType<T.SessionView>;
 export const SessionControlRequestSchema = z.fromJSONSchema(SessionControlRequestJson as unknown as Schema) as unknown as z.ZodType<T.SessionControlRequest>;
@@ -140,6 +144,8 @@ export const schemas = {
   RunControlResponse: RunControlResponseSchema,
   RunKeysRequest: RunKeysRequestSchema,
   RunKeysResponse: RunKeysResponseSchema,
+  JudgeCheckRequest: JudgeCheckRequestSchema,
+  JudgeCheckResponse: JudgeCheckResponseSchema,
   CreateSessionRequest: CreateSessionRequestSchema,
   SessionView: SessionViewSchema,
   SessionControlRequest: SessionControlRequestSchema,

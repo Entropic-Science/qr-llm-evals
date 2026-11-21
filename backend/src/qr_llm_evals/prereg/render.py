@@ -73,6 +73,11 @@ class Renderer:
             warnings.append(
                 "Judge model is unresolved; freeze an exact identifier before full run."
             )
+        if config.judge.temperature not in (None, 0):
+            warnings.append(
+                f"Judge temperature is {config.judge.temperature}: its scores vary between "
+                "repeated calls on the same reply."
+            )
         if report is None:
             warnings.append(
                 "Readiness not supplied: arm availability, entropy health and achieved determinism are unverified."

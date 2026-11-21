@@ -86,6 +86,12 @@
     "RunKeysResponse": {
       "$ref": "#/$defs/RunKeysResponse"
     },
+    "JudgeCheckRequest": {
+      "$ref": "#/$defs/JudgeCheckRequest"
+    },
+    "JudgeCheckResponse": {
+      "$ref": "#/$defs/JudgeCheckResponse"
+    },
     "CreateSessionRequest": {
       "$ref": "#/$defs/CreateSessionRequest"
     },
@@ -187,6 +193,8 @@
     "RunControlResponse",
     "RunKeysRequest",
     "RunKeysResponse",
+    "JudgeCheckRequest",
+    "JudgeCheckResponse",
     "CreateSessionRequest",
     "SessionView",
     "SessionControlRequest",
@@ -1889,6 +1897,73 @@
       "title": "Judge",
       "type": "object"
     },
+    "JudgeCheckRequest": {
+      "additionalProperties": false,
+      "description": "The judge settings to try and the key to try them with (used once, never kept).",
+      "properties": {
+        "judge": {
+          "$ref": "#/$defs/JudgeSpec"
+        },
+        "api_key": {
+          "maxLength": 512,
+          "minLength": 8,
+          "title": "Api Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "judge",
+        "api_key"
+      ],
+      "title": "JudgeCheckRequest",
+      "type": "object"
+    },
+    "JudgeCheckResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "ok": {
+          "title": "Ok",
+          "type": "boolean"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "HTTP status the Anthropic API answered with.",
+          "title": "Status"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The model that answered.",
+          "title": "Model"
+        },
+        "detail": {
+          "description": "What happened, or the provider's error text.",
+          "title": "Detail",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ok",
+        "status",
+        "detail"
+      ],
+      "title": "JudgeCheckResponse",
+      "type": "object"
+    },
     "JudgeRow": {
       "additionalProperties": false,
       "description": "One line of ``judge/<judge_id>.jsonl``.",
@@ -1952,7 +2027,7 @@
     },
     "JudgeSpec": {
       "additionalProperties": false,
-      "description": "The study's shared judge (spec D-9: Anthropic Messages API, temperature 0).",
+      "description": "The study's shared judge: an Anthropic Messages API call on the user's own key.\n\nEvery field is part of the study configuration and so of its\npre-registration hash; a judge cannot be re-tuned after registration\nwithout the hashes changing.",
       "properties": {
         "provider": {
           "const": "anthropic",
@@ -1961,17 +2036,43 @@
           "type": "string"
         },
         "model": {
+          "default": "claude-haiku-5-5",
           "minLength": 1,
           "title": "Model",
           "type": "string"
         },
         "temperature": {
-          "default": 0.0,
-          "description": "Always 0 (registry rule).",
-          "maximum": 0,
-          "minimum": 0,
-          "title": "Temperature",
-          "type": "number"
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sampling temperature sent with each judge call; None sends none. Current Claude models reject the parameter, so it is only for older models that accept it.",
+          "title": "Temperature"
+        },
+        "max_tokens": {
+          "default": 1024,
+          "description": "Output cap of one judge call.",
+          "maximum": 16000,
+          "minimum": 64,
+          "title": "Max Tokens",
+          "type": "integer"
+        },
+        "thinking": {
+          "default": "disabled",
+          "description": "'disabled' asks for a single pass with no extended thinking; 'model_default' sends nothing and lets the model decide (needed for models that refuse 'disabled').",
+          "enum": [
+            "disabled",
+            "model_default"
+          ],
+          "title": "Thinking",
+          "type": "string"
         },
         "rubric_hash": {
           "anyOf": [
@@ -1987,9 +2088,6 @@
           "title": "Rubric Hash"
         }
       },
-      "required": [
-        "model"
-      ],
       "title": "JudgeSpec",
       "type": "object"
     },

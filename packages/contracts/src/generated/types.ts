@@ -35,6 +35,8 @@ export interface Contracts {
   RunControlResponse: RunControlResponse;
   RunKeysRequest: RunKeysRequest;
   RunKeysResponse: RunKeysResponse;
+  JudgeCheckRequest: JudgeCheckRequest;
+  JudgeCheckResponse: JudgeCheckResponse;
   CreateSessionRequest: CreateSessionRequest;
   SessionView: SessionView;
   SessionControlRequest: SessionControlRequest;
@@ -167,18 +169,30 @@ export interface CardOverrides {
   items?: number | null;
 }
 /**
- * The study's shared judge (spec D-9: Anthropic Messages API, temperature 0).
+ * The study's shared judge: an Anthropic Messages API call on the user's own key.
+ *
+ * Every field is part of the study configuration and so of its
+ * pre-registration hash; a judge cannot be re-tuned after registration
+ * without the hashes changing.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "JudgeSpec".
  */
 export interface JudgeSpec {
   provider?: "anthropic";
-  model: string;
+  model?: string;
   /**
-   * Always 0 (registry rule).
+   * Sampling temperature sent with each judge call; None sends none. Current Claude models reject the parameter, so it is only for older models that accept it.
    */
-  temperature?: number;
+  temperature?: number | null;
+  /**
+   * Output cap of one judge call.
+   */
+  max_tokens?: number;
+  /**
+   * 'disabled' asks for a single pass with no extended thinking; 'model_default' sends nothing and lets the model decide (needed for models that refuse 'disabled').
+   */
+  thinking?: "disabled" | "model_default";
   rubric_hash?: string | null;
 }
 /**
@@ -1113,6 +1127,35 @@ export interface RunKeysResponse {
   };
   state: string;
   needs_keys: boolean;
+}
+/**
+ * The judge settings to try and the key to try them with (used once, never kept).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "JudgeCheckRequest".
+ */
+export interface JudgeCheckRequest {
+  judge: JudgeSpec;
+  api_key: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "JudgeCheckResponse".
+ */
+export interface JudgeCheckResponse {
+  ok: boolean;
+  /**
+   * HTTP status the Anthropic API answered with.
+   */
+  status: number | null;
+  /**
+   * The model that answered.
+   */
+  model?: string | null;
+  /**
+   * What happened, or the provider's error text.
+   */
+  detail: string;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema

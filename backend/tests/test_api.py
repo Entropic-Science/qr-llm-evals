@@ -118,6 +118,7 @@ class Harness:
             limiter=TokenBucketLimiter(rate_per_s=1000.0, burst=1000),
             engine_transport=httpx.MockTransport(self._engine_health),
             readiness_transport=self.engine.transport,
+            judge_transport=self.judge.transport,
             repo_root=FIXTURES,
         )
 
@@ -170,7 +171,9 @@ def _auth(key: str = GOOD_KEY) -> dict[str, str]:
 async def _launch(
     client: httpx.AsyncClient, *, keys: dict[str, str] | None = None, **body: Any
 ) -> dict[str, Any]:
-    payload = {"config": _study_dict(), "kind": "pilot", "provider_keys": keys or {}, **body}
+    # The stub study has a judged card, so a launch needs the judge key.
+    provider_keys = {"anthropic": ANTHROPIC_SECRET} if keys is None else keys
+    payload = {"config": _study_dict(), "kind": "pilot", "provider_keys": provider_keys, **body}
     resp = await client.post(f"{API}/runs", json=payload, headers=_auth())
     assert resp.status_code == 201, resp.text
     data: dict[str, Any] = resp.json()
@@ -545,8 +548,22 @@ async def test_start_runs_to_completion_and_streams_events(
 async def test_missing_judge_key_parks_run_in_needs_keys_then_resumes(
     client: httpx.AsyncClient, harness: Harness
 ) -> None:
-    launched = await _launch(client)  # no anthropic key
+    # A launch without the judge key is refused before anything is generated.
+    refused = await client.post(
+        f"{API}/runs",
+        json={"config": _study_dict(), "kind": "pilot", "provider_keys": {}},
+        headers=_auth(),
+    )
+    err = _assert_envelope(refused, 400)
+    assert err["param"] == "provider_keys" and "Anthropic key" in err["message"]
+    assert harness.engine.requests == []
+
+    # Keys live in memory only, so a backend restart leaves a run without them.
+    launched = await _launch(client)
     run_id, host = launched["run_id"], {"X-Host-Token": launched["host_token"]}
+    live = harness.state.registry.get(run_id)
+    assert live is not None
+    live.secrets = SecretBag({})
     await client.post(f"{API}/runs/{run_id}/control", json={"action": "start"}, headers=host)
     view = await _wait_state(client, run_id, {"needs_keys"})
     assert view["run"]["needs_keys"] is True

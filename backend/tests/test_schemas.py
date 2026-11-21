@@ -42,7 +42,7 @@ FIXTURE = CONTRACTS / "fixtures" / "study1.json"
 
 #: Pinned vectors. If you changed the fixture or the canonicalisation on
 #: purpose, recompute with ``config_hash(StudyConfig.model_validate(fixture))``.
-STUDY1_CONFIG_HASH = "fc1dbe45830a54759790926f98d2f80d72c78b9aaf46469d31b6f2016004ef9c"
+STUDY1_CONFIG_HASH = "2d17abd8a998e06ffa95c3bba98d248a8b49f2cd886e03a270cdb55ee5d9c4e7"
 VECTOR_IN: dict[str, Any] = {"b": 1, "a": [1.5, "é", None, True], "c": {"z": 0, "y": "x"}}
 VECTOR_CANONICAL = '{"a":[1.5,"é",null,true],"b":1,"c":{"y":"x","z":0}}'
 VECTOR_HASH = "4f803db5b8386ed36f104e25faf1c1573685235b2ebc255251526df9ded94836"
@@ -156,7 +156,9 @@ def test_arm_accepts_the_study1_shapes() -> None:
         (lambda d: d["arms"][2].__setitem__("study_seed", 99), "not in seeds"),
         (lambda d: d.__setitem__("seeds", [1, 1]), "distinct"),
         (lambda d: d["cards"].append(dict(d["cards"][0])), "duplicate card ids"),
-        (lambda d: d["judge"].__setitem__("temperature", 0.7), "less than or equal to 0"),
+        (lambda d: d["judge"].__setitem__("temperature", 1.7), "less than or equal to 1"),
+        (lambda d: d["judge"].__setitem__("max_tokens", 8), "greater than or equal to 64"),
+        (lambda d: d["judge"].__setitem__("thinking", "on"), "disabled"),
         (lambda d: d.__setitem__("data_licence", "MIT"), "data_licence"),
         (lambda d: d.__setitem__("created_at", "2026-09-14T00:00:00"), "timezone"),
     ],

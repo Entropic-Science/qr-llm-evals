@@ -2,21 +2,23 @@
 
 The judge is a native Messages-API call over ``httpx`` (``POST /v1/messages``),
 never an experimental sampler and never an SDK (D-9: "thin httpx keeps body
-control"). Determinism pins, all frozen in the pre-registration:
+control"). What pins a judge, all frozen in the pre-registration:
 
-* ``temperature: 0`` (:data:`JUDGE_TEMPERATURE`);
+* the exact model string (:data:`DEFAULT_JUDGE_MODEL`, the current Claude
+  Haiku, unless the study names another);
 * a **frozen system prompt** (the rubric; :attr:`JudgeRequest.system_sha256`
   goes into the prereg) — the "seed-equivalent", since Messages has no seed;
 * ``metadata.user_id = judge_run_id`` so every judge call of one run is
   attributable upstream;
-* the exact model string (:data:`DEFAULT_JUDGE_MODEL`), which is
-  ``claude-sonnet-4-6`` by default because that generation still honours
-  ``temperature``; Sonnet 5 and later reject sampling parameters with a 400,
-  so a study that freezes a newer model must also freeze ``send_temperature=False``
-  and record that the API, not the harness, fixes the sampling.
+* the call parameters the study chose: ``max_tokens``, ``thinking`` and
+  ``temperature``.
 
-No ``thinking`` block is requested: on the default model omitting it means no
-extended thinking, which keeps the judge a single deterministic pass.
+``temperature`` is sent only when the study sets one. Current Claude models
+(Haiku 5.5, Sonnet 5 and later, Opus 4.7 and later) answer a non-default
+sampling parameter with a 400, so the default sends none and the API, not the
+harness, fixes the sampling. ``thinking`` is ``{"type": "disabled"}`` by
+default, which keeps the judge a single pass; models that refuse that value
+need ``thinking=None``, which sends nothing.
 
 Errors surface as :class:`JudgeError` with the status and a body excerpt
 (server text only; the ``x-api-key`` header never enters any message). ``429``
@@ -33,12 +35,12 @@ from typing import Any
 
 import httpx
 
-DEFAULT_JUDGE_MODEL = "claude-sonnet-4-6"
+DEFAULT_JUDGE_MODEL = "claude-haiku-5-5"
 DEFAULT_BASE_URL = "https://api.anthropic.com"
 MESSAGES_PATH = "/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-JUDGE_TEMPERATURE = 0.0
-DEFAULT_MAX_TOKENS = 2048
+DEFAULT_MAX_TOKENS = 1024
+THINKING_DISABLED = "disabled"
 DEFAULT_TIMEOUT_S = 120.0
 ERROR_EXCERPT_CHARS = 500
 RETRY_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504, 529})
@@ -60,7 +62,8 @@ class JudgeRequest:
     system: str
     user: str
     judge_run_id: str
-    max_tokens: int = DEFAULT_MAX_TOKENS
+    #: Per-call override of the client's ``max_tokens``; ``None`` uses the client's.
+    max_tokens: int | None = None
     stop_sequences: tuple[str, ...] = ()
 
     @property
@@ -110,7 +113,9 @@ class AnthropicJudgeClient:
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT_S,
         max_retries: int = 2,
-        send_temperature: bool = True,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float | None = None,
+        thinking: str | None = THINKING_DISABLED,
         transport: httpx.BaseTransport | None = None,
         async_transport: httpx.AsyncBaseTransport | None = None,
         sleep: bool = True,
@@ -122,7 +127,9 @@ class AnthropicJudgeClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_retries = max(0, max_retries)
-        self.send_temperature = send_temperature
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.thinking = thinking
         self._transport = transport
         self._async_transport = async_transport
         self._sleep = sleep
@@ -146,13 +153,15 @@ class AnthropicJudgeClient:
         """The exact request body (pure; tests and the prereg pin it)."""
         body: dict[str, Any] = {
             "model": self.model,
-            "max_tokens": req.max_tokens,
+            "max_tokens": req.max_tokens or self.max_tokens,
             "system": req.system,
             "messages": [{"role": "user", "content": req.user}],
             "metadata": {"user_id": req.judge_run_id},
         }
-        if self.send_temperature:
-            body["temperature"] = JUDGE_TEMPERATURE
+        if self.temperature is not None:
+            body["temperature"] = self.temperature
+        if self.thinking is not None:
+            body["thinking"] = {"type": self.thinking}
         if req.stop_sequences:
             body["stop_sequences"] = list(req.stop_sequences)
         return body
@@ -208,7 +217,8 @@ class AnthropicJudgeClient:
 __all__ = [
     "ANTHROPIC_VERSION",
     "DEFAULT_JUDGE_MODEL",
-    "JUDGE_TEMPERATURE",
+    "DEFAULT_MAX_TOKENS",
+    "THINKING_DISABLED",
     "AnthropicJudgeClient",
     "JudgeError",
     "JudgeRequest",

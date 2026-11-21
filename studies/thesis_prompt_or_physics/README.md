@@ -51,8 +51,10 @@ selector); only the byte source differs.
 
 The 30 prompt variants are 10 distinct prompts (5 instructions × 2 questions)
 at loop depths 1 to 3; H1, H2 and C1 treat the 10 base prompts as the units.
-Judge calls (study judge, temperature 0): 2,700 + 1,800 per arm, 27,000 for six
-arms. Supply the BYO Anthropic key at launch (D-14).
+Judge calls (study judge, `claude-haiku-5-5`, no temperature sent, thinking off):
+2,700 + 1,800 per arm, 27,000 for six arms. The judge runs on the launching
+account's own Anthropic key, which must be supplied at launch (D-14); a launch
+without it is refused.
 
 ## Checks, tests and decision rules (frozen in `expectations` and the settings file)
 
@@ -108,9 +110,10 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
 2. **Configure the box.** Set `QR_EVALS_TOKEN_LOG_DIR` (DEP-1 token log; without it
    H0 and H4 are unavailable, never approximated). Optionally raise
    `QR_EVALS_TOP_LOGPROBS` together with vLLM's `--max-logprobs`.
-3. **Edit the template.** Author, contact, the exact judge model (one that accepts
-   temperature 0 and stays available for the whole study; the harness default
-   `claude-sonnet-4-6`; Sonnet 5 and later reject it), and the theory author's
+3. **Edit the template.** Author, contact, the judge settings (the template uses
+   `claude-haiku-5-5` with no temperature and thinking off; check that the model
+   stays available for the whole study, and try the settings with your key on
+   the wizard's Keys step or `POST /api/judge/check`), and the theory author's
    predictions in `expectations`. List the "Yes" tokens:
    `python studies/thesis_prompt_or_physics/thesis_first_word_tokens.py --tokenizer tokenizer.json --settings studies/thesis_prompt_or_physics/settings.json --checkpoint <id@revision>`.
    Then print the settings hash and write it into `expectations` in place of

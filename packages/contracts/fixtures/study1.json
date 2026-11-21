@@ -110,8 +110,10 @@
   ],
   "judge": {
     "provider": "anthropic",
-    "model": "claude-sonnet-4-5",
-    "temperature": 0.0,
+    "model": "claude-haiku-5-5",
+    "temperature": null,
+    "max_tokens": 1024,
+    "thinking": "disabled",
     "rubric_hash": null
   },
   "narrative_model": {

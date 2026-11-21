@@ -21,7 +21,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from qr_llm_evals.cards.estimates import SelectionEstimate
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan
-from qr_llm_evals.models.schema import StudyConfig
+from qr_llm_evals.models.schema import JudgeSpec, StudyConfig
 from qr_llm_evals.store.schema import ReadinessReport, Run, RunKind
 from qr_llm_evals.supervised.schema import (
     AnswerValue,
@@ -201,6 +201,20 @@ class RunControlResponse(_Strict):
     run_id: str
     action: ControlAction
     state: str
+
+
+class JudgeCheckRequest(_Strict):
+    """The judge settings to try and the key to try them with (used once, never kept)."""
+
+    judge: JudgeSpec
+    api_key: str = Field(min_length=8, max_length=512)
+
+
+class JudgeCheckResponse(_Strict):
+    ok: bool
+    status: int | None = Field(description="HTTP status the Anthropic API answered with.")
+    model: str | None = Field(default=None, description="The model that answered.")
+    detail: str = Field(description="What happened, or the provider's error text.")
 
 
 class RunKeysRequest(_Strict):
@@ -522,6 +536,8 @@ __all__ = [
     "ReadinessRequest",
     "RunControlRequest",
     "RunControlResponse",
+    "JudgeCheckRequest",
+    "JudgeCheckResponse",
     "RunKeysRequest",
     "RunKeysResponse",
     "RunListResponse",
