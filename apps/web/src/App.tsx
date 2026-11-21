@@ -22,7 +22,7 @@ function Home() {
   return <div className="home-stack">
     <section className="hero" aria-labelledby="home-title">
       <p className="eyebrow">Pre-registered research instrument · v0.1</p>
-      <h1 id="home-title">Trace the difference back to its source.</h1>
+      <h1 id="home-title">Trace the difference back to <em>its source</em>.</h1>
       <p className="hero__lede">Compare quantum-random and seeded pseudo-random token sampling on one controlled evaluation pipeline—with the study design, provenance, and analysis fixed in advance.</p>
       <div className="hero__actions"><Link className="button button--primary" href="/evals">Inspect the eval registry</Link><Link className="text-link" href="/docs/determinism">Read the determinism briefing <span aria-hidden="true">→</span></Link></div>
     </section>

@@ -132,8 +132,8 @@ export function Prereg() {
   return <div className="prereg-page">
     <header className="prereg-header">
       <div>
-        <p className="eyebrow">Protocol checkpoint · freeze before launch</p>
-        <h1>Fix the method before seeing the result.</h1>
+        <div className="page-heading"><p className="eyebrow">Protocol checkpoint · freeze before launch</p>
+        <h1>Fix the method before seeing the result.</h1></div>
         <p>This page turns the current machine configuration and your prior expectations into a verifiable, publishable record.</p>
       </div>
       <dl className="prereg-stage"><div><dt>Stage</dt><dd>Pre-registration</dd></div><div><dt>State</dt><dd>{isStale ? "Document stale" : document ? "Hash verified" : "Draft"}</dd></div></dl>

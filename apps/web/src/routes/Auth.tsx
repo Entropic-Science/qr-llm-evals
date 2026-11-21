@@ -30,8 +30,8 @@ function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return <section className="auth-page" aria-labelledby="auth-title">
-    <p className="eyebrow">{signup ? "New account" : "Account"}</p>
-    <h1 id="auth-title">{signup ? "Create an account" : "Sign in"}</h1>
+    <div className="page-heading"><p className="eyebrow">{signup ? "New account" : "Account"}</p>
+    <h1 id="auth-title">{signup ? "Create an account" : "Sign in"}</h1></div>
     <p className="step-intro">{signup
       ? "An account links one api.entropic.science key to a username. Runs you launch are recorded under it, with the tokens they use."
       : "Sign in to launch runs and see the tokens your runs have used."}</p>
