@@ -116,6 +116,8 @@ describe("run-time records", () => {
       "CardsResponse",
       "ModelsResponse",
       "EstimatesResponse",
+      "ConfigParseRequest",
+      "ConfigParseResponse",
       "ReadinessRequest",
       "LaunchRequest",
       "LaunchResponse",

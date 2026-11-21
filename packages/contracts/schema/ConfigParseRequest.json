@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ConfigParseRequest.json",
+  "additionalProperties": false,
+  "properties": {
+    "text": {
+      "description": "A study file: YAML or JSON.",
+      "maxLength": 200000,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "text"
+  ],
+  "title": "ConfigParseRequest",
+  "type": "object"
+}

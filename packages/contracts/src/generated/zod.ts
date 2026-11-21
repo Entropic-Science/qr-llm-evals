@@ -24,6 +24,8 @@ import PreregRenderResponseJson from "../../schema/PreregRenderResponse.json";
 import CardsResponseJson from "../../schema/CardsResponse.json";
 import ModelsResponseJson from "../../schema/ModelsResponse.json";
 import EstimatesResponseJson from "../../schema/EstimatesResponse.json";
+import ConfigParseRequestJson from "../../schema/ConfigParseRequest.json";
+import ConfigParseResponseJson from "../../schema/ConfigParseResponse.json";
 import ReadinessRequestJson from "../../schema/ReadinessRequest.json";
 import LaunchRequestJson from "../../schema/LaunchRequest.json";
 import LaunchResponseJson from "../../schema/LaunchResponse.json";
@@ -80,6 +82,8 @@ export const PreregRenderResponseSchema = z.fromJSONSchema(PreregRenderResponseJ
 export const CardsResponseSchema = z.fromJSONSchema(CardsResponseJson as unknown as Schema) as unknown as z.ZodType<T.CardsResponse>;
 export const ModelsResponseSchema = z.fromJSONSchema(ModelsResponseJson as unknown as Schema) as unknown as z.ZodType<T.ModelsResponse>;
 export const EstimatesResponseSchema = z.fromJSONSchema(EstimatesResponseJson as unknown as Schema) as unknown as z.ZodType<T.EstimatesResponse>;
+export const ConfigParseRequestSchema = z.fromJSONSchema(ConfigParseRequestJson as unknown as Schema) as unknown as z.ZodType<T.ConfigParseRequest>;
+export const ConfigParseResponseSchema = z.fromJSONSchema(ConfigParseResponseJson as unknown as Schema) as unknown as z.ZodType<T.ConfigParseResponse>;
 export const ReadinessRequestSchema = z.fromJSONSchema(ReadinessRequestJson as unknown as Schema) as unknown as z.ZodType<T.ReadinessRequest>;
 export const LaunchRequestSchema = z.fromJSONSchema(LaunchRequestJson as unknown as Schema) as unknown as z.ZodType<T.LaunchRequest>;
 export const LaunchResponseSchema = z.fromJSONSchema(LaunchResponseJson as unknown as Schema) as unknown as z.ZodType<T.LaunchResponse>;
@@ -136,6 +140,8 @@ export const schemas = {
   CardsResponse: CardsResponseSchema,
   ModelsResponse: ModelsResponseSchema,
   EstimatesResponse: EstimatesResponseSchema,
+  ConfigParseRequest: ConfigParseRequestSchema,
+  ConfigParseResponse: ConfigParseResponseSchema,
   ReadinessRequest: ReadinessRequestSchema,
   LaunchRequest: LaunchRequestSchema,
   LaunchResponse: LaunchResponseSchema,

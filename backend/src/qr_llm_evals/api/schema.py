@@ -203,6 +203,16 @@ class RunControlResponse(_Strict):
     state: str
 
 
+class ConfigParseRequest(_Strict):
+    text: str = Field(min_length=1, max_length=200_000, description="A study file: YAML or JSON.")
+
+
+class ConfigParseResponse(_Strict):
+    config: StudyConfig = Field(description="The configuration in full form, defaults filled in.")
+    config_hash: str
+    unknown_cards: list[str] = Field(description="Card ids this registry does not have.")
+
+
 class JudgeCheckRequest(_Strict):
     """The judge settings to try and the key to try them with (used once, never kept)."""
 
@@ -536,6 +546,8 @@ __all__ = [
     "ReadinessRequest",
     "RunControlRequest",
     "RunControlResponse",
+    "ConfigParseRequest",
+    "ConfigParseResponse",
     "JudgeCheckRequest",
     "JudgeCheckResponse",
     "RunKeysRequest",

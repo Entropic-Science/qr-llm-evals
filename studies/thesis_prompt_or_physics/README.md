@@ -121,13 +121,18 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    Then print the settings hash and write it into `expectations` in place of
    `FILL-IN-BEFORE-REGISTRATION`, so it is part of the preregistration:
    `python studies/thesis_prompt_or_physics/thesis_report.py hash --settings studies/thesis_prompt_or_physics/settings.json`.
-4. **Readiness.** Signed in, run readiness on the study from the web app (or
-   `POST /api/readiness` with a session token); it probes with the configured
-   depth, checks envelope equivalence, the token log and the bent reference
-   mean. The bend assumes qr-sampler's defaults (10,000 bytes per token,
+4. **Readiness.** The launch script runs it as the first part of `lock` and
+   `pilot` (below) and prints the result; the web app runs it when you press
+   "Launch run". It probes with the configured depth, checks envelope
+   equivalence, the token log and the bent reference mean. The bend assumes qr-sampler's defaults (10,000 bytes per token,
    reference mean 127.5); the harness refuses any override of them.
-5. **Pilot, ordinary numbers only.** Launch a pilot run with the `qrng` arm marked
-   unavailable (`kind: pilot`). Then
+5. **Pilot, ordinary numbers only.** Launch a pilot run with the quantum arm
+   switched off. The script does both; it asks for your account password and
+   your Anthropic judge key at the prompt:
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> pilot --start
+   ```
+   Then
    ```bash
    python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json
    ```
@@ -140,13 +145,35 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    with the harness's pilot-widened margin; the thesis decision uses only the
    fixed one. The pilot and the full run share seeds, so the seeded and bent
    arms of the full run repeat the pilot's replies; only the quantum arm is new.
-6. **Lock and register.** Render the preregistration (`POST /api/prereg/render`),
-   keep `plan.json` and the settings file, record `config_hash`, `plan_hash`,
-   `prereg_hash` and the settings hash, and register them on a public registry
-   with a timestamp before the full run.
-7. **Full run.** Launch with the exported hash. The arms run concurrently (one
-   dispatcher per arm), so quantum and ordinary requests are interleaved in time.
+6. **Lock and register.** Lock the study:
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> lock --out registration/
+   ```
+   This runs readiness, renders the preregistration and writes `config.json`,
+   `readiness.json`, `prereg.md`, `plan.json` and `hashes.json` into the
+   folder. `hashes.json` holds the four hashes: `config_hash`, `plan_hash`,
+   `prereg_hash` and the settings hash. It refuses a study that still has
+   template placeholders, or whose expectations do not contain the settings
+   hash, or when the token log is not available. Register the four hashes on a
+   public registry with a timestamp before the full run. Keep the folder: the
+   full run is launched from it, and `plan.json` is the plan the decision
+   script needs.
+7. **Full run.** Launch from the lock folder:
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> launch --lock registration/ --start
+   ```
+   The script sends the locked configuration and the locked readiness report,
+   so the server freezes the same preregistration, and it stops without
+   launching if the study file, the settings file or the eval registry changed
+   since the lock. The run's host token (needed to pause or abort it) is saved
+   in the lock folder, not printed. The arms run concurrently (one dispatcher
+   per arm), so quantum and ordinary requests are interleaved in time.
    Interruptions resume without regenerating completed samples.
+
+   The same study can be opened in the web app instead: on the configuration
+   page press "Load study file" and choose `study.yaml`. The web app renders
+   the preregistration at the moment of launch, so for a registered study use
+   the script, which launches exactly what was locked.
 8. **Analyse and decide.**
    ```bash
    python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <registered hash>

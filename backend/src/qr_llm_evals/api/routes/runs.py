@@ -42,6 +42,7 @@ from qr_llm_evals.api.schema import (
     RunKeysResponse,
     RunView,
 )
+from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.runner.control import RunControlError
@@ -64,11 +65,26 @@ def _check_cards(state: AppState, config: StudyConfig) -> None:
     unknown = [c.card_id for c in config.cards if c.card_id not in state.cards]
     if unknown:
         raise ApiError(400, f"unknown cards: {unknown}", param="config.cards")
-    unselectable = [c.card_id for c in config.cards if not state.cards[c.card_id].selectable]
+    unselectable = [c.card_id for c in config.cards if not _launchable(state.cards[c.card_id])]
     if unselectable:
         raise ApiError(
             400, f"cards not selectable in this registry: {unselectable}", param="config.cards"
         )
+
+
+def _launchable(card: EvalCard) -> bool:
+    """May a study name this card?
+
+    ``selectable`` says whether a person may tick the card on its own. The
+    derived cards (Tier 0 and the stream-deviation windows) are not: they
+    generate nothing and are computed from the records of the other cards, so
+    they only make sense inside a study that lists them next to those cards.
+    Such a study must still be launchable, which is how Study 1 and the thesis
+    study are written. A planned card is never launchable.
+    """
+    if card.selectable:
+        return True
+    return card.status == "implemented" and card.dataset.scheme == "derived"
 
 
 def _check_judge_key(state: AppState, config: StudyConfig, secrets: SecretBag) -> None:
