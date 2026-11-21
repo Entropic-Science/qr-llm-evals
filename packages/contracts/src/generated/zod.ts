@@ -54,6 +54,8 @@ import UsageResponseJson from "../../schema/UsageResponse.json";
 import AdminUserViewJson from "../../schema/AdminUserView.json";
 import AdminUsersResponseJson from "../../schema/AdminUsersResponse.json";
 import AdminUserUpdateJson from "../../schema/AdminUserUpdate.json";
+import SettleRequestJson from "../../schema/SettleRequest.json";
+import StorageResponseJson from "../../schema/StorageResponse.json";
 
 type Schema = z.core.JSONSchema.BaseSchema;
 
@@ -106,6 +108,8 @@ export const UsageResponseSchema = z.fromJSONSchema(UsageResponseJson as unknown
 export const AdminUserViewSchema = z.fromJSONSchema(AdminUserViewJson as unknown as Schema) as unknown as z.ZodType<T.AdminUserView>;
 export const AdminUsersResponseSchema = z.fromJSONSchema(AdminUsersResponseJson as unknown as Schema) as unknown as z.ZodType<T.AdminUsersResponse>;
 export const AdminUserUpdateSchema = z.fromJSONSchema(AdminUserUpdateJson as unknown as Schema) as unknown as z.ZodType<T.AdminUserUpdate>;
+export const SettleRequestSchema = z.fromJSONSchema(SettleRequestJson as unknown as Schema) as unknown as z.ZodType<T.SettleRequest>;
+export const StorageResponseSchema = z.fromJSONSchema(StorageResponseJson as unknown as Schema) as unknown as z.ZodType<T.StorageResponse>;
 
 /** Every contract name → its zod validator, in registration order. */
 export const schemas = {
@@ -158,6 +162,8 @@ export const schemas = {
   AdminUserView: AdminUserViewSchema,
   AdminUsersResponse: AdminUsersResponseSchema,
   AdminUserUpdate: AdminUserUpdateSchema,
+  SettleRequest: SettleRequestSchema,
+  StorageResponse: StorageResponseSchema,
 } as const;
 
 export type ContractName = keyof typeof schemas;

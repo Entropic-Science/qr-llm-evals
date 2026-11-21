@@ -44,40 +44,56 @@
     },
     "UsageTotalsView": {
       "additionalProperties": false,
+      "description": "Tokens by lane. Input = prompt tokens, output = generated tokens.",
       "properties": {
         "calls": {
           "minimum": 0,
           "title": "Calls",
           "type": "integer"
         },
-        "prompt_tokens": {
+        "qrng_input": {
+          "description": "Shared engine, quantum arm.",
           "minimum": 0,
-          "title": "Prompt Tokens",
+          "title": "Qrng Input",
           "type": "integer"
         },
-        "completion_tokens": {
+        "qrng_output": {
           "minimum": 0,
-          "title": "Completion Tokens",
+          "title": "Qrng Output",
           "type": "integer"
         },
-        "reasoning_tokens": {
+        "prng_input": {
+          "description": "Shared engine, every other call.",
           "minimum": 0,
-          "title": "Reasoning Tokens",
+          "title": "Prng Input",
           "type": "integer"
         },
-        "charged_tokens": {
-          "description": "Tokens counted against the quota (qr-server generations only).",
+        "prng_output": {
           "minimum": 0,
-          "title": "Charged Tokens",
+          "title": "Prng Output",
+          "type": "integer"
+        },
+        "own_key_tokens": {
+          "description": "Input + output on the user's own provider key; not billed here.",
+          "minimum": 0,
+          "title": "Own Key Tokens",
+          "type": "integer"
+        },
+        "cost_microusd": {
+          "description": "Price of the four billed numbers, in 1e-6 USD.",
+          "minimum": 0,
+          "title": "Cost Microusd",
           "type": "integer"
         }
       },
       "required": [
         "calls",
-        "prompt_tokens",
-        "completion_tokens",
-        "reasoning_tokens",
-        "charged_tokens"
+        "qrng_input",
+        "qrng_output",
+        "prng_input",
+        "prng_output",
+        "own_key_tokens",
+        "cost_microusd"
       ],
       "title": "UsageTotalsView",
       "type": "object"
@@ -165,6 +181,16 @@
     },
     "totals": {
       "$ref": "#/$defs/UsageTotalsView"
+    },
+    "outstanding_microusd": {
+      "title": "Outstanding Microusd",
+      "type": "integer"
+    },
+    "storage_bytes": {
+      "description": "Disk used by the account's run artifacts.",
+      "minimum": 0,
+      "title": "Storage Bytes",
+      "type": "integer"
     }
   },
   "required": [
@@ -172,7 +198,9 @@
     "disabled",
     "token_quota",
     "quota",
-    "totals"
+    "totals",
+    "outstanding_microusd",
+    "storage_bytes"
   ],
   "title": "AdminUserView",
   "type": "object"

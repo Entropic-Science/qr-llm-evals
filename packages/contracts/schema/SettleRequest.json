@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "SettleRequest.json",
+  "additionalProperties": false,
+  "description": "Record that an account paid everything it owes right now.",
+  "properties": {
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Note"
+    }
+  },
+  "title": "SettleRequest",
+  "type": "object"
+}

@@ -44,6 +44,8 @@ from qr_llm_evals.api.schema import (
     LoginRequest,
     LogoutResponse,
     SignupRequest,
+    StorageResponse,
+    StorageRunView,
     UsageResponse,
     UserView,
 )
@@ -161,6 +163,25 @@ async def me(user: CurrentUser) -> UserView:
 @router.get("/me/usage", response_model=UsageResponse)
 async def my_usage(user: CurrentUser, state: State) -> UsageResponse:
     return usage_response(state.ledger, user)
+
+
+@router.get("/me/storage", response_model=StorageResponse)
+async def my_storage(user: CurrentUser, state: State) -> StorageResponse:
+    """Disk used by the account's runs; download a run's study bundle to keep a copy."""
+    sized = state.storage.runs_of(state.store, user.user_id)
+    return StorageResponse(
+        total_bytes=sum(item.size_bytes for item in sized),
+        runs=[
+            StorageRunView(
+                run_id=item.run.run_id,
+                study_id=item.run.study_id,
+                state=item.run.state,
+                created_at=item.run.created_at,
+                size_bytes=item.size_bytes,
+            )
+            for item in sized
+        ],
+    )
 
 
 @router.post("/me/key", response_model=UserView)

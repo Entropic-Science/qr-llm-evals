@@ -145,12 +145,33 @@ An admin can also set quotas and disable accounts from
 `https://evals.entropic.science/admin`. There is no self-service password
 reset: a user who forgets their password asks an operator.
 
-How the quota behaves: only prompt and completion tokens of generations on
-the qr-server engine count. Judge and narrative calls are recorded but not
-counted, because the user's own provider key pays for them. An account with
-nothing left cannot launch or resume, and a run in progress is paused when
-the budget reaches zero; raise the quota and the host can resume it. The
-quota does not reset on a schedule.
+How the quota behaves: only input and output tokens of calls on the
+qr-server engine count. Calls on the user's own provider key, such as the
+Anthropic judge, are recorded but not counted, because that key pays for
+them. A judge or narrative model that is itself served by the engine does
+count. An account with nothing left cannot launch or resume, and a run in
+progress is paused when the budget reaches zero; raise the quota and the host
+can resume it. The quota does not reset on a schedule.
+
+What an account owes: the same engine tokens are priced, by default at $20
+per million input and $80 per million output tokens for a quantum arm, and
+$5 and $20 for everything else on the engine. The four prices are the
+`QR_EVALS_PRICE_*` settings. The account page shows the result as
+"Outstanding", and the admin page shows it per account. Nothing is charged
+automatically and owing money does not stop a run. When a person has paid,
+an admin presses "Mark paid" on the admin page, or runs:
+
+```bash
+... -m qr_llm_evals.accounts.cli balance <username>
+... -m qr_llm_evals.accounts.cli settle <username> --note "invoice 12"
+```
+
+Marking an account paid records a payment for the amount owed at that moment
+and keeps the usage history. Tokens used afterwards are owed again.
+
+Storage: the account page lists how much disk each of the person's runs
+uses, with a link to download the run's study bundle, and the admin page
+shows the total per account next to the free space on the data volume.
 
 Disabling a key in qr-llm-api's keys file also stops its account from
 launching, because file mode re-checks the linked key's digest on every

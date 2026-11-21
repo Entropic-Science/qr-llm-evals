@@ -11,9 +11,10 @@ from typing import Any
 import httpx
 import pytest
 
-from qr_llm_evals.accounts import Accounts, UsageEvent, UsageLedger
+from qr_llm_evals.accounts import Accounts, Prices, UnknownUser, UsageEvent, UsageLedger
 from qr_llm_evals.accounts import cli as accounts_cli
 from qr_llm_evals.accounts import service as accounts_service
+from qr_llm_evals.accounts.usage import MICRO
 from qr_llm_evals.api.usage import UsageRecorder
 from qr_llm_evals.config import Settings, load_settings
 from qr_llm_evals.keys.verify import sha256_hex
@@ -95,9 +96,13 @@ def test_ledger_totals_and_groupings(accounts: Accounts) -> None:
     ledger.record(_event(bob.user_id, prompt_tokens=7, completion_tokens=3))
 
     totals = ledger.totals(alice.user_id)
-    assert (totals.calls, totals.prompt_tokens, totals.completion_tokens) == (4, 400, 160)
-    assert totals.reasoning_tokens == 20 and totals.total_tokens == 560
+    assert totals.calls == 4
+    assert (totals.qrng_input, totals.qrng_output) == (100, 40), "the quantum arm"
+    assert (totals.prng_input, totals.prng_output) == (100, 40), "the seeded arm"
+    assert (totals.own_key_input, totals.own_key_output) == (200, 80), "judge and narrative"
     assert totals.charged_tokens == 280, "only the two qr-server generations are charged"
+    # 100 x $20 + 40 x $80 + 100 x $5 + 40 x $20 per million, in micro-dollars
+    assert totals.cost_microusd(ledger.prices) == 2000 + 3200 + 500 + 800
 
     summary = ledger.summary(alice.user_id)
     assert {b.key: b.totals.calls for b in summary.by_kind} == {
@@ -140,7 +145,45 @@ def test_ledger_never_stores_negative_counts(accounts: Accounts) -> None:
     ledger = UsageLedger(accounts)
     ledger.record(_event(alice.user_id, prompt_tokens=-5, completion_tokens=-1))
     totals = ledger.totals(alice.user_id)
-    assert totals.prompt_tokens == 0 and totals.completion_tokens == 0
+    assert totals.charged_tokens == 0 and totals.cost_microusd(ledger.prices) == 0
+
+
+def test_engine_calls_without_a_quantum_label_are_priced_as_prng(accounts: Accounts) -> None:
+    alice = _user(accounts)
+    ledger = UsageLedger(accounts)
+    # an on-engine judge call carries no source label; it is not QRNG-sampled
+    ledger.record(_event(alice.user_id, kind="judge", source_label=None))
+    ledger.record(_event(alice.user_id, source_label="seeded_prng_biased"))
+    totals = ledger.totals(alice.user_id)
+    assert (totals.qrng_input, totals.qrng_output) == (0, 0)
+    assert (totals.prng_input, totals.prng_output) == (200, 80)
+
+
+def test_settling_zeroes_the_balance_and_keeps_the_history(accounts: Accounts) -> None:
+    alice, bob = _user(accounts), _user(accounts, "bob", KEY_B)
+    ledger = UsageLedger(accounts, prices=Prices(qrng_input=20, qrng_output=80))
+    ledger.record(_event(alice.user_id, prompt_tokens=1_000_000, completion_tokens=500_000))
+    assert ledger.outstanding(alice.user_id) == 60 * MICRO  # $20 + $40
+
+    paid = ledger.settle(alice.user_id, settled_by=bob.user_id, at=T0, note="invoice 7")
+    assert paid.amount_microusd == 60 * MICRO
+    assert ledger.outstanding(alice.user_id) == 0
+    assert ledger.totals(alice.user_id).calls == 1, "usage rows are untouched"
+
+    # later usage is owed again; settling twice in a row records a zero
+    ledger.record(_event(alice.user_id, prompt_tokens=1_000_000, completion_tokens=0))
+    assert ledger.outstanding(alice.user_id) == 20 * MICRO
+    ledger.settle(alice.user_id, settled_by=bob.user_id, at=T0 + timedelta(days=1))
+    again = ledger.settle(alice.user_id, settled_by=bob.user_id, at=T0 + timedelta(days=2))
+    assert again.amount_microusd == 0 and ledger.outstanding(alice.user_id) == 0
+
+    history = ledger.settlements(alice.user_id)
+    assert [h.amount_microusd for h in history] == [0, 20 * MICRO, 60 * MICRO]
+    assert history[-1].note == "invoice 7" and history[-1].settled_by == bob.user_id
+    assert ledger.settled_by_user() == {alice.user_id: 80 * MICRO}
+    assert ledger.outstanding(bob.user_id) == 0
+    with pytest.raises(UnknownUser):
+        ledger.settle("usr_nope", settled_by=bob.user_id, at=T0)
 
 
 def test_version_1_database_migrates_forward(
@@ -180,6 +223,22 @@ def test_cli_set_quota(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
     check = Accounts(db)
     assert check.get_user(alice.user_id).token_quota is None
     check.close()
+    capsys.readouterr()
+
+
+def test_cli_balance_and_settle(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    db = tmp_path / "accounts.sqlite"
+    acc = Accounts(db, scrypt_n=FAST_N)
+    alice = _user(acc)
+    UsageLedger(acc).record(_event(alice.user_id, prompt_tokens=1_000_000, completion_tokens=0))
+    acc.close()
+    assert accounts_cli.run(["--db", str(db), "balance", "alice"]) == 0
+    assert "alice: $20.00" in capsys.readouterr().out
+    assert accounts_cli.run(["--db", str(db), "settle", "alice", "--note", "cash"]) == 0
+    assert "paid $20.00" in capsys.readouterr().out
+    assert accounts_cli.run(["--db", str(db), "balance", "alice"]) == 0
+    assert "alice: $0.00" in capsys.readouterr().out
+    assert accounts_cli.run(["--db", str(db), "settle", "nobody"]) == 1
     capsys.readouterr()
 
 
@@ -328,10 +387,24 @@ async def test_a_run_is_metered_to_its_owner(site: Site) -> None:
     usage = await site.usage(alice)
     gen = _kinds(usage)["generation"]
     assert gen["calls"] == SAMPLES
-    assert gen["prompt_tokens"] > 0 and gen["completion_tokens"] > 0
-    assert gen["charged_tokens"] == gen["prompt_tokens"] + gen["completion_tokens"]
-    assert usage["quota"]["used"] == gen["charged_tokens"]
-    assert usage["quota"]["remaining"] == 2_000_000 - gen["charged_tokens"]
+    assert all(gen[k] > 0 for k in ("qrng_input", "qrng_output", "prng_input", "prng_output"))
+    assert gen["own_key_tokens"] == 0
+    charged = gen["qrng_input"] + gen["qrng_output"] + gen["prng_input"] + gen["prng_output"]
+    assert usage["quota"]["used"] == charged
+    assert usage["quota"]["remaining"] == 2_000_000 - charged
+    expected_cost = (
+        gen["qrng_input"] * 20 + gen["qrng_output"] * 80 + gen["prng_input"] * 5
+    ) + gen["prng_output"] * 20
+    assert gen["cost_microusd"] == expected_cost
+    billing = usage["billing"]
+    assert billing["outstanding_microusd"] == usage["totals"]["cost_microusd"] >= expected_cost
+    assert billing["paid_microusd"] == 0 and billing["settlements"] == []
+    assert billing["prices"] == {
+        "qrng_input": 20.0,
+        "qrng_output": 80.0,
+        "prng_input": 5.0,
+        "prng_output": 20.0,
+    }
 
     # both arms run on the qr-server engine, one quantum and one seeded
     sources = {b["key"]: b["totals"]["calls"] for b in usage["by_source"]}
@@ -345,8 +418,18 @@ async def test_a_run_is_metered_to_its_owner(site: Site) -> None:
         for arm in ("qrng", "prng_seed_7")
         for row in site.h.store.find_run(launched["run_id"]).generations(arm, "stub_free")  # type: ignore[union-attr]
     ]
-    assert sum(r.usage.prompt_tokens for r in rows) == gen["prompt_tokens"]
-    assert sum(r.usage.completion_tokens for r in rows) == gen["completion_tokens"]
+    assert sum(r.usage.prompt_tokens for r in rows) == gen["qrng_input"] + gen["prng_input"]
+    assert sum(r.usage.completion_tokens for r in rows) == gen["qrng_output"] + gen["prng_output"]
+
+    # the run's files are attributed to its owner
+    storage = (await site.c.get(f"{API}/me/storage", headers=alice)).json()
+    assert [r["run_id"] for r in storage["runs"]] == [launched["run_id"]]
+    assert storage["total_bytes"] == storage["runs"][0]["size_bytes"] > 0
+    assert (await site.c.get(f"{API}/me/storage", headers=bob)).json() == {
+        "total_bytes": 0,
+        "runs": [],
+    }
+    assert (await site.c.get(f"{API}/me/storage")).status_code == 401
 
     # nobody else is charged for it
     assert (await site.usage(bob))["totals"]["calls"] == 0
@@ -361,9 +444,8 @@ async def test_judge_tokens_are_recorded_but_not_charged(site: Site) -> None:
     if "judge" not in kinds:
         pytest.skip("the stub_free pilot has no LLM-judged card")
     judge = kinds["judge"]
-    assert judge["calls"] > 0 and judge["charged_tokens"] == 0
-    assert judge["prompt_tokens"] == 10 * judge["calls"]
-    assert judge["completion_tokens"] == 5 * judge["calls"]
+    assert judge["calls"] > 0 and judge["cost_microusd"] == 0
+    assert judge["own_key_tokens"] == 15 * judge["calls"]
 
 
 async def test_operator_key_runs_are_not_metered(tmp_path: Path) -> None:
@@ -431,7 +513,29 @@ async def test_admin_routes(site: Site) -> None:
     assert set(by_name) == {"alice", "bob"}
     assert by_name["alice"]["user"]["is_admin"] is True and by_name["alice"]["totals"]["calls"] == 0
     assert by_name["bob"]["totals"]["calls"] >= SAMPLES
-    assert by_name["bob"]["quota"]["used"] == by_name["bob"]["totals"]["charged_tokens"] > 0
+    bob_totals = by_name["bob"]["totals"]
+    assert by_name["bob"]["quota"]["used"] == sum(
+        bob_totals[k] for k in ("qrng_input", "qrng_output", "prng_input", "prng_output")
+    )
+    assert by_name["bob"]["outstanding_microusd"] == bob_totals["cost_microusd"] > 0
+    assert by_name["bob"]["storage_bytes"] > 0 and by_name["alice"]["storage_bytes"] == 0
+    assert by_name["alice"]["outstanding_microusd"] == 0
+    assert listing["prices"]["qrng_output"] == 80.0
+    assert 0 < listing["disk_free_bytes"] <= listing["disk_total_bytes"]
+
+    # marking bob as paid zeroes what he owes and leaves his usage alone
+    settle = f"{API}/admin/users/{bob_id}/settle"
+    assert (await site.c.post(settle, json={}, headers=bob)).status_code == 403
+    paid = await site.c.post(settle, json={"note": "bank transfer"}, headers=alice)
+    assert paid.status_code == 200, paid.text
+    assert paid.json()["outstanding_microusd"] == 0
+    assert paid.json()["totals"] == bob_totals
+    bob_billing = (await site.usage(bob))["billing"]
+    assert bob_billing["outstanding_microusd"] == 0
+    assert bob_billing["paid_microusd"] == bob_totals["cost_microusd"]
+    assert [s["note"] for s in bob_billing["settlements"]] == ["bank transfer"]
+    gone = await site.c.post(f"{API}/admin/users/usr_nope/settle", json={}, headers=alice)
+    assert gone.status_code == 404
     assert by_name["bob"]["token_quota"] is None and by_name["bob"]["disabled"] is False
 
     url = f"{API}/admin/users/{bob_id}"
@@ -474,8 +578,8 @@ async def test_narrative_tokens_are_recorded_uncharged(site: Site) -> None:
     recorder._owners["run_orphan"] = "usr_gone"
     recorder.record_narrative("run_orphan", "claude-x", {"prompt_tokens": 1})
     narrative = _kinds(await site.usage(alice))["narrative"]
-    assert narrative["calls"] == 2 and narrative["charged_tokens"] == 0
-    assert (narrative["prompt_tokens"], narrative["completion_tokens"]) == (900, 300)
+    assert narrative["calls"] == 2 and narrative["cost_microusd"] == 0
+    assert narrative["own_key_tokens"] == 1200
 
 
 # ── review fixes ──────────────────────────────────────────────────────────────
@@ -606,7 +710,9 @@ async def test_engine_narrative_and_judge_tokens_are_charged(site: Site) -> None
     usage = {"prompt_tokens": 900, "completion_tokens": 300}
     recorder.record_narrative(launched["run_id"], "claude-x", usage)
     recorder.record_narrative(launched["run_id"], "qr-llm", usage, on_engine=True)
-    assert _kinds(await site.usage(alice))["narrative"]["charged_tokens"] == 1200
+    narrative = _kinds(await site.usage(alice))["narrative"]
+    assert (narrative["prng_input"], narrative["prng_output"]) == (900, 300)
+    assert narrative["own_key_tokens"] == 1200 and narrative["qrng_input"] == 0
 
     note = UsageNote(
         run_id=launched["run_id"],
@@ -620,7 +726,8 @@ async def test_engine_narrative_and_judge_tokens_are_charged(site: Site) -> None
         at=T0,
     )
     recorder.on_row(note)
-    assert _kinds(await site.usage(alice))["judge"]["charged_tokens"] == 15
+    judge = _kinds(await site.usage(alice))["judge"]
+    assert (judge["prng_input"], judge["prng_output"]) == (10, 5)
 
 
 def test_a_failed_migration_rolls_back_and_can_be_retried(
@@ -638,5 +745,5 @@ def test_a_failed_migration_rolls_back_and_can_be_retried(
     tables = {r["name"] for r in acc._conn.execute("SELECT name FROM sqlite_master")}
     assert "half_done" not in tables and "usage_events" in tables
     versions = [r["version"] for r in acc._conn.execute("SELECT version FROM schema_migrations")]
-    assert sorted(versions) == [1, 2]
+    assert sorted(versions) == [1, 2, 3]
     acc.close()

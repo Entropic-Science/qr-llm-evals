@@ -28,7 +28,7 @@ import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from qr_llm_evals.accounts import ACCOUNTS_DB_NAME, Accounts, UsageLedger
+from qr_llm_evals.accounts import ACCOUNTS_DB_NAME, Accounts, Prices, UsageLedger
 from qr_llm_evals.api.deps import AppState, PreregRenderer, TargetUniformDrawer
 from qr_llm_evals.api.errors import install_handlers
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter
@@ -198,7 +198,16 @@ def create_app(
         else default_orchestrator_factory(settings, the_store, the_cards, repo_root=root)
     )
     the_registry = RunRegistry()
-    the_ledger = UsageLedger(the_accounts, default_quota=settings.default_token_quota)
+    the_ledger = UsageLedger(
+        the_accounts,
+        default_quota=settings.default_token_quota,
+        prices=Prices(
+            qrng_input=settings.price_qrng_input,
+            qrng_output=settings.price_qrng_output,
+            prng_input=settings.price_prng_input,
+            prng_output=settings.price_prng_output,
+        ),
+    )
     recorder = UsageRecorder(
         the_store, the_accounts, the_ledger, the_registry, lambda: datetime.now(UTC)
     )

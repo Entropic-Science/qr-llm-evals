@@ -32,7 +32,11 @@ Each row gives **name / required / example / source**.
 | `QR_EVALS_MAX_INFLIGHT` | no (default `3`) | `3` | Global in-flight generation cap; keep ≤ engine `--max-num-seqs` minus a reserve for other tenants. |
 | `QR_EVALS_SIGNUP_ENABLED` | no (default `1`) | `1` | Whether `POST /api/auth/signup` accepts new accounts. `0` closes registration; existing users can still log in. |
 | `QR_EVALS_ALLOW_KEY_LAUNCH` | no (default `0`) | `0` | Accept a bare `qrk_` key on `POST /api/runs` and `/api/readiness`. Such a run has no owner, is not metered and bypasses token quotas, so leave it off in production; switch it on only for operator tooling such as `scripts/smoke.py --live`. With it off, launching needs a signed-in account. |
-| `QR_EVALS_DEFAULT_TOKEN_QUOTA` | no (default `2000000`) | `2000000` | Lifetime budget of qr-server generation tokens (prompt + completion) per account. `0` = unlimited. An admin can set a per-account value that overrides it. Judge, narrative and external-provider tokens are recorded but never charged. |
+| `QR_EVALS_DEFAULT_TOKEN_QUOTA` | no (default `2000000`) | `2000000` | Lifetime budget of tokens (input + output) that an account's runs may use on the qr-server engine. `0` = unlimited. An admin can set a per-account value that overrides it. Calls on the user's own provider key (the Anthropic judge, external providers) are recorded but never counted. |
+| `QR_EVALS_PRICE_QRNG_INPUT` | no (default `20`) | `20` | US dollars per million input tokens of calls on the qr-server engine for a quantum arm. Used only to show what an account owes; nothing is charged automatically. |
+| `QR_EVALS_PRICE_QRNG_OUTPUT` | no (default `80`) | `80` | US dollars per million output tokens of the same calls. |
+| `QR_EVALS_PRICE_PRNG_INPUT` | no (default `5`) | `5` | US dollars per million input tokens of every other call on the qr-server engine (pseudo-random arms, and judge or narrative calls the engine serves). |
+| `QR_EVALS_PRICE_PRNG_OUTPUT` | no (default `20`) | `20` | US dollars per million output tokens of the same calls. Changing a price re-prices past usage; payments already recorded keep their amount. |
 | `QR_EVALS_SESSION_TTL_HOURS` | no (default `168`) | `168` | Lifetime of a login session token. Accounts live in `<QR_EVALS_DATA_DIR>/accounts.sqlite`, which cannot be rebuilt: back it up, never delete it. |
 
 ## Generation

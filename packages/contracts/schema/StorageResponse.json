@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "StorageResponse.json",
+  "$defs": {
+    "StorageRunView": {
+      "additionalProperties": false,
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        },
+        "state": {
+          "title": "State",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "size_bytes": {
+          "minimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run_id",
+        "study_id",
+        "state",
+        "created_at",
+        "size_bytes"
+      ],
+      "title": "StorageRunView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "total_bytes": {
+      "minimum": 0,
+      "title": "Total Bytes",
+      "type": "integer"
+    },
+    "runs": {
+      "description": "Largest first.",
+      "items": {
+        "$ref": "#/$defs/StorageRunView"
+      },
+      "title": "Runs",
+      "type": "array"
+    }
+  },
+  "required": [
+    "total_bytes",
+    "runs"
+  ],
+  "title": "StorageResponse",
+  "type": "object"
+}

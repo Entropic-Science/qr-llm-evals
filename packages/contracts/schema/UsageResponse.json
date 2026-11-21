@@ -2,6 +2,73 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "UsageResponse.json",
   "$defs": {
+    "BillingView": {
+      "additionalProperties": false,
+      "properties": {
+        "outstanding_microusd": {
+          "description": "Priced lifetime usage minus recorded payments, in 1e-6 USD.",
+          "title": "Outstanding Microusd",
+          "type": "integer"
+        },
+        "paid_microusd": {
+          "title": "Paid Microusd",
+          "type": "integer"
+        },
+        "prices": {
+          "$ref": "#/$defs/PricesView"
+        },
+        "settlements": {
+          "description": "Newest first (20 at most).",
+          "items": {
+            "$ref": "#/$defs/SettlementView"
+          },
+          "title": "Settlements",
+          "type": "array"
+        }
+      },
+      "required": [
+        "outstanding_microusd",
+        "paid_microusd",
+        "prices",
+        "settlements"
+      ],
+      "title": "BillingView",
+      "type": "object"
+    },
+    "PricesView": {
+      "additionalProperties": false,
+      "description": "US dollars per million tokens.",
+      "properties": {
+        "qrng_input": {
+          "minimum": 0,
+          "title": "Qrng Input",
+          "type": "number"
+        },
+        "qrng_output": {
+          "minimum": 0,
+          "title": "Qrng Output",
+          "type": "number"
+        },
+        "prng_input": {
+          "minimum": 0,
+          "title": "Prng Input",
+          "type": "number"
+        },
+        "prng_output": {
+          "minimum": 0,
+          "title": "Prng Output",
+          "type": "number"
+        }
+      },
+      "required": [
+        "qrng_input",
+        "qrng_output",
+        "prng_input",
+        "prng_output"
+      ],
+      "title": "PricesView",
+      "type": "object"
+    },
     "QuotaView": {
       "additionalProperties": false,
       "properties": {
@@ -42,6 +109,38 @@
       "title": "QuotaView",
       "type": "object"
     },
+    "SettlementView": {
+      "additionalProperties": false,
+      "properties": {
+        "amount_microusd": {
+          "title": "Amount Microusd",
+          "type": "integer"
+        },
+        "settled_at": {
+          "format": "date-time",
+          "title": "Settled At",
+          "type": "string"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Note"
+        }
+      },
+      "required": [
+        "amount_microusd",
+        "settled_at",
+        "note"
+      ],
+      "title": "SettlementView",
+      "type": "object"
+    },
     "UsageBucketView": {
       "additionalProperties": false,
       "properties": {
@@ -62,40 +161,56 @@
     },
     "UsageTotalsView": {
       "additionalProperties": false,
+      "description": "Tokens by lane. Input = prompt tokens, output = generated tokens.",
       "properties": {
         "calls": {
           "minimum": 0,
           "title": "Calls",
           "type": "integer"
         },
-        "prompt_tokens": {
+        "qrng_input": {
+          "description": "Shared engine, quantum arm.",
           "minimum": 0,
-          "title": "Prompt Tokens",
+          "title": "Qrng Input",
           "type": "integer"
         },
-        "completion_tokens": {
+        "qrng_output": {
           "minimum": 0,
-          "title": "Completion Tokens",
+          "title": "Qrng Output",
           "type": "integer"
         },
-        "reasoning_tokens": {
+        "prng_input": {
+          "description": "Shared engine, every other call.",
           "minimum": 0,
-          "title": "Reasoning Tokens",
+          "title": "Prng Input",
           "type": "integer"
         },
-        "charged_tokens": {
-          "description": "Tokens counted against the quota (qr-server generations only).",
+        "prng_output": {
           "minimum": 0,
-          "title": "Charged Tokens",
+          "title": "Prng Output",
+          "type": "integer"
+        },
+        "own_key_tokens": {
+          "description": "Input + output on the user's own provider key; not billed here.",
+          "minimum": 0,
+          "title": "Own Key Tokens",
+          "type": "integer"
+        },
+        "cost_microusd": {
+          "description": "Price of the four billed numbers, in 1e-6 USD.",
+          "minimum": 0,
+          "title": "Cost Microusd",
           "type": "integer"
         }
       },
       "required": [
         "calls",
-        "prompt_tokens",
-        "completion_tokens",
-        "reasoning_tokens",
-        "charged_tokens"
+        "qrng_input",
+        "qrng_output",
+        "prng_input",
+        "prng_output",
+        "own_key_tokens",
+        "cost_microusd"
       ],
       "title": "UsageTotalsView",
       "type": "object"
@@ -105,6 +220,9 @@
   "properties": {
     "quota": {
       "$ref": "#/$defs/QuotaView"
+    },
+    "billing": {
+      "$ref": "#/$defs/BillingView"
     },
     "totals": {
       "$ref": "#/$defs/UsageTotalsView"
@@ -144,6 +262,7 @@
   },
   "required": [
     "quota",
+    "billing",
     "totals",
     "by_kind",
     "by_source",

@@ -1,6 +1,6 @@
 import type {
   AdminUsersResponse, AdminUserUpdate, AdminUserView, AuthResponse, LinkKeyRequest, LoginRequest,
-  SignupRequest, UsageResponse, UserView,
+  SettleRequest, SignupRequest, StorageResponse, UsageResponse, UserView,
   CardsResponse, CreateSessionRequest, EstimatesResponse, LaunchRequest, LaunchResponse,
   ModelsResponse, PreregRenderRequest, PreregRenderResponse, ReadinessReport, ReadinessRequest,
   RunControlRequest, RunControlResponse, RunKeysRequest, RunKeysResponse, RunView,
@@ -37,6 +37,8 @@ export const api = {
   me: (bearer: string) => apiFetch<UserView>("/api/me", { auth: { bearer } }),
   linkKey: (body: LinkKeyRequest, bearer: string) => apiFetch<UserView, LinkKeyRequest>("/api/me/key", { body, auth: { bearer } }),
   usage: (bearer: string) => apiFetch<UsageResponse>("/api/me/usage", { auth: { bearer } }),
+  storage: (bearer: string) => apiFetch<StorageResponse>("/api/me/storage", { auth: { bearer } }),
+  adminSettle: (userId: string, body: SettleRequest, bearer: string) => apiFetch<AdminUserView, SettleRequest>(`/api/admin/users/${encodeURIComponent(userId)}/settle`, { body, auth: { bearer } }),
   adminUsers: (bearer: string) => apiFetch<AdminUsersResponse>("/api/admin/users", { auth: { bearer } }),
   adminUpdateUser: (userId: string, body: AdminUserUpdate, bearer: string) => apiFetch<AdminUserView, AdminUserUpdate>(`/api/admin/users/${encodeURIComponent(userId)}`, { body, auth: { bearer } }),
   cards: () => apiFetch<CardsResponse>("/api/cards"),
