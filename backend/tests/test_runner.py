@@ -8,6 +8,7 @@ artifacts are reproducible byte for byte.
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 from collections.abc import Callable
@@ -445,3 +446,101 @@ def test_window_tagger_hook_tags_rows_and_tier0(tmp_path: Path) -> None:
         assert rec["window"] == "supervised" and rec["session_id"] == "sess1"
     for row in orch.store.generations("prng_seed_7", "stub_free"):
         assert row.window == "unsupervised" and row.session_id is None
+
+
+def _started_control() -> RunControl:
+    control = RunControl()
+    control.start()
+    return control
+
+
+# ── engine token log ─────────────────────────────────────────────────────────
+
+
+def _log_row(index: int, *, first: bool) -> dict[str, object]:
+    row: dict[str, object] = {
+        "token_index": index,
+        "token_id": 100 + index,
+        "timestamp_ns": 1_000 + index,
+        "u_value": 0.25,
+        "cdf_lo": 0.0,
+        "cdf_hi": 0.5,
+        "token_rank": 0,
+        "token_prob": 0.5,
+        "temperature_used": 1.0,
+        "min_p_used": 0.0,
+        "num_candidates": 2,
+        "entropy_is_fallback": False,
+    }
+    if first:
+        row["entropy_source_used"] = "quantum_grpc"
+        row["top_entries"] = [[100, 0.5], [7, 0.5]]
+    return row
+
+
+def test_generations_ask_for_the_token_log_and_read_it_back(tmp_path: Path) -> None:
+    """With a log directory configured, every request carries the two log keys
+    and a log the engine wrote is what ``tier0.jsonl`` is built from."""
+    log_dir = tmp_path / "token-log"
+    log_dir.mkdir()
+    seen: list[dict[str, object]] = []
+    engine = StubEngine()
+
+    def write_log(body: dict[str, object]) -> None:
+        xargs = body["vllm_xargs"]
+        assert isinstance(xargs, dict)
+        seen.append(xargs)
+        ref = str(xargs["qr_request_id"])
+        assert ref == body["request_id"] and xargs["qr_token_log"] is True
+        if ref.startswith("qrng/"):  # the engine logs one arm only in this test
+            lines = [json.dumps(_log_row(i, first=i == 0)) for i in range(engine.n_tokens)]
+            (log_dir / (ref.replace("/", "__") + ".jsonl")).write_text(
+                "\n".join(lines) + "\n", encoding="utf-8"
+            )
+
+    engine.on_request = write_log
+    rs = _run_store(tmp_path / "data")
+    config = RunnerConfig(
+        vllm_origin="http://stub",
+        max_inflight=1,
+        repo_root=FIXTURES,
+        token_log_dir=str(log_dir),
+        token_log_wait_s=0.0,
+    )
+    orch = Orchestrator(
+        _study(),
+        _cards(),
+        rs,
+        config,
+        secrets=_secrets(),
+        sink=NullEventSink(),
+        control=_started_control(),
+        transport=engine.transport,
+        judge_transport=StubJudge().transport,
+        clock=lambda: NOW,
+        perf=lambda: 0.0,
+    )
+    orch.run_generation()
+
+    assert seen and all(x["qr_token_log"] is True for x in seen)
+    logged = list(rs.iter_tier0_rows("qrng", "stub_free"))
+    assert logged and all(r["u"] == 0.25 and r["cdf_hi"] == 0.5 for r in logged)
+    assert {r["token_index"] for r in logged if r.get("top_entries")} == {0}
+    # the other arm had no file: its records come from the API logprobs
+    unlogged = list(rs.iter_tier0_rows("prng_seed_7", "stub_free"))
+    assert unlogged and all(r["u"] is None for r in unlogged)
+    assert rs.taints() == []
+
+
+def test_without_a_log_directory_no_request_asks_for_a_log(tmp_path: Path) -> None:
+    seen: list[dict[str, object]] = []
+
+    def record(body: dict[str, object]) -> None:
+        xargs = body["vllm_xargs"]
+        assert isinstance(xargs, dict)
+        seen.append(xargs)
+
+    _orchestrator(
+        _run_store(tmp_path), StubEngine(on_request=record), max_inflight=1
+    ).run_generation()
+    assert seen and not any("qr_token_log" in x or "qr_request_id" in x for x in seen)

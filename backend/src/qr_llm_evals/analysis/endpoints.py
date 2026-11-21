@@ -39,7 +39,7 @@ from qr_llm_evals.tier0.endpoints import (
     stream_deviation_table,
     topk_coverage,
 )
-from qr_llm_evals.tier0.records import independent_streams
+from qr_llm_evals.tier0.records import FieldsSetPool, independent_streams, share_fields_set
 from qr_llm_evals.tier0.schema import Tier0Record
 
 Table = dict[str, Any]
@@ -105,6 +105,8 @@ def load_data(run_dir: Path, *, include_tainted: bool = False) -> AnalysisData:
     run = _read_object(run_dir / "run.json")
     scores: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     tier0: dict[str, dict[str, list[Tier0Record]]] = defaultdict(lambda: defaultdict(list))
+    # One shared fields-set per record shape: see share_fields_set (memory).
+    shapes: FieldsSetPool = {}
     tainted = (
         set()
         if include_tainted
@@ -152,9 +154,10 @@ def load_data(run_dir: Path, *, include_tainted: bool = False) -> AnalysisData:
                     # One string per sample, shared by its tokens (millions of records).
                     row["sample_ref"] = refs.setdefault(tier0_ref, tier0_ref)
                 try:
-                    tier0[card_dir.name][arm_dir.name].append(Tier0Record.model_validate(row))
+                    record = Tier0Record.model_validate(row)
                 except ValueError:
                     continue
+                tier0[card_dir.name][arm_dir.name].append(share_fields_set(record, shapes))
     readiness = _read_object(run_dir / "readiness.json")
     source = run.get("tier0_source") or readiness.get("tier0_source")
     depth = _read_object(run_dir / "request_settings.json").get("top_logprobs")

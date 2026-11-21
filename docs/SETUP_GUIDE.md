@@ -389,11 +389,32 @@ configure Study 1 and launch; consult `.\docs\API.md` for the exact
 
 ### Cross-repo readiness dependencies
 
-- **DEP-1**: per-request token-log export belongs in qr-sampler. Only set
-  `QR_EVALS_TOKEN_LOG_DIR` after the export exists and the service can traverse
-  and read it. Grant group-read, not harness write access. Without the required
-  records the acquisition path is `api_logprobs`: label it degraded; PIT
-  residuals (T0-a) and stream-deviation T4-l are unavailable, not approximated.
+- **DEP-1**: the per-request token log is written by qr-sampler
+  (`qr_sampler.logging.token_log`). To switch it on:
+  1. in `/etc/qr-server/qr-server.env` set
+     `QR_TOKEN_LOG_DIR=/var/lib/qr-sampler/token-log` and restart
+     `qr-sampler-vllm` (its unit's `StateDirectory` creates `/var/lib/qr-sampler`);
+  2. in `/etc/qr-llm-evals/qr-llm-evals.env` set `QR_EVALS_TOKEN_LOG_DIR` to the
+     same path and restart `qr-llm-evals`.
+
+  The harness only reads the directory; do not give it write access. With the
+  directory set, every generation on the engine asks for its log
+  (`qr_token_log`, `qr_request_id`), and readiness reports `tier0_source:
+  engine_log` once a probe's file appears. Without the records the acquisition
+  path is `api_logprobs`: label it degraded; PIT residuals (T0-a) and
+  stream-deviation T4-l are unavailable, not approximated.
+
+  A log file is a few hundred bytes per generated token (the candidate list is
+  kept for the first token of a reply only) and is copied into the run's
+  `tier0.jsonl` when the reply finishes, so the engine-side files are
+  duplicates afterwards. Remove old ones with a `systemd-tmpfiles` rule on the
+  box, for example in `/etc/tmpfiles.d/qr-sampler-token-log.conf`:
+
+  ```
+  e /var/lib/qr-sampler/token-log - - - 30d
+  ```
+
+  That rule only touches the engine-side directory, never run artifacts.
 - **DEP-2**: epsilon-biased seeded PRNG also belongs in qr-sampler. Unsupported
   arms remain unavailable; record the missing positive control in the prereg.
 - **Stop/go**: absent primary measurements or required dependencies require a

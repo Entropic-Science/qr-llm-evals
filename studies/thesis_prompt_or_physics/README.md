@@ -107,7 +107,9 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    entropy server (`GetEntropy`, the call qr-sampler makes) and run
    `python studies/thesis_prompt_or_physics/thesis_device_check.py --bytes device.bin --out device_check.json`
    (and `--philox-seed 42 --blocks 200000` for the fair reference).
-2. **Configure the box.** Set `QR_EVALS_TOKEN_LOG_DIR` (DEP-1 token log; without it
+2. **Configure the box.** Set qr-sampler's `QR_TOKEN_LOG_DIR` and the harness's
+   `QR_EVALS_TOKEN_LOG_DIR` to the same directory (`docs/SETUP_GUIDE.md`, DEP-1
+   token log; without it
    H0 and H4 are unavailable, never approximated). Optionally raise
    `QR_EVALS_TOP_LOGPROBS` together with vLLM's `--max-logprobs`.
 3. **Edit the template.** Author, contact, the judge settings (the template uses

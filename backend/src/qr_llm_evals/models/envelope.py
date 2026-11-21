@@ -249,6 +249,18 @@ def build_envelope(
     return envelope
 
 
+def token_log_xargs(request_id: str) -> dict[str, Any]:
+    """The two keys that ask qr-sampler for this request's per-token log.
+
+    They are log controls, not sampling settings: qr-sampler keeps them out of
+    its configuration, so they change neither what is sampled nor its config
+    hash. For the same reason they are added to the request's ``vllm_xargs``
+    only, never to the envelope returned by :func:`build_envelope`, whose hash
+    is what the pre-registration and the provenance record pin.
+    """
+    return {"qr_token_log": True, "qr_request_id": request_id}  # nosec B105 - flags, no secret
+
+
 def envelope_json(envelope: Mapping[str, Any]) -> str:
     """Canonical bytes (sorted keys, no whitespace) — what :func:`envelope_hash` hashes."""
     return json.dumps(dict(envelope), sort_keys=True, separators=(",", ":"), allow_nan=False)
@@ -316,6 +328,7 @@ def build_request_body(
     overrides: Mapping[str, Any] | None = None,
     profile: ProviderProfile | None = None,
     top_logprobs: int = TOP_LOGPROBS,
+    token_log: bool = False,
 ) -> dict[str, Any]:
     """The full chat-completions body (spec §2.2 common body).
 
@@ -325,6 +338,8 @@ def build_request_body(
     join key so engine-side token logs can be matched back (spec D-8).
     ``top_logprobs`` is the deployment's configured depth (default
     :data:`TOP_LOGPROBS`); provider arms are further capped by their profile.
+    ``token_log`` asks the engine for the request's per-token log
+    (:func:`token_log_xargs`); a greedy arm bypasses the sampler and has none.
     """
     if arm.model != model.id:
         raise EnvelopeError(f"arm {arm.id!r} targets {arm.model!r}, got model {model.id!r}")
@@ -344,6 +359,8 @@ def build_request_body(
         envelope = build_envelope(arm, ctx, overrides)
         if arm.sampling == "greedy":
             body["temperature"] = 0.0
+        elif token_log:
+            envelope = {**envelope, **token_log_xargs(ctx.sample_ref(arm.id))}
         body.update(
             {
                 "logprobs": True,
@@ -393,5 +410,6 @@ __all__ = [
     "equivalence_violations",
     "pipeline_signature",
     "request_seed",
+    "token_log_xargs",
     "validate_overrides",
 ]

@@ -204,27 +204,26 @@ class FairSamplingEngine(StubEngine):
                     },
                 )
             )
-            log_lines.append(
-                json.dumps(
-                    {
-                        "token_index": index,
-                        "token_id": _token_id(text),
-                        "timestamp_ns": 1_000_000_000 + index,
-                        "u_value": u,
-                        "token_rank": chosen,
-                        "token_prob": p_tok,
-                        "num_candidates": len(dist),
-                        "shannon_entropy": -sum(p * math.log(p) for _, p in dist),
-                        "temperature_used": _temperature(body),
-                        "min_p_used": 0.0,
-                        "cdf_lo": lo,
-                        "cdf_hi": min(1.0, lo + p_tok),
-                        "top_entries": [[_token_id(w), p] for w, p in dist],
-                        "entropy_source_used": source,
-                        "entropy_is_fallback": False,
-                    }
-                )
-            )
+            # The shape qr-sampler writes (qr_sampler.logging.token_log): a small
+            # row per token; the candidates and the source only on the first.
+            row: dict[str, Any] = {
+                "token_index": index,
+                "token_id": _token_id(text),
+                "timestamp_ns": 1_000_000_000 + index,
+                "u_value": u,
+                "cdf_lo": lo,
+                "cdf_hi": min(1.0, lo + p_tok),
+                "token_rank": chosen,
+                "token_prob": p_tok,
+                "temperature_used": _temperature(body),
+                "min_p_used": 0.0,
+                "num_candidates": len(dist),
+                "entropy_is_fallback": False,
+            }
+            if index == 0:
+                row["entropy_source_used"] = source
+                row["top_entries"] = [[_token_id(w), p] for w, p in dist]
+            log_lines.append(json.dumps(row))
         finish = "length" if len(steps) >= max_tokens else "stop"
         frames.append(_chunk(cid, body, {}, finish_reason=finish))
         frames.append(
@@ -406,7 +405,7 @@ def _report(*args: str) -> None:
     """Run ``studies/thesis_prompt_or_physics/thesis_report.py`` in its own process, as on the real system.
 
     A fresh process also keeps the analysis from inheriting the generation phase's
-    memory; the token records alone take about 4 KB each.
+    memory; a loaded token record takes roughly half a kilobyte.
     """
     command = [sys.executable, str(HERE / "thesis_report.py"), *args]
     subprocess.run(command, check=True)  # noqa: S603 - fixed script, no shell

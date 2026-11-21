@@ -163,9 +163,32 @@ def records_to_rows(records: Iterable[Tier0Record]) -> list[dict[str, Any]]:
     return [r.model_dump(mode="json", exclude_none=True) for r in records]
 
 
+FieldsSetPool = dict[frozenset[str], set[str]]
+
+
+def share_fields_set(record: Tier0Record, pool: FieldsSetPool) -> Tier0Record:
+    """Make ``record`` share its "fields that were set" bookkeeping with its look-alikes.
+
+    Pydantic keeps one ``set`` of field names per model instance. For a record
+    with twenty-odd fields that set is about four fifths of the instance's
+    memory (roughly 2.9 KB against 0.55 KB without it, measured), and a full
+    study loads millions of records whose sets are identical. Pointing them at
+    one shared set per distinct shape is what lets the analysis of a full run
+    fit in a few gigabytes. The records are only read after loading; nothing
+    may add to a record's fields set in place.
+    """
+    key = frozenset(record.model_fields_set)
+    shared = pool.get(key)
+    if shared is None:
+        shared = pool[key] = set(key)
+    object.__setattr__(record, "__pydantic_fields_set__", shared)
+    return record
+
+
 __all__ = [
     "INDEPENDENT_TOLD_CELL",
     "TOKEN_ID_PREFIX",
+    "FieldsSetPool",
     "SampleRefParts",
     "entropy_nats",
     "group_by_sample",
@@ -175,6 +198,7 @@ __all__ = [
     "read_tier0_jsonl",
     "records_from_rows",
     "records_to_rows",
+    "share_fields_set",
     "token_id_from_api_token",
     "token_sequences",
 ]

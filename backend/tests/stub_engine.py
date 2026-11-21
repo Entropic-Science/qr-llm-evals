@@ -54,6 +54,7 @@ ALLOWED_QR_KEYS: frozenset[str] = frozenset(
         "qr_fixed_temperature",
         "qr_temperature_strategy",
         "qr_token_log",
+        "qr_request_id",
     }
 )
 
