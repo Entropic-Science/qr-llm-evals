@@ -3,7 +3,7 @@ import { useState } from "react";
 export function Briefing({ onConsent, join = false }: { onConsent: () => void; join?: boolean }) {
   const [checked, setChecked] = useState(false);
   return <section className="briefing notebook-page" aria-labelledby="briefing-title">
-    <p className="eyebrow">Before you begin</p><h1 id="briefing-title">Observe without presuming.</h1>
+    <div className="page-heading"><p className="eyebrow">Before you begin</p><h1 id="briefing-title">Observe without presuming.</h1></div>
     <div className="briefing__copy">
       <p>This mode studies whether a person's state of consciousness, real-time observation, or other correlates are associated with the behaviour of a system that uses quantum randomness. One example asks whether an observer's sustained intention might be reflected in the semantic direction of the generated text. <strong>That is an open research question, not a promised effect.</strong></p>
       <p>You will choose an intention, pause with it for a few minutes, and watch prompts and model output arrive. A target theme may also be drawn and shown to observers; it is never included in a model prompt. We record your pseudonymous observer ID, questionnaire answers, presence during each window, intention text and timing, and the generated study artifacts. The host cannot start a session until the required pre-session questions are complete.</p>

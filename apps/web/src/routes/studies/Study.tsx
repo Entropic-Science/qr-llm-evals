@@ -72,7 +72,7 @@ export function StudyPage({
   if (studyQuery.isError || !study)
     return (
       <section role="alert">
-        <h1>Study unavailable</h1>
+        <div className="page-heading"><h1>Study unavailable</h1></div>
         <p>{studyQuery.error?.message ?? "The study could not be loaded."}</p>
         <button
           className="button button--secondary"
@@ -98,8 +98,8 @@ export function StudyPage({
   return (
     <div className="results-page">
       <header className="results-masthead">
-        <p className="eyebrow">Public research record | {studyId}</p>
-        <h1>{study.study.config?.title ?? studyId}</h1>
+        <div className="page-heading"><p className="eyebrow">Public research record | {studyId}</p>
+        <h1>{study.study.config?.title ?? studyId}</h1></div>
         <p>Frozen protocol, measured results, inspectable provenance.</p>
         <nav aria-label="Study pages">
           {[

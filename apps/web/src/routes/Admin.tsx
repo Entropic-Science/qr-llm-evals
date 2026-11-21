@@ -46,8 +46,8 @@ export function Admin() {
   }, [token]);
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin, load]);
 
-  if (!session) return <section className="auth-page"><p className="eyebrow">Admin</p><h1>You are signed out</h1><div className="auth-form__actions"><Link className="button button--primary" href="/login?next=/admin">Sign in</Link></div></section>;
-  if (!isAdmin) return <section className="auth-page"><p className="eyebrow">Admin</p><h1>Admins only</h1><p className="step-intro">This page lists every account. Your account is not an admin.</p><Link className="text-link" href="/account">Back to your account</Link></section>;
+  if (!session) return <section className="auth-page"><div className="page-heading"><p className="eyebrow">Admin</p><h1>You are signed out</h1></div><div className="auth-form__actions"><Link className="button button--primary" href="/login?next=/admin">Sign in</Link></div></section>;
+  if (!isAdmin) return <section className="auth-page"><div className="page-heading"><p className="eyebrow">Admin</p><h1>Admins only</h1></div><p className="step-intro">This page lists every account. Your account is not an admin.</p><Link className="text-link" href="/account">Back to your account</Link></section>;
 
   async function update(userId: string, body: AdminUserUpdate) {
     if (!token) return;
@@ -68,7 +68,7 @@ export function Admin() {
   }
 
   return <div className="account-page">
-    <header className="configure-header"><div><p className="eyebrow">Admin</p><h1>All accounts</h1></div><Link className="button button--secondary" href="/account">Your account</Link></header>
+    <header className="configure-header"><div><div className="page-heading"><p className="eyebrow">Admin</p><h1>All accounts</h1></div></div><Link className="button button--secondary" href="/account">Your account</Link></header>
     {error ? <p className="prereg-error" role="alert">{error}</p> : null}
     {data === null ? (error ? null : <p className="usage-empty" role="status">Loading accounts…</p>) : <>
       <p className="step-intro">Default quota: {data.default_token_quota === 0 ? "unlimited" : `${formatTokens(data.default_token_quota)} tokens`}. Leave a quota empty to follow the default; enter 0 for unlimited.</p>

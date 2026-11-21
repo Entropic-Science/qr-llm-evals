@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The web app now uses the entropic.science design. It has the same palette
+  (plum, wine, copper and peach on paper), the same type (EB Garamond for
+  headings, navigation and prose, Inter for forms, Space Mono for labels and
+  data) and the same header and footer, with the woven-hexagon mark, a wine
+  bar beside every page title, hand-drawn copper rules under page headers and
+  the film grain over the page. The fonts ship with the app, so the content
+  security policy is unchanged and no page loads anything from a third party.
+  No route, label or behaviour changed.
+
 - The thesis analysis runs off the box. `thesis_report.py unpack` unpacks a
   study bundle downloaded from the account page (streamed, only ordinary files
   inside the target folder, never over an existing file), and `decide` and

@@ -74,6 +74,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/eb-garamond':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource-variable/inter':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/space-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@qr-evals/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -513,6 +522,15 @@ packages:
     peerDependenciesMeta:
       '@noble/hashes':
         optional: true
+
+  '@fontsource-variable/eb-garamond@5.3.0':
+    resolution: {integrity: sha512-656OJsA9Vv24yhqRZFEzXnzS2AYgKdEILLgHJYLzzXndgcWFKfSXFqzbRI5/6Yk1Yt7UfWrUeppE5nRQPQMwlQ==}
+
+  '@fontsource-variable/inter@5.3.0':
+    resolution: {integrity: sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA==}
+
+  '@fontsource/space-mono@5.3.0':
+    resolution: {integrity: sha512-FrpBMOVWn3PRdRHlrZWC55X3kZG/2BTH7SM5ZyS/bky3iKya2BturI5lk+t0RoDQL2JyHzURsVq/EisCsxpI5A==}
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2208,6 +2226,12 @@ snapshots:
       levn: 0.4.1
 
   '@exodus/bytes@1.15.1': {}
+
+  '@fontsource-variable/eb-garamond@5.3.0': {}
+
+  '@fontsource-variable/inter@5.3.0': {}
+
+  '@fontsource/space-mono@5.3.0': {}
 
   '@humanfs/core@0.19.2':
     dependencies:

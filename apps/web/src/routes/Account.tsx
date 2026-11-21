@@ -130,7 +130,7 @@ export function Account() {
     return () => { live = false; };
   }, [token]);
 
-  if (!session) return <section className="auth-page"><p className="eyebrow">Account</p><h1>You are signed out</h1><p className="step-intro">Sign in to see your linked key and the tokens your runs have used.</p><div className="auth-form__actions"><Link className="button button--primary" href="/login?next=/account">Sign in</Link><Link className="text-link" href="/signup?next=/account">Create an account</Link></div></section>;
+  if (!session) return <section className="auth-page"><div className="page-heading"><p className="eyebrow">Account</p><h1>You are signed out</h1></div><p className="step-intro">Sign in to see your linked key and the tokens your runs have used.</p><div className="auth-form__actions"><Link className="button button--primary" href="/login?next=/account">Sign in</Link><Link className="text-link" href="/signup?next=/account">Create an account</Link></div></section>;
 
   async function signOut(current: Session) {
     try { await api.logout(current.token); } catch { /* The local session is cleared either way. */ }
@@ -139,7 +139,7 @@ export function Account() {
   }
 
   return <div className="account-page">
-    <header className="configure-header"><div><p className="eyebrow">Account</p><h1>{session.user.username}</h1></div><div className="auth-form__actions">{session.user.is_admin ? <Link className="button button--secondary" href="/admin">All accounts</Link> : null}<button className="button button--secondary" type="button" onClick={() => void signOut(session)}>Sign out</button></div></header>
+    <header className="configure-header"><div><div className="page-heading"><p className="eyebrow">Account</p><h1>{session.user.username}</h1></div></div><div className="auth-form__actions">{session.user.is_admin ? <Link className="button button--secondary" href="/admin">All accounts</Link> : null}<button className="button button--secondary" type="button" onClick={() => void signOut(session)}>Sign out</button></div></header>
     {error ? <p className="prereg-error" role="alert">{error}</p> : null}
     {usage ? <Usage usage={usage} /> : error ? null : <p className="usage-empty" role="status">Loading usage…</p>}
     {storage ? <StoragePanel storage={storage} /> : null}
