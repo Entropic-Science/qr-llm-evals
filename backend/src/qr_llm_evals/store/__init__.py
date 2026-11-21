@@ -24,6 +24,7 @@ from qr_llm_evals.store.artifacts import (
 )
 from qr_llm_evals.store.bundle import (
     derive_study_id,
+    extract_bundle,
     iter_bundle,
     prereg_sha256,
     read_bundle,
@@ -68,6 +69,7 @@ __all__ = [
     "completed_judge_refs",
     "completed_refs",
     "derive_study_id",
+    "extract_bundle",
     "iter_bundle",
     "iter_jsonl",
     "prereg_sha256",

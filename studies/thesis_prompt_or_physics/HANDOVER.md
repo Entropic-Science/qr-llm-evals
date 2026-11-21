@@ -11,7 +11,8 @@ Every blocker from your notes is gone, and the study can now be run end to end b
 3. There is a raw-byte dump tool for the device check.
 4. matplotlib is on the box, and the decision table now comes with three figures.
 5. Run artifacts are in the nightly backup, and there is a script to pull them off the box.
-6. The analysis fits in memory, although your "tens of GB" estimate was right for the old code – I measured 2.9 KB per token record, so about 26 GB for the full run. It is now about 0.55 KB per record and roughly 5 GB in total, on a box with around 14 GB free while the engine runs.
+6. The analysis fits in memory, although your "tens of GB" estimate was right for the old code – I measured 2.9 KB per token record, so about 26 GB for the full run. It is now about 0.55 KB per record and roughly 5 GB in total, which a laptop has.
+7. The analysis no longer needs the box at all. You download the study from your account page, unpack it and run `decide` on your own machine. I ran `decide` on the dry run's folder and on the downloaded copy of the same run, and the decision file and every table came out byte for byte the same (the pilot check too).
 
 #### What the box looks like right now
 
@@ -26,7 +27,7 @@ One thing we learned only from the live engine: after the token that ends a repl
 - **An account.** You need your own api.entropic.science key to sign up at evals.entropic.science – ask me and I'll mint one. One key, one account.
 - **Your own Anthropic key.** The judge runs on *your* key and Anthropic bills you directly. A launch without it is refused up front (it used to generate everything and only then stop for the key, which is a fun way to discover a typo). The judge is Claude Haiku 5.5 by default, with no temperature sent, because the current Claude models reject one. Model, answer length, thinking and temperature are study settings now, so they are part of the registered hashes.
 - **The repo on your machine**, with `pip install -e ".[dev]"`, for the launch script.
-- **Box access** for two steps (the device dump and the analysis). Tell me when you get there and I'll either run them or get you ssh.
+- **Box access** for one step, the device dump. Tell me when you get there and I'll either run it or get you ssh. Everything after that happens on your machine.
 
 #### The sequence
 
@@ -36,7 +37,7 @@ One thing we learned only from the live engine: after the token that ends a repl
 2. Fill in the template (`study.yaml`): authors, contact, the theory author's predictions, the first-word tokens in `settings.json`, and the settings hash in `expectations`. The script refuses to lock a study that still has placeholders in it.
 3. Run the pilot, on ordinary numbers only:
    `python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> pilot --start`
-   It switches the quantum arm off for you, asks for your password and judge key at the prompt, and saves the run's host token to a file. Then `thesis_report.py pilot-check`, and the 200 hand-labelled replies for the κ ≥ 0.7 check – that part is still human work.
+   It switches the quantum arm off for you, asks for your password and judge key at the prompt, and saves the run's host token to a file. When it finishes, download the pilot's data from your account page and unpack it (the same way as in step 7), then run `thesis_report.py pilot-check` on the unpacked run folder. After that come the 200 hand-labelled replies for the κ ≥ 0.7 check – that part is still human work.
 4. Lock the study, which runs readiness, renders the pre-registration and writes the four hashes:
    `python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> lock --out registration/`
    Keep that folder like it's your passport.
@@ -44,8 +45,14 @@ One thing we learned only from the live engine: after the token that ends a repl
 6. Launch the full run from the lock:
    `python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> launch --lock registration/ --start`
    It refuses to launch if the study file, the settings or the eval registry changed since the lock, so what runs is what was registered.
-7. Analyse on the box: `thesis_report.py decide`, then `thesis_report.py figures --decisions <run>/thesis/decisions.json` for the effects, sampler and first-word figures.
-8. Pull the data off the box with `scripts/pull-backup.sh --runs`, and download your study bundle from your account page. The server is working storage, not an archive.
+7. Download the data and unpack it. On your account page every run has a `Download` link, which gives you `<study_id>.tar.zst`, the whole study in one file. Going by the dry run it should be under 1 GB to download and roughly 6 GB unpacked [check: real size after the pilot]. Then:
+   `python studies/thesis_prompt_or_physics/thesis_report.py unpack --bundle <study_id>.tar.zst --out thesis-data/`
+   It prints the run folder, and it refuses to write over a folder that already has files in it. The server is working storage, not an archive, so this download is also your copy of the data.
+8. Analyse on your own machine:
+   `python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <the run folder from step 7> --plan registration/plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <settings_sha256 from registration/hashes.json>`
+   and then `thesis_report.py figures --decisions <run folder>/thesis/decisions.json` for the effects, sampler and first-word figures. The full run needs about 5 GB of free memory, and no key, network or box.
+
+I keep a second copy of every run on the box and pull it to my laptop (`scripts/pull-backup.sh --runs`), so a lost download is not a lost study.
 
 You can also open `study.yaml` in the web app ("Load study file" on the configure page) and click through it there. For anything we register, use the script.
 

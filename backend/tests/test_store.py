@@ -7,12 +7,15 @@ store package so no delete call can be introduced without failing the gate.
 from __future__ import annotations
 
 import ast
+import io
 import json
 import sqlite3
+import tarfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+import zstandard
 
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.store import (
@@ -26,6 +29,7 @@ from qr_llm_evals.store import (
     Store,
     Taint,
     completed_refs,
+    extract_bundle,
     iter_jsonl,
     prereg_sha256,
     quarantine,
@@ -34,6 +38,7 @@ from qr_llm_evals.store import (
     strip_provider_metadata,
     write_frozen_study,
 )
+from qr_llm_evals.store import bundle as bundle_module
 from qr_llm_evals.store.bundle import derive_study_id, load_frozen_study
 from qr_llm_evals.store.paths import STUDIES_DIR
 from qr_llm_evals.store.schema import Provenance, Timing
@@ -413,6 +418,80 @@ def test_bundle_round_trip_strips_provider_metadata(
     assert read_bundle(dest) == members
     with pytest.raises(FileNotFoundError):
         list(store.export_bundle("s_nope"))
+
+
+def test_bundle_exports_the_rows_the_tolerant_reader_sees(
+    store: Store, frozen: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Large JSONL files are streamed, not parsed whole; the rows must not change."""
+    monkeypatch.setattr(bundle_module, "_WRITE_BLOCK", 64)  # many blocks from a small file
+    rs = store.create_run(_run(frozen))
+    card = rs.arm_card("qrng", "creative_diversity")
+    plain = '{"sample_ref": "a/0", "u": 0.1234567890123456, "text": "ž – \\"x_ray\\"", "n": null}'
+    raw = "\n".join(
+        [
+            plain,
+            "",
+            '{"sample_ref": "a/1", "X-Request-Id": "abc", "nested": {"headers": {"a": 1}, "v": 2}}',
+            # "x_trace" with its first letter as a JSON escape (chr(92) is a backslash)
+            f'{{"sample_ref": "a/2", "{chr(92)}u0078_trace": "hidden", "v": 3}}',
+            '{"sample_ref": "a/3", "tok{"sample_ref": "a/3", "v": 4}',  # a crash, then a resume
+            "[1, 2, 3]",
+            *(f'{{"sample_ref": "b/{i}", "token_index": {i}}}' for i in range(40)),
+            '{"sample_ref": "a/4", "trunc',  # the line a killed writer left behind
+        ]
+    )
+    card.tier0_jsonl.parent.mkdir(parents=True, exist_ok=True)
+    card.tier0_jsonl.write_bytes(raw.encode("utf-8"))
+    (card.path / "zz_after.txt").write_text("the member after the streamed one", encoding="utf-8")
+
+    members = read_bundle(store.export_bundle(frozen))
+    base = f"{frozen}/runs/run1/arms/qrng/cards/creative_diversity"
+    exported = members[f"{base}/tier0.jsonl"].decode("utf-8").splitlines()
+    expected = [strip_provider_metadata(row) for row in iter_jsonl(card.tier0_jsonl)]
+    assert [json.loads(line) for line in exported] == expected
+    assert len(expected) == 43 and expected[1] == {"sample_ref": "a/1", "nested": {"v": 2}}
+    assert expected[2] == {"sample_ref": "a/2", "v": 3}
+    assert exported[0] == plain  # a row with nothing to strip is copied byte for byte
+    assert members[f"{base}/zz_after.txt"] == b"the member after the streamed one"
+
+
+def test_extract_bundle_unpacks_a_download_and_refuses_unsafe_archives(
+    store: Store, frozen: str, tmp_path: Path
+) -> None:
+    rs = store.create_run(_run(frozen))
+    rs.append_generation(_gen("qrng", "p1"))
+    dest = store.write_bundle(frozen, tmp_path / "download" / f"{frozen}.tar.zst")
+
+    study_dir = extract_bundle(dest, tmp_path / "unpacked")
+    assert study_dir == (tmp_path / "unpacked" / frozen).resolve()
+    files = {
+        f"{frozen}/{path.relative_to(study_dir).as_posix()}": path.read_bytes()
+        for path in study_dir.rglob("*")
+        if path.is_file()
+    }
+    assert files == read_bundle(dest)
+    with pytest.raises(FileExistsError):  # never writes over an earlier copy
+        extract_bundle(dest, tmp_path / "unpacked")
+
+    def archive(name: str, kind: bytes = tarfile.REGTYPE) -> Path:
+        raw = io.BytesIO()
+        with tarfile.open(fileobj=raw, mode="w") as tar:
+            info = tarfile.TarInfo(name)
+            info.type, info.size = kind, (2 if kind == tarfile.REGTYPE else 0)
+            info.linkname = "study.json"
+            tar.addfile(info, io.BytesIO(b"{}") if kind == tarfile.REGTYPE else None)
+        path = tmp_path / f"bad{len(list(tmp_path.glob('bad*')))}.tar.zst"
+        path.write_bytes(zstandard.ZstdCompressor().compress(raw.getvalue()))
+        return path
+
+    with pytest.raises(ValueError, match="unsafe member path"):
+        extract_bundle(archive("../outside.json"), tmp_path / "a")
+    assert not (tmp_path / "outside.json").exists()
+    with pytest.raises(ValueError, match="not an ordinary file"):
+        extract_bundle(archive("s_x/link", tarfile.SYMTYPE), tmp_path / "b")
+    with pytest.raises(ValueError, match="not a study bundle"):
+        extract_bundle(archive("s_x/notes.json"), tmp_path / "c")
 
 
 def test_strip_provider_metadata_is_pure() -> None:

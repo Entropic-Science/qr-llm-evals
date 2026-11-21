@@ -21,6 +21,7 @@ from qr_llm_evals.cards.statistical_plan import StatisticalPlan
 from qr_llm_evals.models.schema import CardOverrides, StudyConfig
 from qr_llm_evals.prereg.render import render
 from qr_llm_evals.runner.tasks import load_task_module, messages_hash
+from qr_llm_evals.store import Store
 from qr_llm_evals.tier0.schema import Tier0Record
 
 STUDY_DIR = REPO_ROOT / "studies" / "thesis_prompt_or_physics"
@@ -583,6 +584,49 @@ def test_report_refuses_settings_that_differ_from_the_registered_hash(tmp_path: 
                 "--settings-sha256", "0" * 64,
             ]
         )  # fmt: skip
+
+
+def test_decide_gives_the_same_report_on_an_unpacked_bundle(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The analysis is self-serve: download the study bundle, unpack it, run ``decide``."""
+    import thesis_report
+
+    store = Store(tmp_path / "data")
+    try:
+        study_dir = store.freeze_study(_study(), render(_study()))
+        run_dir = _synthetic_run(study_dir.path, told_effect=0.3, with_tier0=True)
+        archive = store.write_bundle(study_dir.study_id, tmp_path / "download.tar.zst")
+    finally:
+        store.close()
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(_plan().canonical_json() + "\n", encoding="utf-8")
+
+    assert (
+        thesis_report.main(["unpack", "--bundle", str(archive), "--out", str(tmp_path / "u")]) == 0
+    )
+    unpacked = tmp_path / "u" / study_dir.study_id / "runs" / "full"
+    assert str(unpacked) in capsys.readouterr().out
+    with pytest.raises(SystemExit, match="unpack into a new folder"):
+        thesis_report.main(["unpack", "--bundle", str(archive), "--out", str(tmp_path / "u")])
+
+    reports = []
+    for name, source in (("server", run_dir), ("laptop", unpacked)):
+        out = tmp_path / name
+        code = thesis_report.main(
+            [
+                "decide",
+                "--run-dir", str(source),
+                "--plan", str(plan_path),
+                "--settings", str(SETTINGS),
+                "--settings-sha256", load_settings(SETTINGS).sha256,
+                "--out", str(out),
+            ]
+        )  # fmt: skip
+        assert code == 0
+        tables = {p.name: p.read_bytes() for p in sorted((out / "tables").glob("*.json"))}
+        reports.append(((out / "decisions.json").read_bytes(), tables))
+    assert reports[0] == reports[1] and reports[0][1]
 
 
 def test_the_package_does_not_depend_on_the_thesis_folder() -> None:

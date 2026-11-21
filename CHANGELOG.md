@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The thesis analysis runs off the box. `thesis_report.py unpack` unpacks a
+  study bundle downloaded from the account page (streamed, only ordinary files
+  inside the target folder, never over an existing file), and `decide` and
+  `pilot-check` give byte-identical output on it and on the server's run
+  folder. `pilot-check` no longer needs `--plan`: a pilot runs before the lock,
+  so it uses the plan of its own frozen study. The runbook and the handover
+  note now say: download, then analyse locally.
+- The bundle export streams large JSONL files. It used to parse a whole file
+  into memory before sending it (about 2 GB for one arm's token records of a
+  full thesis run, with nothing sent meanwhile); it now reads line by line,
+  sends as it reads, and copies a line that holds no stripped key as it is.
+  The exported rows are the same.
+
 - An engine token log with more rows than the reply has tokens is accepted and
   cut to the reply's length. The live engine samples a few tokens after the
   one that ends the reply and discards them, and the log records every sampled
