@@ -106,6 +106,12 @@ def parse_engine_log(path: Path) -> list[dict[str, Any]]:
             try:
                 obj = json.loads(line)
             except json.JSONDecodeError as err:
+                if not line.endswith("\n"):
+                    # The engine may still be writing a row for a token it
+                    # sampled after the reply ended. A last line without its
+                    # newline is that row, half written; the rows before it
+                    # are complete.
+                    break
                 raise AcquisitionError(f"{path}:{lineno}: invalid JSON: {err}") from err
             if not isinstance(obj, dict):
                 raise AcquisitionError(f"{path}:{lineno}: each line must be an object")
@@ -251,8 +257,10 @@ def build_records(
         session_id, window: Supervised-mode tags inherited by every record.
 
     Raises:
-        AcquisitionError: Malformed source, or engine/API token counts disagree
-            (the harness taints the sample rather than guessing an alignment).
+        AcquisitionError: Malformed source, or the engine log has fewer tokens
+            than the API returned (the harness taints the sample rather than
+            guessing an alignment). A log with more rows than the reply is
+            normal and is cut to the reply's length.
     """
     api = normalise_api_tokens(api_logprobs_chunks)
     if engine_log_path is None:
@@ -263,10 +271,16 @@ def build_records(
             for i, tok in enumerate(api)
         ]
     rows = parse_engine_log(engine_log_path)
-    if api and len(api) != len(rows):
+    if api and len(rows) < len(api):
         raise AcquisitionError(
             f"{sample_ref}: engine log has {len(rows)} tokens but the API returned {len(api)}"
         )
+    if api and len(rows) > len(api):
+        # The engine keeps sampling for a few steps after the token that ends
+        # the reply, until the stop reaches it, and discards those tokens. The
+        # log records every sampled position, so it runs past the reply. Rows
+        # are indexed by position: the first len(api) are the reply's tokens.
+        rows = rows[: len(api)]
     return [
         _engine_record(
             sample_ref, i, row, api[i] if api else None, session_id=session_id, window=window

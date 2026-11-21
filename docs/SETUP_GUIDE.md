@@ -415,6 +415,10 @@ configure Study 1 and launch; consult `.\docs\API.md` for the exact
   ```
 
   That rule only touches the engine-side directory, never run artifacts.
+
+  A log usually has a few more rows than the reply has tokens: the engine
+  samples for a few more steps after the token that ends the reply and
+  discards the result. The harness keeps the rows for the reply's tokens.
 - **DEP-2**: epsilon-biased seeded PRNG also belongs in qr-sampler. Unsupported
   arms remain unavailable; record the missing positive control in the prereg.
 - **Stop/go**: absent primary measurements or required dependencies require a

@@ -130,9 +130,19 @@ def test_build_records_engine_log_path_from_fixture() -> None:
     assert records.records_from_rows(rows) == recs
 
 
-def test_engine_log_token_count_mismatch_is_an_error() -> None:
+def test_engine_log_shorter_than_the_reply_is_an_error() -> None:
+    longer = [*CHUNKS, CHUNKS[-1]]
     with pytest.raises(acquire.AcquisitionError, match="engine log has 5 tokens"):
-        acquire.build_records(SAMPLE_REF, CHUNKS[:4], ENGINE_LOG)
+        acquire.build_records(SAMPLE_REF, longer, ENGINE_LOG)
+
+
+def test_engine_log_rows_past_the_reply_are_dropped() -> None:
+    """The engine samples a few tokens after the one that ends the reply and
+    discards them; the log has them, the reply does not."""
+    recs = acquire.build_records(SAMPLE_REF, CHUNKS[:4], ENGINE_LOG)
+    full = acquire.build_records(SAMPLE_REF, CHUNKS, ENGINE_LOG)
+    assert [r.token_index for r in recs] == [0, 1, 2, 3]
+    assert recs == full[:4]
 
 
 def test_engine_log_without_api_needs_raw_logprob(tmp_path: Path) -> None:
@@ -449,10 +459,12 @@ def test_a_log_written_by_qr_sampler_parses_into_records() -> None:
     assert max(len(json.dumps(r)) for r in rows[1:]) < 400
 
 
-def test_a_sampler_log_with_the_wrong_token_count_is_refused() -> None:
-    api = [{"token": "t", "logprob": -0.5, "top_logprobs": []}] * 5
-    with pytest.raises(acquire.AcquisitionError, match="6 tokens but the API returned 5"):
+def test_a_sampler_log_shorter_than_the_reply_is_refused() -> None:
+    api = [{"token": "t", "logprob": -0.5, "top_logprobs": []}] * 7
+    with pytest.raises(acquire.AcquisitionError, match="6 tokens but the API returned 7"):
         acquire.build_records("ref", api, SAMPLER_LOG)
+    # one row more than the reply: the row after the end is dropped
+    assert len(acquire.build_records("ref", api[:5], SAMPLER_LOG)) == 5
 
 
 def test_shared_fields_set_keeps_records_equal_and_much_smaller() -> None:
@@ -485,3 +497,16 @@ def test_shared_fields_set_keeps_records_equal_and_much_smaller() -> None:
     copy = lean[0].model_copy(update={"session_id": "s"})
     assert copy.model_fields_set is not lean[1].model_fields_set
     assert lean_bytes < plain_bytes / 3, (plain_bytes, lean_bytes)
+
+
+def test_a_half_written_last_row_is_ignored_but_a_broken_row_is_not(tmp_path: Path) -> None:
+    lines = SAMPLER_LOG.read_text(encoding="utf-8").splitlines(keepends=True)
+    # the engine is still writing a row for a token sampled after the reply ended
+    growing = tmp_path / "growing.jsonl"
+    growing.write_text("".join(lines) + '{"token_index":6,"token_id":5,"times', encoding="utf-8")
+    assert len(acquire.parse_engine_log(growing)) == 6
+    # a complete line that is not JSON is damage, wherever it is
+    broken = tmp_path / "broken.jsonl"
+    broken.write_text("".join(lines[:3]) + "not json\n" + "".join(lines[3:]), encoding="utf-8")
+    with pytest.raises(acquire.AcquisitionError, match="invalid JSON"):
+        acquire.parse_engine_log(broken)
