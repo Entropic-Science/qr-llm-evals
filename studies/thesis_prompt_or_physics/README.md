@@ -79,8 +79,16 @@ left out (`as_assigned`).
 ## Before API access: the offline dry run
 
 ```bash
-python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run
+python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run          # about 5 minutes
+python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run --full   # hours
 ```
+
+The default is a small run (4 base prompts, k 10, about 8,700 simulated replies)
+that checks every step produces its output; with so few prompts its verdict is
+often "inconclusive" and H0 is outside the tolerance, which is expected at that
+size. `--full` is close to the real study's size and is the run whose verdict
+should match the description below. The simulator keeps artifact files open
+between rows instead of flushing each one to disk as the real store does.
 
 Runs the pilot (seeded and bent arms only) and the full run through the real
 orchestrator, judge phase, analysis and decision table against a fair-sampling

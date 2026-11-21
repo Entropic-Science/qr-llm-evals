@@ -26,7 +26,13 @@ guessing (H3) after a passed warm-up (C2), a first-word rate that matches the
 model's odds (H4), and a claim rate that drops under the strongly bent numbers
 (C1). Nothing here is evidence about the real model.
 
+By default the run is small (a few minutes): it proves the plumbing end to end,
+and with only four base prompts its verdict may be "inconclusive". ``--full``
+simulates close to the real study's size, takes hours, and is the run whose
+verdict should match the paragraph above.
+
     python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run
+    python studies/thesis_prompt_or_physics/thesis_dry_run.py --out /tmp/thesis-dry-run --full
 """
 
 from __future__ import annotations
@@ -79,8 +85,15 @@ CANDIDATES = 8
 COMMON, UNCOMMON = WORDS[:8], WORDS[8:]
 #: Share of quantum self-report replies marked as if the device had hiccuped.
 DEGRADED_SHARE = 0.015
-#: Reduced sizes for the dry run (the real study: k 30 and every item on both told/actual cards).
-DRY_OVERRIDES = {
+#: Sizes of the dry run. The default is a few minutes of plumbing check; ``--full`` is
+#: close to the real study (k 30 and every self-report prompt) and takes hours.
+QUICK_OVERRIDES = {
+    # 12 items = 2 instructions x 3 loop depths x 2 questions (4 base prompts).
+    "self_referential_probe": {"k": 10, "items": 12},
+    "opinion_quantum_sampling": {"k": 10, "items": 2},
+    "guesser_warmup_replies": {"k": 10, "items": 4},
+}
+FULL_OVERRIDES = {
     "self_referential_probe": {"k": 30},
     "opinion_quantum_sampling": {"k": 10, "items": 4},
 }
@@ -270,12 +283,13 @@ def judge_transport() -> httpx.MockTransport:
     return httpx.MockTransport(handle)
 
 
-def dry_run_study(*, pilot: bool = False) -> StudyConfig:
+def dry_run_study(*, pilot: bool = False, full: bool = False) -> StudyConfig:
     raw = yaml.safe_load(STUDY.read_text(encoding="utf-8"))
     raw["title"] = f"{raw['title']} (offline dry run{', pilot' if pilot else ''})"
     for selection in raw["cards"]:
-        if selection["card_id"] in DRY_OVERRIDES:
-            selection["overrides"] = DRY_OVERRIDES[selection["card_id"]]
+        overrides = FULL_OVERRIDES if full else QUICK_OVERRIDES
+        if selection["card_id"] in overrides:
+            selection["overrides"] = overrides[selection["card_id"]]
     for arm in raw["arms"]:
         if arm["source"] == "prng_epsilon":
             # The simulator accepts the bent reference mean (readiness would say so).
@@ -354,6 +368,29 @@ def run_once(
     return run_store.run_dir.path
 
 
+def _fast_appends() -> None:
+    """Keep artifact files open between appends, in this process only.
+
+    The store opens, fsyncs and closes a file for every row, so a paid run
+    survives a crash at any point. Simulated replies cost nothing, and that
+    open-and-close dominates the run time (about half a second per reply on
+    Windows). Rows are still flushed, so the analysis reads complete files.
+    """
+    import qr_llm_evals.store.store as store_module
+    from qr_llm_evals.store.artifacts import JsonlWriter
+
+    writers: dict[Path, JsonlWriter] = {}
+
+    def append(path: Path, rows: Any) -> int:
+        writer = writers.get(path)
+        if writer is None:
+            writer = writers[path] = JsonlWriter(path)
+        items = [rows] if hasattr(rows, "model_dump") or isinstance(rows, dict) else rows
+        return writer.extend(items)
+
+    store_module.append_jsonl = append  # type: ignore[assignment]
+
+
 def dry_run_settings(out: Path) -> Path:
     """The study's settings with the simulator's "Yes" token as the first-word list."""
     settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
@@ -378,8 +415,14 @@ def _report(*args: str) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, help="output directory (default: a new temp dir)")
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="simulate close to the real study's size (hours); the default is a quick check",
+    )
     args = parser.parse_args(argv)
     out = (args.out or Path(tempfile.mkdtemp(prefix="thesis-dry-run-"))).resolve()
+    _fast_appends()
     out.mkdir(parents=True, exist_ok=True)
     settings_path = dry_run_settings(out)
     settings = load_settings(settings_path)
@@ -387,14 +430,14 @@ def main(argv: list[str] | None = None) -> int:
     store = Store(out / "data")
 
     # 1. The pilot: seeded and bent arms only; no quantum number exists before the lock.
-    pilot_study = dry_run_study(pilot=True)
+    pilot_study = dry_run_study(pilot=True, full=args.full)
     pilot_plan = StatisticalPlan.from_config(pilot_study, cards)
     (out / "pilot_plan.json").write_text(pilot_plan.canonical_json() + "\n", encoding="utf-8")
     pilot_dir_study = store.freeze_study(pilot_study, render(pilot_study))
     pilot_dir = run_once(store, pilot_study, pilot_dir_study.study_id, "pilot_dry", "pilot", out)
 
     # 2. The lock: the full study, its preregistration, plan, settings and hashes.
-    study = dry_run_study()
+    study = dry_run_study(full=args.full)
     plan = StatisticalPlan.from_config(study, cards)
     prereg = render(study)
     (out / "prereg.md").write_text(prereg, encoding="utf-8", newline="\n")
