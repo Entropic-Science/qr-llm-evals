@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The thesis study's offline dry run is small by default and finishes in about
+  five minutes; `--full` runs it close to the real study's size. Inside the
+  simulator the store keeps artifact files open between rows; the real store
+  is unchanged.
+
 - Keep the "Prompt or Physics?" thesis study in its own folder,
   `studies/thesis_prompt_or_physics/` (template, settings, decision module,
   scripts, runbook). The `qr_llm_evals` package no longer contains or imports
