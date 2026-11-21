@@ -62,6 +62,12 @@
     "EstimatesResponse": {
       "$ref": "#/$defs/EstimatesResponse"
     },
+    "ConfigParseRequest": {
+      "$ref": "#/$defs/ConfigParseRequest"
+    },
+    "ConfigParseResponse": {
+      "$ref": "#/$defs/ConfigParseResponse"
+    },
     "ReadinessRequest": {
       "$ref": "#/$defs/ReadinessRequest"
     },
@@ -185,6 +191,8 @@
     "CardsResponse",
     "ModelsResponse",
     "EstimatesResponse",
+    "ConfigParseRequest",
+    "ConfigParseResponse",
     "ReadinessRequest",
     "LaunchRequest",
     "LaunchResponse",
@@ -825,6 +833,51 @@
         "count"
       ],
       "title": "CardsResponse",
+      "type": "object"
+    },
+    "ConfigParseRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "A study file: YAML or JSON.",
+          "maxLength": 200000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "ConfigParseRequest",
+      "type": "object"
+    },
+    "ConfigParseResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "$ref": "#/$defs/StudyConfig",
+          "description": "The configuration in full form, defaults filled in."
+        },
+        "config_hash": {
+          "title": "Config Hash",
+          "type": "string"
+        },
+        "unknown_cards": {
+          "description": "Card ids this registry does not have.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Unknown Cards",
+          "type": "array"
+        }
+      },
+      "required": [
+        "config",
+        "config_hash",
+        "unknown_cards"
+      ],
+      "title": "ConfigParseResponse",
       "type": "object"
     },
     "Contrast": {

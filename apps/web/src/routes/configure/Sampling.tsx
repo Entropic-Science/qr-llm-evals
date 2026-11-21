@@ -11,10 +11,10 @@ export function Sampling({ config, updateConfig, onDeterministic }: WizardStepPr
       const greedyQuantum = arm.sampling === "greedy" && arm.source === "qrng";
       return <fieldset className="arm-row" key={arm.id}><legend>{arm.id.replaceAll("_", " ")}</legend>
         <label>Sampling<select value={arm.sampling} onChange={(event) => updateArm(index, { sampling: event.target.value as Arm["sampling"] })}>{Object.entries(samplingLabels).map(([value, label]) => <option key={value} value={value} disabled={value === "greedy" && arm.source === "qrng"}>{label}</option>)}</select></label>
-        <label>Source<select value={arm.source} onChange={(event) => updateArm(index, { source: event.target.value as Arm["source"] })}>{Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value} disabled={(value === "qrng" && arm.sampling === "greedy") || value === "prng_epsilon"}>{label}{value === "prng_epsilon" ? " — unavailable" : ""}</option>)}</select></label>
+        <label>Source<select value={arm.source} onChange={(event) => updateArm(index, { source: event.target.value as Arm["source"] })}>{Object.entries(sourceLabels).map(([value, label]) => <option key={value} value={value} disabled={value === "qrng" && arm.sampling === "greedy"}>{label}</option>)}</select></label>
         <label className="toggle-line"><input type="checkbox" checked={arm.deterministic ?? false} onChange={(event) => { updateArm(index, { deterministic: event.target.checked }); if (event.target.checked) onDeterministic(); }} /> Deterministic</label>
         {greedyQuantum && <p className="validation-note" role="alert">Greedy sampling consults no randomness, so it cannot use QRNG.</p>}
-        {arm.source === "prng_epsilon" && <p className="validation-note">Unavailable until readiness confirms the engine accepts the biased control.</p>}
+        {arm.source === "prng_epsilon" && <><label>Bias ε (in standard errors of the byte mean)<input type="number" min={0} max={5} step={0.01} value={arm.epsilon ?? 0} onChange={(event) => { const value = Number(event.target.value); if (Number.isFinite(value)) updateArm(index, { epsilon: value }); }} /></label><p className="validation-note">A positive control: its random numbers are deliberately bent, so it must never be compared as if it were a fair source. It needs a seed, and it runs only if readiness confirms the engine accepts the bend.</p></>}
       </fieldset>;
     })}</div>
   </section>;

@@ -27,6 +27,8 @@ export interface Contracts {
   CardsResponse: CardsResponse;
   ModelsResponse: ModelsResponse;
   EstimatesResponse: EstimatesResponse;
+  ConfigParseRequest: ConfigParseRequest;
+  ConfigParseResponse: ConfigParseResponse;
   ReadinessRequest: ReadinessRequest;
   LaunchRequest: LaunchRequest;
   LaunchResponse: LaunchResponse;
@@ -1025,6 +1027,67 @@ export interface SupervisedEstimate {
    * Sessions plus breaks, host-paced.
    */
   wall_clock_h: number;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ConfigParseRequest".
+ */
+export interface ConfigParseRequest {
+  /**
+   * A study file: YAML or JSON.
+   */
+  text: string;
+}
+/**
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ConfigParseResponse".
+ */
+export interface ConfigParseResponse {
+  config: StudyConfig1;
+  config_hash: string;
+  /**
+   * Card ids this registry does not have.
+   */
+  unknown_cards: string[];
+}
+/**
+ * Everything the prereg freezes. ``config_hash(study)`` is its identity.
+ */
+export interface StudyConfig1 {
+  schema_version?: 1;
+  /**
+   * @minItems 1
+   */
+  authors: string[];
+  contact: string;
+  created_at: string;
+  template?: "study1" | null;
+  /**
+   * @minItems 1
+   */
+  models: ModelRef[];
+  /**
+   * @minItems 1
+   */
+  arms: Arm[];
+  /**
+   * @minItems 1
+   */
+  cards: CardSelection[];
+  judge: JudgeSpec;
+  narrative_model: ModelRef;
+  supervised?: SupervisedConfig | null;
+  /**
+   * @minItems 1
+   */
+  seeds?: number[];
+  estimates?: EstimateAssumptions;
+  pilot?: PilotConfig;
+  /**
+   * Researchers' prior expectations, free text, frozen.
+   */
+  expectations?: string;
+  data_licence?: "CC-BY-4.0";
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema

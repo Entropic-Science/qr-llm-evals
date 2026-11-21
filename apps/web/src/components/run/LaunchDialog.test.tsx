@@ -1,4 +1,4 @@
-import type { LaunchResponse, ReadinessReport, StudyConfig } from "@qr-evals/contracts";
+import type { LaunchResponse, PreregRenderResponse, ReadinessReport, StudyConfig } from "@qr-evals/contracts";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 import { api, ApiError } from "../../lib/api";
@@ -23,6 +23,7 @@ beforeEach(() => {
   Object.defineProperty(window, "localStorage", { configurable: true, value: memoryStorage() });
   Object.defineProperty(window, "sessionStorage", { configurable: true, value: memoryStorage() });
   clearSession();
+  vi.spyOn(api, "prereg").mockResolvedValue({ prereg_hash: "a".repeat(64) } as PreregRenderResponse);
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
@@ -40,6 +41,24 @@ describe("launch dialog", () => {
     expect(launch.mock.calls[0]?.[1]).toBe(session.token);
     expect(launch.mock.calls[0]?.[0].provider_keys).toEqual({ anthropic: "sk-typed" });
     expect(onClearKeys).toHaveBeenCalled();
+  });
+
+  it("sends the pre-registration hash and the chosen run size", async () => {
+    setSession(authResponse());
+    const report = { tier0_source: "engine_log" } as ReadinessReport;
+    vi.spyOn(api, "readiness").mockResolvedValue(report);
+    const prereg = vi.spyOn(api, "prereg").mockResolvedValue({ prereg_hash: "b".repeat(64) } as PreregRenderResponse);
+    const launch = vi.spyOn(api, "launch").mockResolvedValue(launched);
+    const onLaunched = vi.fn();
+    open({ onLaunched });
+    // the dialog starts on what the study file says; the host can change it
+    expect(screen.getByRole("radio", { name: config.pilot?.enabled ? /Pilot/ : /Full run/ })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: /Full run/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Check readiness & launch" }));
+    await waitFor(() => expect(onLaunched).toHaveBeenCalled());
+    // the hash is for this configuration with this readiness report
+    expect(prereg).toHaveBeenCalledWith({ config, readiness: report });
+    expect(launch.mock.calls[0]?.[0]).toMatchObject({ kind: "full", prereg_hash: "b".repeat(64), readiness: report });
   });
 
   it("refuses without a session and never calls the API", async () => {

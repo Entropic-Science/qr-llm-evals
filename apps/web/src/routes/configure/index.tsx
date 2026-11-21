@@ -42,6 +42,16 @@ function modelRef(model: { id: string; family: string; provider: string; served_
   return { id: model.id, family: model.family, provider: model.provider as ModelRef["provider"], served_name: model.served_name, checkpoint: model.checkpoint ?? null };
 }
 
+/** A file's text. FileReader rather than File.text(), which older browsers lack. */
+function readText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("the file could not be read."));
+    reader.readAsText(file);
+  });
+}
+
 export function Configure() {
   const [, navigate] = useLocation();
   const [config, setConfig] = useState(loadConfig);
@@ -53,6 +63,22 @@ export function Configure() {
   const [hash, setHash] = useState("");
   const [launchState, setLaunchState] = useState("");
   const [launchOpen, setLaunchOpen] = useState(false);
+  const [fileNote, setFileNote] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
+
+  async function loadStudyFile(file: File | undefined) {
+    if (!file) return;
+    setFileNote(null);
+    try {
+      // The server parses the YAML or JSON and fills in the defaults a hand-written file leaves out.
+      const parsed = await api.parseConfig({ text: await readText(file) });
+      setConfig(parsed.config as WizardStudyConfig);
+      setCurrent(0);
+      const missing = parsed.unknown_cards.length > 0 ? ` It names evals this server does not have: ${parsed.unknown_cards.join(", ")}.` : "";
+      setFileNote({ kind: missing ? "error" : "ok", message: `Loaded ${file.name}: ${parsed.config.arms.length} arms, ${parsed.config.cards.length} evals.${missing}` });
+    } catch (cause) {
+      setFileNote({ kind: "error", message: `${file.name} was not loaded: ${cause instanceof Error ? cause.message : "the file could not be read."}` });
+    }
+  }
 
   useEffect(() => { saveConfig(config); void configHash(config).then(setHash); }, [config]);
   useEffect(() => {
@@ -107,7 +133,8 @@ export function Configure() {
   }
 
   return <div className="configure-page">
-    <header className="configure-header"><div><p className="eyebrow">Study configuration · editable protocol</p><h1>Build the comparison.</h1></div><button className="button button--secondary" type="button" onClick={() => { setConfig(studyOneTemplate()); setCurrent(0); }}>Load Study 1 template</button></header>
+    <header className="configure-header"><div><p className="eyebrow">Study configuration · editable protocol</p><h1>Build the comparison.</h1></div><div className="auth-form__actions"><label className="button button--secondary file-button">Load study file<input className="sr-only" type="file" accept=".yaml,.yml,.json,application/json,text/yaml" onChange={(event) => { void loadStudyFile(event.target.files?.[0]); event.target.value = ""; }} /></label><button className="button button--secondary" type="button" onClick={() => { setConfig(studyOneTemplate()); setCurrent(0); setFileNote(null); }}>Load Study 1 template</button></div></header>
+    {fileNote ? <p className={fileNote.kind === "error" ? "prereg-error" : "privacy-note"} role={fileNote.kind === "error" ? "alert" : "status"}>{fileNote.message}</p> : null}
     <div className="wizard-layout">
       <nav className="step-rail" aria-label="Configuration steps"><p className="step-rail__progress">{String(current + 1).padStart(2, "0")} / {String(steps.length).padStart(2, "0")}</p><ol>{steps.map(([label], index) => <li key={label}><button type="button" className={index === current ? "is-current" : index < current ? "is-complete" : ""} aria-current={index === current ? "step" : undefined} onClick={() => setCurrent(index)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button></li>)}</ol></nav>
       <main className="wizard-workbench"><CurrentStep {...stepProps} /><footer className="wizard-actions"><button className="button button--secondary" type="button" disabled={current === 0} onClick={() => setCurrent((value) => Math.max(0, value - 1))}>Previous</button>{current < steps.length - 1 && <button className="button button--primary" type="button" disabled={!canContinue} onClick={() => setCurrent((value) => Math.min(steps.length - 1, value + 1))}>Continue</button>}</footer></main>

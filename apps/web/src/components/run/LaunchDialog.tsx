@@ -19,6 +19,7 @@ export function LaunchDialog({ open, config, providerKeys, onClose, onClearKeys,
   const [state, setState] = useState<"idle" | "checking" | "launching" | "error">("idle");
   const [signedOut, setSignedOut] = useState(false);
   const [message, setMessage] = useState("");
+  const [kind, setKind] = useState<"pilot" | "full">(config.pilot?.enabled ? "pilot" : "full");
   async function launch() {
     const session = getSession();
     if (!session) { setState("error"); setSignedOut(true); setMessage("Your session has ended. Sign in again to launch."); return; }
@@ -27,8 +28,11 @@ export function LaunchDialog({ open, config, providerKeys, onClose, onClearKeys,
     try {
       setState("checking"); setMessage("Checking engine, entropy, and arm equivalence…");
       const readiness = await api.readiness({ config, throughput_probe: false }, launchKey);
-      setState("launching"); setMessage("Readiness recorded. Creating the server-side run…");
-      const result = await api.launch({ config, readiness, kind: config.pilot?.enabled ? "pilot" : "full", provider_keys: providerKeys }, launchKey);
+      setState("launching"); setMessage("Readiness recorded. Freezing the pre-registration and creating the run…");
+      // The hash of the pre-registration for exactly this configuration and this
+      // readiness report; the server compares it with the document it freezes.
+      const prereg = await api.prereg({ config, readiness });
+      const result = await api.launch({ config, readiness, kind, prereg_hash: prereg.prereg_hash, provider_keys: providerKeys }, launchKey);
       setHostToken(result.run_id, result.host_token);
       onClearKeys();
       onLaunched(result.run_id);
@@ -40,6 +44,10 @@ export function LaunchDialog({ open, config, providerKeys, onClose, onClearKeys,
   }
   return <Modal open={open} onClose={state === "checking" || state === "launching" ? () => undefined : onClose} eyebrow="Final launch gate" title="Readiness before generation" footer={<div className="launch-dialog__actions"><button className="button button--secondary" type="button" disabled={state === "checking" || state === "launching"} onClick={onClose}>Cancel</button><button className="button button--primary" type="button" disabled={state === "checking" || state === "launching"} onClick={() => void launch()}>Check readiness &amp; launch</button></div>}>
     <p>This performs the preregistered readiness check first, then creates the run. <strong>It does not start generation.</strong> The host must explicitly press Start on the run page.</p>
+    <fieldset className="launch-kind"><legend>Size of this run</legend>
+      <label><input type="radio" name="run-kind" checked={kind === "pilot"} onChange={() => setKind("pilot")} /> Pilot: a few prompts per eval, to check the pipeline and the base rates</label>
+      <label><input type="radio" name="run-kind" checked={kind === "full"} onChange={() => setKind("full")} /> Full run: everything the study specifies</label>
+    </fieldset>
     <dl className="launch-ledger"><div><dt>Arms</dt><dd>{config.arms.length}</dd></div><div><dt>Evaluations</dt><dd>{config.cards.length}</dd></div><div><dt>Provider keys</dt><dd>Sent once · cleared after success</dd></div></dl>
     {message ? <p className={state === "error" ? "prereg-error" : "launch-dialog__status"} role={state === "error" ? "alert" : "status"}>{message}{signedOut ? <> <Link className="text-link" href="/login?next=/">Sign in</Link> (provider keys need typing again).</> : null}</p> : null}
   </Modal>;

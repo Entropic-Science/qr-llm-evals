@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Study 1 and the thesis study can be launched as written. `POST /runs` used
+  to refuse every study that names a Tier 0 card, because those cards are not
+  selectable on their own; a study may now name an implemented derived card.
+  Planned cards are still refused.
+- `studies/thesis_prompt_or_physics/thesis_launch.py` locks and launches the
+  thesis study from a terminal: `lock` runs readiness and saves the
+  preregistration with its four hashes, `pilot` launches with the quantum arms
+  switched off, and `launch` starts the full run only if the study still
+  matches the locked hashes. Passwords and keys are asked for, never given as
+  arguments.
+- The wizard has a "Load study file" button (YAML or JSON, parsed by the new
+  `POST /config/parse`), lets an arm be the biased control with its bias, and
+  its launch dialog offers pilot or full run and sends the preregistration
+  hash, so a run launched from the web is no longer marked stale by default.
+
 - The engine's per-token log is requested for real generations, not only by
   the readiness probe. When `QR_EVALS_TOKEN_LOG_DIR` is set, every generation
   on the engine sends `qr_token_log` and `qr_request_id` (the sample
