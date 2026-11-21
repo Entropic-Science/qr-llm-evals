@@ -22,6 +22,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import re
+import shutil
 import tarfile
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime
@@ -32,7 +34,7 @@ from typing import Any
 import zstandard
 
 from qr_llm_evals.models.schema import StudyConfig, canonical_json, config_hash
-from qr_llm_evals.store.artifacts import iter_jsonl, read_json, write_json, write_text
+from qr_llm_evals.store.artifacts import read_json, write_json, write_text
 from qr_llm_evals.store.paths import DataRoot, StudyDir
 
 BUNDLE_SCHEMA_VERSION = 1
@@ -63,6 +65,8 @@ STRIPPED_KEYS: frozenset[str] = frozenset(
 )
 #: Header-shaped keys (``x-…``) are stripped wherever they appear.
 STRIPPED_PREFIXES: tuple[str, ...] = ("x_",)
+#: JSONL members are written to the archive in blocks of about this size.
+_WRITE_BLOCK = 1 << 20
 #: Files never exported: the rebuildable index, temp files, quarantine.
 _SKIP_SUFFIXES = {".tmp", ".sqlite", ".sqlite-wal", ".sqlite-shm"}
 
@@ -239,19 +243,52 @@ def _export_files(study_dir: StudyDir) -> Iterator[Path]:
 
 
 def _stripped_bytes(path: Path) -> bytes | None:
-    """Transformed content for JSON/JSONL files, ``None`` for files copied verbatim."""
+    """Transformed content for JSON files, ``None`` for files copied verbatim."""
     if path.suffix == ".json":
         data = strip_provider_metadata(json.loads(path.read_text(encoding="utf-8")))
         return (
             json.dumps(data, ensure_ascii=False, allow_nan=False, indent=2, sort_keys=True) + "\n"
         ).encode("utf-8")
-    if path.suffix == ".jsonl":
-        lines = [
-            json.dumps(strip_provider_metadata(row), ensure_ascii=False, allow_nan=False)
-            for row in iter_jsonl(path)
-        ]
-        return ("".join(line + "\n" for line in lines)).encode("utf-8")
     return None
+
+
+def _key_pattern() -> re.Pattern[bytes]:
+    names = sorted(key.replace("_", "[-_]") + '"' for key in STRIPPED_KEYS)
+    names += [prefix.replace("_", "[-_]") for prefix in STRIPPED_PREFIXES]
+    # An escaped printable ASCII character (a ``\u00..`` escape for a letter) could
+    # spell a stripped key without matching its name; no encoder the harness uses
+    # writes one, and a line that has one takes the slow path.
+    alternatives = "|".join(names).encode("ascii")
+    return re.compile(rb'"(?:' + alternatives + rb")|\\u00[2-7]", re.IGNORECASE)
+
+
+#: Matches every JSONL line that *may* hold a stripped key (false positives are
+#: fine: such a line is parsed and stripped; every other line is copied as is).
+_MAY_HOLD_STRIPPED_KEY = _key_pattern()
+
+
+def _jsonl_lines(path: Path, end: int) -> Iterator[bytes]:
+    """The exported lines of the first ``end`` bytes of a JSONL file.
+
+    Same rows as ``artifacts.iter_jsonl`` (blank and truncated lines and non-objects
+    are left out), one at a time, so a file of any size costs one line of
+    memory. A line that cannot hold a stripped key is not re-encoded.
+    """
+    with open(path, "rb") as fh:
+        while (raw := fh.readline(end - fh.tell())) != b"":
+            line = raw.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(row, dict):
+                continue
+            if _MAY_HOLD_STRIPPED_KEY.search(line):
+                text = json.dumps(strip_provider_metadata(row), ensure_ascii=False, allow_nan=False)
+                line = text.encode("utf-8")
+            yield line + b"\n"
 
 
 class _ZstdSink(io.RawIOBase):
@@ -301,13 +338,38 @@ def iter_bundle(
             info.uid = info.gid = 0
             info.uname = info.gname = ""
             content = _stripped_bytes(path)
-            if content is None:
+            if content is not None:
+                info.size = len(content)
+                tar.addfile(info, io.BytesIO(content))
+            elif path.suffix == ".jsonl":
+                # A tar member states its size before its bytes, so the lines are
+                # produced twice: once to count, once to write. Both passes stop at
+                # the size the file has now; a run still appending to it cannot
+                # make them disagree. The member is written here, block by block,
+                # and not through ``addfile``, so a large file is sent while it is
+                # read and the download does not stall on it.
+                end = path.stat().st_size
+                info.size = sum(len(line) for line in _jsonl_lines(path, end))
+                tar.addfile(info)  # the header alone
+                out = tar.fileobj
+                if out is None:  # only after close(); keeps the type checker honest
+                    raise ValueError("bundle archive is closed")
+                block = bytearray()
+                for line in _jsonl_lines(path, end):
+                    block += line
+                    if len(block) >= _WRITE_BLOCK:
+                        out.write(bytes(block))
+                        block.clear()
+                        chunk = sink.drain()
+                        if chunk:
+                            yield chunk
+                padding = -info.size % tarfile.BLOCKSIZE
+                out.write(bytes(block) + tarfile.NUL * padding)
+                tar.offset += info.size + padding
+            else:
                 info.size = path.stat().st_size
                 with open(path, "rb") as fh:
                     tar.addfile(info, fh)
-            else:
-                info.size = len(content)
-                tar.addfile(info, io.BytesIO(content))
             if n % chunk_files == 0:
                 chunk = sink.drain()
                 if chunk:
@@ -324,6 +386,40 @@ def write_bundle(root: DataRoot, study_id: str, dest: Path, *, level: int = ZSTD
         for chunk in iter_bundle(root, study_id, level=level):
             fh.write(chunk)
     return dest
+
+
+def extract_bundle(source: Path, dest: Path) -> Path:
+    """Unpack a downloaded ``<study_id>.tar.zst`` under ``dest``; returns the study directory.
+
+    Streams member by member, so a multi-GB bundle never sits in memory. Only
+    ordinary files and directories inside ``dest`` are accepted, and a file that
+    already exists is never overwritten (``FileExistsError``): unpack into a new
+    folder.
+    """
+    root = dest.resolve()
+    tops: set[str] = set()
+    with (
+        open(source, "rb") as fh,
+        zstandard.ZstdDecompressor().stream_reader(fh) as reader,
+        tarfile.open(fileobj=reader, mode="r|") as tar,
+    ):
+        for member in tar:
+            target = (root / member.name).resolve()
+            if target == root or not target.is_relative_to(root):
+                raise ValueError(f"{source}: unsafe member path {member.name!r}")
+            tops.add(target.relative_to(root).parts[0])
+            if member.isdir():
+                target.mkdir(parents=True, exist_ok=True)
+                continue
+            stream = tar.extractfile(member) if member.isfile() else None
+            if stream is None:
+                raise ValueError(f"{source}: {member.name!r} is not an ordinary file")
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "xb") as out:
+                shutil.copyfileobj(stream, out, 1 << 20)
+    if len(tops) != 1 or not (root / next(iter(tops)) / "study.json").is_file():
+        raise ValueError(f"{source} is not a study bundle (no single <study_id>/study.json)")
+    return root / next(iter(tops))
 
 
 def read_bundle(source: Path | bytes | Iterable[bytes]) -> dict[str, bytes]:
@@ -352,6 +448,7 @@ __all__ = [
     "STRIPPED_PREFIXES",
     "ZSTD_LEVEL",
     "derive_study_id",
+    "extract_bundle",
     "iter_bundle",
     "licence_data_text",
     "load_frozen_study",

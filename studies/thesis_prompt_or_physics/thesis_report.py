@@ -8,7 +8,7 @@ first-word token ids; ``studies/thesis_prompt_or_physics/settings.json``).
 
     # after the pilot (seeded arms only): base rates, bent doses, no quantum data
     python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_run_id> \
-        --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json
+        --settings studies/thesis_prompt_or_physics/settings.json
 
     # after the full run: execute the frozen plan, run the checks and decide
     python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_run_id> --plan plan.json \
@@ -16,6 +16,9 @@ first-word token ids; ``studies/thesis_prompt_or_physics/settings.json``).
 
     # figures for the decision table, drawn from decisions.json (needs matplotlib)
     python studies/thesis_prompt_or_physics/thesis_report.py figures --decisions <run>/thesis/decisions.json
+
+    # a study bundle downloaded from the account page, unpacked for the commands above
+    python studies/thesis_prompt_or_physics/thesis_report.py unpack --bundle <study_id>.tar.zst --out <folder>
 
     # the text to file on the public registry, from the folder thesis_launch.py lock wrote
     python studies/thesis_prompt_or_physics/thesis_report.py register --lock registration/
@@ -26,6 +29,10 @@ out). ``pilot-check`` writes ``pilot_check.{json,md}`` next to the pilot run. Ne
 changes anything in the run directory itself. ``figures`` writes ``effects``,
 ``sampler`` and ``first_word`` as SVG and PNG next to the decisions file.
 ``register`` writes ``REGISTRATION.md`` into the lock folder.
+
+None of this needs the server: ``unpack`` turns the downloaded bundle into the
+same ``<study>/runs/<run_id>`` tree the harness wrote, and ``pilot-check`` and
+``decide`` give the same numbers on it as on the original run folder.
 """
 
 from __future__ import annotations
@@ -45,7 +52,10 @@ from thesis import (
 
 from qr_llm_evals.analysis.endpoints import exclude_tainted, execute, load_data
 from qr_llm_evals.analysis.tables import write_tables
+from qr_llm_evals.cards import load_cards
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan
+from qr_llm_evals.models.schema import StudyConfig
+from qr_llm_evals.store import extract_bundle
 
 
 def _plan(path: Path) -> StatisticalPlan:
@@ -58,9 +68,38 @@ def _run_dir(path: Path) -> Path:
     return path
 
 
+def _pilot_plan(run_dir: Path) -> StatisticalPlan:
+    """The plan of the pilot's own frozen study (``study.json``, two folders up).
+
+    A pilot runs before the lock, so no registered plan exists for it yet; its
+    plan is the one its frozen configuration gives. ``decide`` never does this:
+    a full run is judged by the plan that was locked.
+    """
+    study_json = run_dir.parent.parent / "study.json"
+    if not study_json.is_file():
+        raise SystemExit(f"{study_json} is missing: pass --plan, or run on an unpacked bundle")
+    config = json.loads(study_json.read_text(encoding="utf-8"))["config"]
+    return StatisticalPlan.from_config(StudyConfig.model_validate(config), load_cards())
+
+
+def cmd_unpack(args: argparse.Namespace) -> int:
+    try:
+        study_dir = extract_bundle(args.bundle, args.out)
+    except FileExistsError as err:
+        raise SystemExit(f"{err.filename} already exists: unpack into a new folder") from err
+    except (OSError, ValueError) as err:
+        raise SystemExit(f"cannot unpack {args.bundle}: {err}") from err
+    print(f"study: {study_dir}")
+    for run_json in sorted(study_dir.glob("runs/*/run.json")):
+        run = json.loads(run_json.read_text(encoding="utf-8"))
+        print(f"run:   {run_json.parent}  ({run.get('kind', '?')}, {run.get('state', '?')})")
+    return 0
+
+
 def cmd_pilot_check(args: argparse.Namespace) -> int:
     run_dir = _run_dir(args.run_dir.resolve())
-    report = pilot_check(load_data(run_dir), _plan(args.plan), load_settings(args.settings))
+    plan = _plan(args.plan) if args.plan else _pilot_plan(run_dir)
+    report = pilot_check(load_data(run_dir), plan, load_settings(args.settings))
     out = (args.out or run_dir.parent / f"{run_dir.name}_pilot_check").resolve()
     out.mkdir(parents=True, exist_ok=True)
     (out / "pilot_check.json").write_text(
@@ -186,9 +225,13 @@ def cmd_register(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
+    unpack = sub.add_parser("unpack", help="unpack a downloaded study bundle (.tar.zst)")
+    unpack.add_argument("--bundle", type=Path, required=True, help="the downloaded .tar.zst")
+    unpack.add_argument("--out", type=Path, required=True, help="a new folder to unpack into")
+    unpack.set_defaults(func=cmd_unpack)
     pilot = sub.add_parser("pilot-check", help="what the pilot must show before the lock")
     pilot.add_argument("--run-dir", type=Path, required=True)
-    pilot.add_argument("--plan", type=Path, required=True)
+    pilot.add_argument("--plan", type=Path, help="default: the plan of the pilot's own study")
     pilot.add_argument("--settings", type=Path, required=True)
     pilot.add_argument("--out", type=Path)
     pilot.set_defaults(func=cmd_pilot_check)

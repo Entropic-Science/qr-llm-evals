@@ -139,9 +139,11 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    ```bash
    python studies/thesis_prompt_or_physics/thesis_launch.py --username <you> pilot --start
    ```
-   Then
+   Then download the pilot's data and unpack it (step 8 shows how; the pilot is
+   its own study, with its own download), and check it. No plan is locked yet
+   at this point, so the check uses the plan of the pilot's own frozen study.
    ```bash
-   python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir <study>/runs/<pilot_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json
+   python studies/thesis_prompt_or_physics/thesis_report.py pilot-check --run-dir thesis-data/<pilot_study_id>/runs/<pilot_id> --settings studies/thesis_prompt_or_physics/settings.json
    ```
    It refuses a pilot with quantum data, reports whether the claim rate and the
    "Yes" rate leave room to move (between 0.1 and 0.9), and how far the bent
@@ -200,19 +202,34 @@ qr-llm. Output: `pilot_check.{json,md}`, `prereg.md`, `plan.json`,
    page press "Load study file" and choose `study.yaml`. The web app renders
    the preregistration at the moment of launch, so for a registered study use
    the script, which launches exactly what was locked.
-8. **Analyse and decide.**
+8. **Download, then analyse and decide on your own machine.** The run folder
+   on the server is readable by the service only, and the analysis does not
+   need it. On the account page, the `Download` link next to the run gives
+   `<study_id>.tar.zst`: the whole study with provider headers and request ids
+   removed, nothing the analysis reads. Unpack it into a new folder:
    ```bash
-   python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir <study>/runs/<full_id> --plan plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <registered hash>
+   python studies/thesis_prompt_or_physics/thesis_report.py unpack --bundle <study_id>.tar.zst --out thesis-data/
+   ```
+   It prints the study folder and each run folder (`thesis-data/<study_id>/runs/<run_id>`),
+   accepts only ordinary files inside the target folder and never writes over
+   an existing file. `tar --zstd -xf` gives the same tree where tar has zstd.
+   Then
+   ```bash
+   python studies/thesis_prompt_or_physics/thesis_report.py decide --run-dir thesis-data/<study_id>/runs/<full_id> --plan registration/plan.json --settings studies/thesis_prompt_or_physics/settings.json --settings-sha256 <settings_sha256 in registration/hashes.json>
    ```
    refuses settings whose hash differs from the registered one, and writes `thesis/tables/`, `thesis/decisions.json` and `thesis/decisions.md`.
+   `decide` and `pilot-check` give byte-identical output on the unpacked
+   download and on the server's run folder (`backend/tests/test_thesis_study.py`
+   holds that).
    Draw the figures from the decision file (script-made, like every figure):
    ```bash
    python studies/thesis_prompt_or_physics/thesis_report.py figures --decisions <study>/runs/<full_id>/thesis/decisions.json
    ```
    It writes `effects`, `sampler` and `first_word` as SVG and PNG into
-   `thesis/figures/`. The analysis runs on the box: a full run's token records
-   take about 5 GB of memory. Afterwards pull the run off the box
-   (`scripts/pull-backup.sh --runs`).
+   `thesis/figures/`. A full run's token records take about 5 GB of memory, so
+   a laptop is enough; nothing here needs the network, a key or the box. The
+   download is also the researcher's own copy of the data. The operator keeps a
+   second one (`scripts/pull-backup.sh --runs`).
 
 ## What the thesis added to the harness
 
