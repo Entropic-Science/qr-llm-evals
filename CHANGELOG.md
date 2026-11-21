@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- An engine token log with more rows than the reply has tokens is accepted and
+  cut to the reply's length. The live engine samples a few tokens after the
+  one that ends the reply and discards them, and the log records every sampled
+  position, so every real log is a little longer than its reply. A log that is
+  shorter than the reply is still refused.
+
 - Thesis study tools. `thesis_device_dump.py` dumps raw bytes from the entropy
   server for the device check, in requests of the size the sampler draws per
   token, and can be continued after an interruption. `thesis_report.py
