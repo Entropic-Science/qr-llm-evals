@@ -76,6 +76,29 @@ def test_backup_units_and_script() -> None:
     assert len(removals) == 1 and "xargs -r rm -f --" in removals[0]
     assert 'find "$DEST" -maxdepth 1 -type f' in script
     assert "mode=ro" in script  # the live database is opened read-only
+    # Run artifacts are copied, and the copy only ever grows: no deletion on the
+    # receiving side, and a file that was rewritten keeps its older version.
+    assert "rsync -a --no-owner --no-group" in script
+    for unsafe in ("--delete", "--remove-source-files", "--append", "--inplace"):
+        assert unsafe not in script, unsafe
+    assert '--backup --backup-dir="$DEST/runs/changed-$STAMP/$part"' in script
+    assert '"$DATA/$part/" "$DEST/runs/$part/"' in script
+
+
+def test_pull_backup_script_never_touches_the_box() -> None:
+    raw = (ROOT / "scripts/pull-backup.sh").read_bytes()
+    assert b"\r" not in raw
+    subprocess.run([bash_binary(), "-n", "scripts/pull-backup.sh"], cwd=ROOT, check=True)
+    script = raw.decode("utf-8")
+    # every command run on the box reads; the only thing started is the backup itself
+    remote = re.findall(r'ssh "\$BOX" [\'"](.+?)[\'"]\s*(?:\)|>|\||$)', script, flags=re.M)
+    assert remote, "no remote commands found"
+    for command in remote:
+        assert not re.search(r"\b(rm|mv|dd|truncate|tee)\b", command), command
+    # local removals are only of a download that failed its check
+    removals = [line.strip() for line in script.splitlines() if re.search(r"\brm\s", line)]
+    assert removals and all('.part"' in line for line in removals)
+    assert "sha256sum" in script and "tar -tzf" in script
 
 
 def test_keys_file_watcher_grants_read_only() -> None:

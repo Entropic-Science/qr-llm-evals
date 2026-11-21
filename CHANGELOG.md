@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Thesis study tools. `thesis_device_dump.py` dumps raw bytes from the entropy
+  server for the device check, in requests of the size the sampler draws per
+  token, and can be continued after an interruption. `thesis_report.py
+  register` writes the registration text with the four hashes from a lock
+  folder, and `thesis_report.py figures` draws the decision figures (effects,
+  sampler, first word) from `decisions.json`. The runbook has the steps for
+  filing the registration on OSF.
+- `requirements-analysis.lock` pins matplotlib and statsmodels for the box, so
+  a release can draw figures; `scripts/deploy.sh` already installs it when
+  present.
+- The nightly backup also copies the run artifacts to
+  `/var/backups/qr-llm-evals/runs/`. Nothing is deleted from that copy, and a
+  changed file keeps its previous version. `scripts/pull-backup.sh` pulls the
+  accounts database, the configuration and, with `--runs`, every run to
+  another machine and checks what it downloaded.
+
 - Study 1 and the thesis study can be launched as written. `POST /runs` used
   to refuse every study that names a Tier 0 card, because those cards are not
   selectable on their own; a study may now name an implemented derived card.
