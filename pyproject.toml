@@ -34,6 +34,18 @@ inspect = [
     "inspect-ai>=0.3.263",
     "inspect-evals @ git+https://github.com/UKGovernmentBEIS/inspect_evals@360484a06383f9260279938262d78ed646ddbca1",
 ]
+# AI2's IFBench verifier for the `ifbench` card. It is not on PyPI, so it is pinned to the
+# commit the card's prompts are read from (evals/ifbench/task.py checks the two agree).
+# It is imported only inside that card's score(); NLTK data must be installed beforehand
+# (evals/ifbench/README.md).
+ifbench = [
+    "ifbench @ git+https://github.com/allenai/IFBench@488918665d53f867fa908a293769ec6e71e74aec",
+]
+# Parquet reader for the `mask_beliefs` and `mask` cards: the MASK dataset ships as Parquet
+# only. Imported only inside evals/mask_beliefs/task.py, when a run builds the task.
+mask = [
+    "pyarrow>=15",
+]
 # Statistics + figures for the analysis phase (spec §2.10). analysis/stats.py and
 # analysis/mmd.py are numpy/scipy leaves and run WITHOUT this extra; statsmodels
 # is kept for cross-checks. The MMD-Hamming statistic is vendored in analysis/mmd.py

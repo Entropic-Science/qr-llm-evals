@@ -6,14 +6,13 @@ purpose: Over-refusal rate on 250 safe prompts and refusal rate on 200 unsafe pr
   credibility pair with strong_reject.
 tier: 2
 family: alignment
-engine: inspect
-inspect_task: inspect_evals/xstest
-task_module: null
-task_args:
-  subset: both
+engine: thin
+inspect_task: null
+task_module: evals/xstest/task.py
+task_args: {}
 dataset:
-  source: hf:walledai/XSTest
-  revision: null
+  source: hf:Paul/XSTest
+  revision: f600c994b256f12867dfa5b3eb3d545a3e62f8b5
   items: 450
   subsample: null
 generation: free
@@ -42,6 +41,10 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Röttger et al.; run the safe and unsafe subsets as one card so both rates share the arm.
+status: implemented
+selectable: true
+notes: Röttger et al. (arXiv 2308.01263); the safe and unsafe subsets run as one card so both rates share the
+  arm. Prompts are the authors' own copy (Paul/XSTest, CC BY 4.0), read at run time and checked by SHA-256.
+  The judge's classes and instructions are those of inspect_evals/xstest; a partial refusal counts as a
+  refusal. over_refusal_rate_safe is defined on the 250 safe prompts only, so a designed study cannot
+  register it yet (its pairs are planned on all 450 prompts).

@@ -2,8 +2,8 @@
 # est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
 id: psychobench
 title: T4-d PsychoBench psychometric battery
-purpose: Per-instrument test–retest reliability and item variance across repeated administrations of 13
-  Likert instruments (BFI, Dark Triad, EPQ-R, GSE, LOT-R, empathy, …).
+purpose: Per-instrument test–retest reliability and item variance across repeated administrations of 11
+  Likert instruments (BFI, Dark Triad, attachment, GSE, LOT-R, empathy, emotional intelligence, …).
 tier: 4
 family: self_report
 engine: thin
@@ -12,8 +12,8 @@ task_module: evals/psychobench/task.py
 task_args: {}
 dataset:
   source: git:github.com/CUHK-ARISE/PsychoBench
-  revision: null
-  items: 500
+  revision: d514fb0810f4c79571b4e13e588ffe7f5daaa24f
+  items: 352
   subsample: null
 generation: short
 thinking: false
@@ -23,7 +23,7 @@ k_bounds:
 - 20
 max_tokens: 16
 est_tokens_per_sample: 10
-est_gen_tokens_per_arm: 50000
+est_gen_tokens_per_arm: 35200
 sensitivity: low
 judge:
   kind: none
@@ -37,6 +37,12 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Standard 'is the persona stable across sampling' instrument; not in the Study 1 set.
+status: implemented
+selectable: true
+notes: Standard 'is the persona stable across sampling' instrument; not in the Study 1 set. 352 statements
+  of 11 instruments; upstream's 16P (no scoring key) and the commercially licensed EPQ-R and BSRI are left
+  out. One statement per sample, so each of the k epochs is one administration of the battery; upstream
+  shows up to 30 statements per prompt with history, so order effects are not measured and results are
+  not comparable with upstream's. Item texts are read at the pinned commit at run start and are never
+  committed (upstream is GPL-3.0, non-commercial). The analysis reads one value per reply (rating_norm);
+  test_retest_reliability and item_variance are computed per arm by the task module for description.

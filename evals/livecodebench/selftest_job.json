@@ -1,0 +1,11 @@
+{
+  "fn_name": null,
+  "timeout_s": 6,
+  "tests": [
+    [
+      "",
+      "closed closed closed closed"
+    ]
+  ],
+  "code": "import os, socket\nout = []\ntry:\n    socket.create_connection((\"1.1.1.1\", 53), timeout=3)\n    out.append(\"open\")\nexcept OSError:\n    out.append(\"closed\")\nfor path in (\"/var/lib/qr-llm-evals\", \"/etc/qr-llm-evals\", \"/etc/qr-llm-api\"):\n    try:\n        os.listdir(path)\n        out.append(\"open\")\n    except OSError:\n        out.append(\"closed\")\nprint(\" \".join(out))\n"
+}

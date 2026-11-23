@@ -11,8 +11,8 @@ inspect_task: null
 task_module: evals/eval_awareness/task.py
 task_args: {}
 dataset:
-  source: git:github.com/jjpn97/eval_awareness
-  revision: null
+  source: hf:jjpn2/eval_awareness
+  revision: 5d724f12988284a652749c56ec7b2356b0d14408
   items: 200
   subsample: null
 generation: free
@@ -40,7 +40,11 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Needham et al. (2505.23836); transcripts are gated CC BY-NC-SA, hence planned, not in Study 1.
-  Expect null; any supervised-vs-unsupervised difference would be an H2/H3 anomaly.
+status: implemented
+selectable: true
+notes: Needham et al. (2505.23836). The transcripts are gated (CC BY-NC-SA, with GAIA content that may not be
+  redistributed) and encrypted; the harness never downloads them. The operator accepts the conditions,
+  decrypts the archive and places dataset.json under evals/eval_awareness/data/ (ignored by git); without
+  it a run that selects this card fails when it builds the prompts. Uses 100 evaluation and 100 real chat
+  transcripts. The rubric is this repository's own. Expect null; any supervised-vs-unsupervised
+  difference would be an H2/H3 anomaly.

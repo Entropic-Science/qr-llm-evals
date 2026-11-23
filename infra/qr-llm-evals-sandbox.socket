@@ -1,0 +1,16 @@
+[Unit]
+Description=Sandbox for programs written by a model (livecodebench): one job per connection
+
+[Socket]
+ListenStream=/run/qr-llm-evals-sandbox/sandbox.sock
+# Only the harness may hand in a job.
+SocketUser=root
+SocketGroup=qr-llm-evals
+SocketMode=0660
+DirectoryMode=0755
+# One instance of qr-llm-evals-sandbox@.service per connection, a few at a time.
+Accept=yes
+MaxConnections=8
+
+[Install]
+WantedBy=sockets.target

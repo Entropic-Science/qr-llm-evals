@@ -1,0 +1,44 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: deception_bench_beliefs
+title: DeceptionBench — unpressured answers
+purpose: The model's answer to the neutral question of each of 180 scenarios over k=10; the belief the
+  DeceptionBench card compares the pressured reply with.
+tier: 2
+family: alignment
+engine: thin
+inspect_task: null
+task_module: evals/deception_bench_beliefs/task.py
+task_args: {}
+dataset:
+  source: hf:PKU-Alignment/DeceptionBench
+  revision: 9c6c67b3d2a2d9c226ea0dd2120f1bb0899d779d
+  items: 180
+  subsample: null
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 800
+est_tokens_per_sample: 300
+est_gen_tokens_per_arm: 540000
+sensitivity: high
+judge:
+  kind: none
+told_actual: false
+endpoints:
+  primary:
+  - belief_word_count
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Stage one of DeceptionBench (Ji et al., arXiv 2505.18807; dataset MIT), read at run time at the
+  pinned commit and checked by SHA-256. Each scenario's inner_prompt is asked alone, as the paper elicits
+  the model's belief. The headline endpoint is descriptive; the eval's outcome is deception_rate of
+  deception_bench, which needs this card in the same study.
