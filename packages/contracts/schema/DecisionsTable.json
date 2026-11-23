@@ -1,0 +1,463 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "DecisionsTable.json",
+  "$defs": {
+    "DecisionRow": {
+      "additionalProperties": false,
+      "description": "One hypothesis after the analysis: the numbers, the gates and the verdict.",
+      "properties": {
+        "hypothesis_id": {
+          "title": "Hypothesis Id",
+          "type": "string"
+        },
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "title": "Sampling",
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "paired_permutation",
+            "ks_two_sample",
+            "mmd_hamming_permutation"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Estimate"
+        },
+        "ci_lower": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ci Lower"
+        },
+        "ci_upper": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ci Upper"
+        },
+        "ci_level": {
+          "title": "Ci Level",
+          "type": "number"
+        },
+        "p_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Value"
+        },
+        "p_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Adjusted"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Margin"
+        },
+        "p_equivalence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Equivalence"
+        },
+        "p_equivalence_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Equivalence Adjusted"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Completeness"
+        },
+        "negative_control": {
+          "$ref": "#/$defs/NegativeControl"
+        },
+        "positive_control": {
+          "$ref": "#/$defs/PositiveControl"
+        },
+        "above_seed_noise": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Above Seed Noise"
+        },
+        "planned_mde_raw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Mde Raw"
+        },
+        "planned_mde_standardized": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Mde Standardized"
+        },
+        "verdict": {
+          "enum": [
+            "unavailable",
+            "invalid",
+            "effect",
+            "effect_within_margin",
+            "equivalent",
+            "inconclusive"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "not_produced",
+                "incomplete",
+                "negative_control",
+                "negative_control_cannot_fail",
+                "equivalence_not_claimed",
+                "equivalence_not_testable",
+                "no_margin",
+                "interval_exceeds_margin",
+                "positive_control_absent",
+                "positive_control_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "wording": {
+          "title": "Wording",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis_id",
+        "card_id",
+        "endpoint",
+        "label",
+        "model",
+        "sampling",
+        "test",
+        "estimate",
+        "ci_lower",
+        "ci_upper",
+        "ci_level",
+        "p_value",
+        "p_adjusted",
+        "margin",
+        "p_equivalence",
+        "p_equivalence_adjusted",
+        "completeness",
+        "negative_control",
+        "positive_control",
+        "above_seed_noise",
+        "planned_mde_raw",
+        "planned_mde_standardized",
+        "verdict",
+        "reason",
+        "wording"
+      ],
+      "title": "DecisionRow",
+      "type": "object"
+    },
+    "FamilySizes": {
+      "additionalProperties": false,
+      "description": "How many tests each Holm family corrects for, unavailable members included.",
+      "properties": {
+        "difference": {
+          "title": "Difference",
+          "type": "integer"
+        },
+        "equivalence": {
+          "title": "Equivalence",
+          "type": "integer"
+        },
+        "negative_control": {
+          "title": "Negative Control",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "difference",
+        "equivalence",
+        "negative_control"
+      ],
+      "title": "FamilySizes",
+      "type": "object"
+    },
+    "NegativeControl": {
+      "additionalProperties": false,
+      "description": "Seed against seed: two runs of the same generator must not differ.",
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "n_pairs": {
+          "title": "N Pairs",
+          "type": "integer"
+        },
+        "min_p_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Min P Adjusted"
+        },
+        "can_fail": {
+          "default": true,
+          "title": "Can Fail",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "passed",
+        "n_pairs",
+        "min_p_adjusted"
+      ],
+      "title": "NegativeControl",
+      "type": "object"
+    },
+    "PositiveControl": {
+      "additionalProperties": false,
+      "description": "The biased arm: a known sampler bias the assay has to detect.",
+      "properties": {
+        "epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Epsilon"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "absent"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "p_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Value"
+        }
+      },
+      "required": [
+        "epsilon",
+        "status",
+        "p_value"
+      ],
+      "title": "PositiveControl",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``tables/decisions.json``: every hypothesis resolved, and the study rolled up.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "precision": {
+      "title": "Precision",
+      "type": "integer"
+    },
+    "matrix_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Matrix Version",
+      "type": "integer"
+    },
+    "confirmatory": {
+      "title": "Confirmatory",
+      "type": "boolean"
+    },
+    "non_confirmatory_reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "pilot_run",
+            "not_first_full_run"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Non Confirmatory Reason"
+    },
+    "claim": {
+      "title": "Claim",
+      "type": "string"
+    },
+    "alpha": {
+      "title": "Alpha",
+      "type": "number"
+    },
+    "power": {
+      "title": "Power",
+      "type": "number"
+    },
+    "min_completeness": {
+      "title": "Min Completeness",
+      "type": "number"
+    },
+    "sensitivity_epsilon": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Sensitivity Epsilon"
+    },
+    "families": {
+      "$ref": "#/$defs/FamilySizes"
+    },
+    "study_verdict": {
+      "enum": [
+        "not_confirmatory",
+        "invalid",
+        "effect",
+        "no_effect_within_margins",
+        "mixed_or_inconclusive"
+      ],
+      "title": "Study Verdict",
+      "type": "string"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/DecisionRow"
+      },
+      "title": "Rows",
+      "type": "array"
+    }
+  },
+  "required": [
+    "precision",
+    "confirmatory",
+    "non_confirmatory_reason",
+    "claim",
+    "alpha",
+    "power",
+    "min_completeness",
+    "sensitivity_epsilon",
+    "families",
+    "study_verdict",
+    "rows"
+  ],
+  "title": "DecisionsTable",
+  "type": "object"
+}

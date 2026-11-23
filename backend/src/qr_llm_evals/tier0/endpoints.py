@@ -653,6 +653,7 @@ def stream_deviation_table(
     n_permutations: int = 2000,
     seed: int = 42,
     tier0_source: Tier0Source | None = None,
+    envelope_level: float | None = None,
 ) -> Table:
     """T4-l per session: Stouffer-Z of supervised vs unsupervised seconds, cumulative deviation, permutation p.
 
@@ -660,7 +661,15 @@ def stream_deviation_table(
     neither observed nor matched control). The cumulative-deviation series is
     per second, ``Σ (k_s − n_s/2)``, with the ``±1.96·sqrt(Σ n_s/4)`` envelope
     (GCP/PEAR plot). Records without ``u`` contribute nothing.
+
+    ``envelope_level`` is for a study that registered its own interval level:
+    the envelope is then the two-sided band at that level, written as
+    ``envelope`` beside ``envelope_level``. Without it the table carries the
+    ``envelope_95`` it always did.
     """
+    half_width = (
+        1.96 if envelope_level is None else float(sp.norm.ppf(1 - (1 - envelope_level) / 2))
+    )
     blocked = _check_source("stouffer_z_supervised_vs_unsupervised", tier0_source)
     if blocked is not None:
         return {**blocked, "card": "stream_deviation_windows"}
@@ -677,7 +686,7 @@ def stream_deviation_table(
         excess = np.array([b.successes - 0.5 * b.trials for b in mine], dtype=np.float64)
         trials = np.array([b.trials for b in mine], dtype=np.float64)
         cumdev = np.cumsum(excess)
-        envelope = 1.96 * np.sqrt(np.cumsum(trials) * 0.25)
+        envelope = half_width * np.sqrt(np.cumsum(trials) * 0.25)
         contrast = _contrast_z(z[sup], z[uns])
         sessions[str(sid)] = {
             "n_seconds": len(mine),
@@ -696,7 +705,11 @@ def stream_deviation_table(
                 "seconds": [b.second for b in mine],
                 "window": [b.window for b in mine],
                 "cumdev": cumdev.tolist(),
-                "envelope_95": envelope.tolist(),
+                **(
+                    {"envelope_95": envelope.tolist()}
+                    if envelope_level is None
+                    else {"envelope": envelope.tolist(), "envelope_level": envelope_level}
+                ),
                 "terminal_z": (
                     float(cumdev[-1] / math.sqrt(trials.sum() * 0.25)) if len(mine) else None
                 ),

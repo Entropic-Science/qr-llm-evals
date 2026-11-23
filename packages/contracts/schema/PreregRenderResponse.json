@@ -164,6 +164,376 @@
       "title": "EndpointPlan",
       "type": "object"
     },
+    "FamilySizes": {
+      "additionalProperties": false,
+      "description": "How many tests each Holm family corrects for, unavailable members included.",
+      "properties": {
+        "difference": {
+          "title": "Difference",
+          "type": "integer"
+        },
+        "equivalence": {
+          "title": "Equivalence",
+          "type": "integer"
+        },
+        "negative_control": {
+          "title": "Negative Control",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "difference",
+        "equivalence",
+        "negative_control"
+      ],
+      "title": "FamilySizes",
+      "type": "object"
+    },
+    "HypothesisPlan": {
+      "additionalProperties": false,
+      "description": "One registered hypothesis: an endpoint in one (model, sampling) cell.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "title": "Sampling",
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "paired_permutation",
+            "ks_two_sample",
+            "mmd_hamming_permutation"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "sided": {
+          "enum": [
+            "two_sided",
+            "one_sided_upper"
+          ],
+          "title": "Sided",
+          "type": "string"
+        },
+        "contrast": {
+          "title": "Contrast",
+          "type": "integer"
+        },
+        "negative_controls": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Negative Controls",
+          "type": "array"
+        },
+        "positive_control": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Positive Control"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Margin"
+        },
+        "margin_source": {
+          "enum": [
+            "card_sesoi",
+            "declared",
+            "none"
+          ],
+          "title": "Margin Source",
+          "type": "string"
+        },
+        "planned_units": {
+          "title": "Planned Units",
+          "type": "integer"
+        },
+        "planned_pairs": {
+          "title": "Planned Pairs",
+          "type": "integer"
+        },
+        "sample_size": {
+          "$ref": "#/$defs/SampleSize"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "card_id",
+        "endpoint",
+        "label",
+        "model",
+        "sampling",
+        "test",
+        "sided",
+        "contrast",
+        "negative_controls",
+        "positive_control",
+        "margin",
+        "margin_source",
+        "planned_units",
+        "planned_pairs",
+        "sample_size",
+        "statement"
+      ],
+      "title": "HypothesisPlan",
+      "type": "object"
+    },
+    "PlanDesign": {
+      "additionalProperties": false,
+      "description": "The designed part of a statistical plan.",
+      "properties": {
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "matrix_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Matrix Version",
+          "type": "integer"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "power": {
+          "default": 0.8,
+          "title": "Power",
+          "type": "number"
+        },
+        "min_completeness": {
+          "default": 0.9,
+          "title": "Min Completeness",
+          "type": "number"
+        },
+        "reference_effect": {
+          "default": 0.3,
+          "title": "Reference Effect",
+          "type": "number"
+        },
+        "sensitivity_epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sensitivity Epsilon"
+        },
+        "families": {
+          "$ref": "#/$defs/FamilySizes"
+        },
+        "hypotheses": {
+          "items": {
+            "$ref": "#/$defs/HypothesisPlan"
+          },
+          "title": "Hypotheses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim",
+        "alpha",
+        "sensitivity_epsilon",
+        "families",
+        "hypotheses"
+      ],
+      "title": "PlanDesign",
+      "type": "object"
+    },
+    "SampleSize": {
+      "additionalProperties": false,
+      "description": "Whether the planned number of prompts can carry one hypothesis.\n\nThe numbers are worst-case bounds computed before any data exist. A field\nis ``None`` when no closed form applies to the test.",
+      "properties": {
+        "n": {
+          "title": "N",
+          "type": "integer"
+        },
+        "n_floor": {
+          "title": "N Floor",
+          "type": "integer"
+        },
+        "control_floor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Control Floor"
+        },
+        "mde_standardized": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mde Standardized"
+        },
+        "sd_bound": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sd Bound"
+        },
+        "mde_raw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mde Raw"
+        },
+        "power_at_margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Power At Margin"
+        },
+        "equivalence_floor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Equivalence Floor"
+        },
+        "n_recommended": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "N Recommended"
+        },
+        "reachable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reachable"
+        },
+        "k_recommended": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K Recommended"
+        },
+        "rating": {
+          "enum": [
+            "sufficient",
+            "marginal",
+            "insufficient",
+            "unknown"
+          ],
+          "title": "Rating",
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "margin_worst_case",
+            "standardized_reference",
+            "no_closed_form"
+          ],
+          "title": "Basis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "n_floor",
+        "mde_standardized",
+        "sd_bound",
+        "mde_raw",
+        "power_at_margin",
+        "equivalence_floor",
+        "n_recommended",
+        "reachable",
+        "rating",
+        "basis"
+      ],
+      "title": "SampleSize",
+      "type": "object"
+    },
     "StatisticalPlan": {
       "additionalProperties": false,
       "properties": {
@@ -200,10 +570,22 @@
           "title": "Contrasts",
           "type": "array"
         },
+        "design": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanDesign"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set for a study with a design block; absent on a legacy plan."
+        },
         "alpha": {
           "default": 0.05,
           "maximum": 0.05,
-          "minimum": 0.05,
+          "minimum": 0.005,
           "title": "Alpha",
           "type": "number"
         },
@@ -227,17 +609,25 @@
         },
         "ci_level": {
           "default": 0.9,
-          "maximum": 0.9,
+          "exclusiveMaximum": 1,
           "minimum": 0.9,
           "title": "Ci Level",
           "type": "number"
         },
         "pilot_quantile": {
+          "anyOf": [
+            {
+              "maximum": 0.95,
+              "minimum": 0.95,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.95,
-          "maximum": 0.95,
-          "minimum": 0.95,
-          "title": "Pilot Quantile",
-          "type": "number"
+          "description": "Legacy pilot-derived margins only; a designed plan fixes its margins.",
+          "title": "Pilot Quantile"
         },
         "margin_rule": {
           "default": "max(card SESOI, pilot 95th percentile of absolute seed-vs-seed paired differences)",

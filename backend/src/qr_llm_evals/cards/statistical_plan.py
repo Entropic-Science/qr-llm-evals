@@ -11,11 +11,19 @@ import hashlib
 import json
 from collections.abc import Mapping
 from itertools import combinations
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from qr_llm_evals.cards.availability import CARD_ENDPOINTS, ENDPOINT_REQUIREMENTS
+from qr_llm_evals.cards.design_schema import PlanDesign
 from qr_llm_evals.cards.estimates import CardOverrides, tokens_per_arm
 from qr_llm_evals.cards.schema import EvalCard
 
@@ -87,12 +95,21 @@ class StatisticalPlan(_Frozen):
     )
     endpoints: tuple[EndpointPlan, ...]
     contrasts: tuple[Contrast, ...]
-    alpha: float = Field(default=0.05, ge=0.05, le=0.05)
+    design: PlanDesign | None = Field(
+        default=None,
+        description="Set for a study with a design block; absent on a legacy plan.",
+    )
+    alpha: float = Field(default=0.05, ge=0.005, le=0.05)
     permutations: int = Field(default=2000, ge=2000)
     bootstrap_replicates: Literal[10000] = 10000
     random_seed: Literal[42] = 42
-    ci_level: float = Field(default=0.90, ge=0.90, le=0.90)
-    pilot_quantile: float = Field(default=0.95, ge=0.95, le=0.95)
+    ci_level: float = Field(default=0.90, ge=0.90, lt=1)
+    pilot_quantile: float | None = Field(
+        default=0.95,
+        ge=0.95,
+        le=0.95,
+        description="Legacy pilot-derived margins only; a designed plan fixes its margins.",
+    )
     margin_rule: str = (
         "max(card SESOI, pilot 95th percentile of absolute seed-vs-seed paired differences)"
     )
@@ -115,6 +132,47 @@ class StatisticalPlan(_Frozen):
     stopping_rule: str = "Fixed selected items and k for each available arm; no significance-based stopping; pilot excluded from full-run tests; interruptions and incomplete pairs reported."
     unavailable_family_rule: str = "Unavailable tests retain their family slots (p=1 for correction only, not fabricated measurements)."
 
+    @model_validator(mode="before")
+    @classmethod
+    def _no_pilot_quantile_when_designed(cls, data: Any) -> Any:
+        # A designed plan has no pilot quantile and is written without the key.
+        # Read back, the missing key must mean "none", not the legacy default,
+        # or the reloaded plan would hash differently from the registered one.
+        if (
+            isinstance(data, Mapping)
+            and data.get("design") is not None
+            and "pilot_quantile" not in data
+        ):
+            return {**data, "pilot_quantile": None}
+        return data
+
+    @model_validator(mode="after")
+    def _check_legacy_constants(self) -> StatisticalPlan:
+        # The bounds above are wide enough for a designed plan. A plan without
+        # a design is the Study 1 plan, and its three constants never moved.
+        if self.design is None and (self.alpha, self.ci_level, self.pilot_quantile) != (
+            0.05,
+            0.90,
+            0.95,
+        ):
+            raise ValueError(
+                "a plan without a design must keep alpha 0.05, ci_level 0.90 and "
+                "pilot_quantile 0.95"
+            )
+        return self
+
+    # An archived legacy plan has no "design" key and its hash names its
+    # analysis, so the key stays out when there is no design. No return
+    # annotation on purpose: pydantic would take it as the model's
+    # serialization schema, and the OpenAPI document would lose every field.
+    @model_serializer(mode="wrap")
+    def _omit_absent(self, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        for key in ("design", "pilot_quantile"):
+            if data.get(key) is None:
+                data.pop(key, None)
+        return data
+
     def canonical_json(self) -> str:
         return json.dumps(
             self.model_dump(mode="json"),
@@ -131,6 +189,20 @@ class StatisticalPlan(_Frozen):
     @classmethod
     def from_config(cls, config: BaseModel, cards: Mapping[str, EvalCard]) -> StatisticalPlan:
         data = config.model_dump(mode="json")
+        if data.get("design") is None:
+            return cls._legacy(data, cards)
+        # Imported here: the projection is built on this module.
+        from qr_llm_evals.cards.design import project
+
+        return project(cls, data, cards)
+
+    @classmethod
+    def _legacy(cls, data: Mapping[str, Any], cards: Mapping[str, EvalCard]) -> StatisticalPlan:
+        """The built-in Study 1 plan: the plan of every study without a design block.
+
+        Its bytes are pinned (``backend/tests/test_legacy_bytes.py``). A designed
+        study starts from the contrasts and card snapshots built here.
+        """
         endpoints: list[EndpointPlan] = []
         snapshots = []
         for selection in data["cards"]:

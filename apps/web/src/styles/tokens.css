@@ -294,3 +294,394 @@ input.sr-only { width: 1px; padding: 0; border: 0; box-shadow: none; }
 .outstanding { max-width: 40rem; }.outstanding__figure { margin: 0 0 .6rem; font-size: .9rem; }.outstanding__figure strong { font: 500 1.5rem var(--font-serif); font-variant-numeric: tabular-nums; }.outstanding__history { margin: .8rem 0 0; padding: 0; list-style: none; color: var(--color-fg-muted); font-size: .76rem; line-height: 1.7; }
 .outstanding-cell { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
 .quota-editor { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }.quota-editor__error { flex-basis: 100%; color: var(--color-warning); font-size: .68rem; }.quota-editor input { width: 8rem; padding: .4rem .5rem; }.quota-editor .button, .usage-table td > .button { padding: .4rem .7rem; font-size: .7rem; }
+/* ── Study settings: fields, panels, recommendation chips (fields/*, components/study/panels/*, RecChip) ── */
+.settings-panel { min-width: 0; display: grid; gap: 1rem; margin: 0 0 1.75rem; padding: 1.2rem 0 0; border: 0; border-top: 1px solid var(--color-border-strong); }
+.settings-panel > legend { padding: 0 .7rem 0 0; color: var(--color-emphasis); font: 700 .7rem var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
+.settings-details > summary { color: var(--color-fg); font-size: .8rem; font-weight: 600; cursor: pointer; }
+.settings-details[open] > summary { margin-bottom: 1rem; }
+.settings-details > * + * { margin-top: 1rem; }
+.field { min-width: 0; display: grid; gap: .4rem; margin: 0; padding: 0; border: 0; }
+.field__label { display: grid; gap: .4rem; color: var(--color-fg-muted); font-size: .8rem; font-weight: 500; }
+.field__label small { font-weight: 400; }
+.field--group > legend { margin-bottom: .2rem; padding: 0; color: var(--color-fg-muted); font-size: .8rem; font-weight: 500; }
+.field__state { display: inline-flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; }
+.field__value { color: var(--color-fg); font: .78rem/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.field--readonly { grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr); align-items: baseline; }
+.field--readonly > .field-note, .field--readonly > .field__state { grid-column: 1 / -1; }
+.field .field-note, .settings-panel > .field-note { margin: 0; }
+.field .toggle-line { gap: .5rem; font-size: .8rem; font-weight: 400; }
+.field .toggle-line small { color: var(--color-fg-muted); }
+.field input[type="radio"] { width: auto; flex: none; margin: 0; padding: 0; border: 0; box-shadow: none; }
+.text-button { width: max-content; max-width: 100%; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--brand-wine); font: 500 .75rem/1.4 var(--font-sans); text-align: left; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2rem; cursor: pointer; }
+.text-button:hover { color: var(--brand-olive); }
+.text-button:disabled { opacity: .42; cursor: not-allowed; }
+input.study-title { font: 500 1.25rem/1.3 var(--font-serif); }
+.cell-grid { gap: .55rem; }
+.role-row { align-items: center; }
+.chip-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.chip-row input { width: 6.5rem; }
+.chip-toggle { min-width: 5.75rem; display: inline-grid; gap: .15rem; justify-items: start; padding: .4rem .6rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: transparent; color: var(--color-fg-muted); font: 700 .68rem var(--font-mono); cursor: pointer; transition: border-color var(--motion-duration-quick) var(--ease-calm), background-color var(--motion-duration-quick) var(--ease-calm); }
+.chip-toggle small { font: 400 .56rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.chip-toggle.is-absent { border-style: dotted; }
+.chip-toggle.is-off { border-style: dashed; color: var(--color-secondary-emphasis); }
+.chip-toggle.is-on { border-color: var(--color-secondary-emphasis); background: var(--color-highlight-soft); color: var(--color-fg); }
+.design-table-frame { width: 100%; }
+.design-table { width: 100%; border-collapse: collapse; border-top: 1px solid var(--color-border-strong); font-size: .78rem; }
+.design-table th, .design-table td { padding: .6rem .75rem .6rem 0; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+.design-table thead th { color: var(--color-fg-muted); font: 400 .62rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.design-table tbody th { font-weight: 600; }
+.design-table tbody th small { display: block; color: var(--color-fg-muted); font-weight: 400; }
+.design-table input { width: 5.5rem; padding: .35rem .5rem; }
+.design-table code { font-size: .68rem; }
+.design-table__readout { color: var(--color-control); font: .68rem/1.9 var(--font-mono); white-space: nowrap; }
+.design-table .field__state { display: flex; }
+.design-table .field__state + .field__state { margin-top: .35rem; }
+.design-table td:last-child .rec-tip { right: 0; left: auto; }
+.eval-checklist h4 { margin: 1.1rem 0 .5rem; color: var(--color-fg-muted); font: 700 .62rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.eval-checklist ul { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border-strong); }
+.eval-checklist li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .4rem 1rem; padding: .6rem 0; border-bottom: 1px solid var(--color-border); font-size: .8rem; }
+.eval-checklist li small { color: var(--color-fg-muted); }
+.eval-checklist .eval-selector { margin: 0; }
+.eval-checklist .eval-check { grid-template-columns: 1.25rem minmax(0, 1fr); }
+.eval-checklist .badge { width: auto; max-width: 100%; white-space: normal; }
+.eval-checklist .eval-check__body em { min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.eval-checklist .eval-check__body strong { overflow-wrap: anywhere; }
+.field.field-grid { gap: .8rem 1rem; }
+.rec-anchor { position: relative; display: inline-flex; }
+.rec { min-height: 1.5rem; display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .5rem; border: 1px solid currentColor; border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-fg-muted); font: 700 .625rem/1.3 var(--font-mono); letter-spacing: .03em; white-space: nowrap; cursor: pointer; }
+.rec:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.rec__glyph { width: .75rem; display: inline-grid; place-items: center; font-size: .72rem; line-height: 1; }
+.rec__glyph svg { width: .7rem; height: .7rem; }
+.rec--sufficient { background: var(--color-success-soft); color: var(--color-success); }
+.rec--marginal { border-color: var(--brand-gold); background: var(--color-highlight-soft); color: var(--color-fg); }
+.rec--insufficient { border-style: dashed; background: color-mix(in oklch, var(--color-warning) 8%, transparent); color: var(--color-warning); }
+.rec--unknown { border-style: dotted; background: var(--color-control-soft); color: var(--color-control); }
+.rec--recommended { background: var(--color-bg-subtle); color: var(--color-fg-muted); }
+.rec--custom { background: var(--color-surface); color: var(--color-secondary-emphasis); }
+.rec--invalid { border-color: var(--color-warning); background: var(--color-warning); color: var(--color-fg-on-emphasis); }
+.rec--locked { border-color: var(--color-border-strong); background: transparent; color: var(--color-fg-muted); }
+/* Closed, the tooltip takes no box at all: one that is only invisible still widens the page it overhangs. */
+.rec-tip { position: absolute; top: calc(100% + .35rem); left: 0; z-index: 30; width: max-content; max-width: min(24rem, 80vw); display: none; gap: .25rem; padding: .55rem .7rem; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); box-shadow: var(--shadow-xl); color: var(--color-fg); font: 400 .64rem/1.5 var(--font-mono); letter-spacing: 0; text-align: left; white-space: normal; }
+.rec-tip span:last-child { color: var(--color-fg-muted); }
+.rec-anchor:hover .rec-tip, .rec:focus-visible + .rec-tip, .rec-anchor.is-pinned .rec-tip { display: grid; }
+@media (max-width: 760px) {
+  .field--readonly { grid-template-columns: minmax(0, 1fr); }
+  /* A table would need a scrolling frame here, which clips the chips' tooltips: each row becomes a block of labelled cells instead. */
+  .design-table, .design-table tbody, .design-table tr, .design-table th, .design-table td { display: block; }
+  .design-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .design-table tr { padding: .6rem 0; border-bottom: 1px solid var(--color-border); }
+  .design-table th, .design-table td { padding: .2rem 0; border: 0; }
+  .design-table td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font: 400 .62rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+  /* On a narrow screen a tooltip hung from its chip runs off the side, so it spans the field the chip is in, just under the chip. */
+  .field, .settings-panel { position: relative; }
+  .rec-anchor { position: static; }
+  .rec-tip, .design-table td:last-child .rec-tip { top: auto; right: 0; left: 0; width: auto; max-width: none; margin-top: 1.9rem; }
+}
+/* What the server said about a loaded file, folded away in the load report; a value the study carries for a setting its eval does not take; the one button of a field that has no input. */
+.load-report__server { display: grid; gap: .35rem; }
+.load-report__server ul { margin: .35rem 0 0; padding-left: 1.1rem; font: .72rem/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.field__value small { color: var(--color-fg-muted); font: .72rem/1.4 var(--font-sans); }
+.field > .button { justify-self: start; }
+.arm-row > small { color: var(--color-fg-muted); font-size: .72rem; line-height: 1.4; }
+/* ── end of study settings ── */
+/* ── Setup shell: header, step rail states, step problems, keys, evidence preview (routes/configure/*, EstimateTotals) ── */
+.setup-header__study { min-width: 0; flex: 1 1 24rem; max-width: 46rem; display: grid; gap: 1.25rem; }
+.setup-header .settings-panel { margin: 0; padding: 0; border: 0; }
+.setup-header .settings-panel > legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.setup-shell .step-rail li button { row-gap: .15rem; }
+.setup-shell .step-rail li button .step-rail__label { min-width: 0; color: inherit; font: inherit; }
+/* How a step stands is said in words with a glyph; the colour only repeats it. */
+.setup-shell .step-rail li button .step-rail__state { grid-column: 2; display: inline-flex; align-items: baseline; gap: .35rem; color: var(--color-fg-muted); font: normal 400 .6rem/1.5 var(--font-mono); letter-spacing: .04em; }
+.setup-shell .step-rail li button .step-rail__glyph { color: inherit; font: inherit; }
+.setup-shell .step-rail li button.has-errors .step-rail__state { color: var(--color-warning); font-weight: 700; }
+.setup-shell .step-rail li button.has-warnings .step-rail__state { color: var(--color-secondary-emphasis); }
+.wizard-step h2, .wizard-step .field, .wizard-step .settings-panel { scroll-margin-top: calc(var(--header-height) + 1.5rem); }
+.wizard-step h2:focus:not(:focus-visible) { outline: none; }
+.wizard-step__panels { margin-top: 2rem; }
+.wizard-actions__note { margin: .75rem 0 0; color: var(--color-fg-muted); font-size: .75rem; line-height: 1.5; }
+.problem-list { margin: 1.5rem 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border-strong); }
+.problem { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: .25rem 1rem; padding: .7rem 0 .7rem .75rem; border-bottom: 1px solid var(--color-border); border-left: 3px solid var(--color-warning); }
+.problem--warning { border-left-style: dotted; border-left-color: var(--color-secondary-emphasis); }
+.problem__severity { color: var(--color-warning); font: 700 .62rem/1.7 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.problem--warning .problem__severity { color: var(--color-secondary-emphasis); }
+.problem__severity small { display: block; color: var(--color-fg-muted); font: inherit; font-weight: 400; }
+.problem__message { font-size: .82rem; line-height: 1.5; overflow-wrap: anywhere; }
+.problem__actions { grid-column: 2; display: flex; flex-wrap: wrap; gap: .3rem 1.25rem; }
+.keys-panel { margin: 2rem 0; padding-top: 1.2rem; border-top: 1px solid var(--color-border-strong); }
+.keys-panel h3 { margin: 0 0 .8rem; color: var(--color-emphasis); font: 700 .7rem var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
+.keys-panel .field-note { margin: 0; }
+.keys-panel .field-stack { margin: 1.25rem 0; }
+.draft-failure { display: grid; justify-items: start; gap: .75rem; padding: 1rem; border-left: 3px solid var(--color-warning); background: color-mix(in oklch, var(--color-warning) 8%, transparent); font-size: .85rem; }
+.draft-failure p { margin: 0; }
+.setup-shell .estimate-readout { max-height: calc(100vh - var(--header-height) - 1.5rem); overflow-y: auto; scrollbar-width: thin; }
+.evidence-preview { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--color-border-strong); }
+.estimate-readout .evidence-preview dl div { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: .2rem .75rem; padding: .4rem 0; }
+.evidence-preview dd { text-align: right; }
+.evidence-preview dd small { display: block; color: var(--color-fg-muted); font: 400 .6rem/1.5 var(--font-mono); }
+.evidence-preview__outcomes { margin: 0; padding: 0; list-style: none; }
+.evidence-preview__outcomes li { position: relative; display: grid; justify-items: start; gap: .3rem; padding: .5rem 0; border-bottom: 1px dotted var(--color-border-strong); font-size: .72rem; line-height: 1.4; }
+.evidence-preview__outcomes li small { color: var(--color-fg-muted); }
+/* The sidebar scrolls, so a tooltip hung beside its chip would be cut off: it spans its own row instead. */
+.evidence-preview__outcomes .rec-anchor { position: static; }
+.evidence-preview__outcomes .rec-tip { top: 100%; right: 0; left: 0; width: auto; max-width: none; margin-top: 0; }
+.evidence-preview__heading { margin: 1rem 0 .1rem; color: var(--color-fg-muted); font: 700 .62rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.evidence-preview__note { margin: .8rem 0 0; color: var(--color-fg-muted); font-size: .68rem; line-height: 1.45; }
+@media (max-width: 760px) {
+  .setup-header__study { flex: none; width: 100%; }
+  /* Every step stays in sight on a phone: the rail is a row of equal cells, not a strip to scroll. */
+  .setup-shell .step-rail ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); overflow-x: visible; }
+  .setup-shell .step-rail li button { width: 100%; height: 100%; grid-template-columns: minmax(0, 1fr); align-content: start; padding: .55rem .2rem; border-bottom: 0; font-size: .82rem; }
+  .setup-shell .step-rail li button .step-rail__label { overflow-wrap: anywhere; }
+  .setup-shell .step-rail li button .step-rail__state { grid-column: 1; font-size: .56rem; letter-spacing: 0; }
+  .setup-shell .step-rail li button.is-current { box-shadow: inset 0 -2px 0 var(--color-emphasis); }
+  /* The step comes before the estimate, which is long now that it carries the evidence preview. */
+  .setup-shell .wizard-workbench { grid-row: auto; }
+  .setup-shell .estimate-readout { grid-row: auto; max-height: none; overflow-y: visible; }
+  .problem { grid-template-columns: minmax(0, 1fr); }
+  .problem__actions { grid-column: 1; }
+}
+/* ── end of setup shell ── */
+/* ── Design and review: hypotheses, verdict stamps, sample size, fixed rules, grouped problems, server hashes (components/study/design/*, routes/configure/Design.tsx, Review.tsx, ProblemList.tsx, ServerRecord.tsx) ── */
+.design-note { max-width: 44rem; margin: 1.5rem 0 0; padding-left: .75rem; border-left: 2px dotted var(--color-secondary-emphasis); color: var(--color-fg-muted); font-size: .82rem; line-height: 1.6; }
+/* A section of what the choices add up to opens with the hand-drawn copper rule, as the page headers end with it. */
+.design-section { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: .9rem; margin: 0 0 2rem; padding: 1.5rem 0 0; }
+.design-section::before { content: ""; position: absolute; left: 0; right: 0; top: -5px; height: 10px; background: var(--hand-line) center / 100% 100% no-repeat; opacity: .5; pointer-events: none; }
+.design-section > h3 { margin: 0; font: 600 1.3rem/1.25 var(--font-serif); }
+.design-section > h3 small, .hypothesis-card__facts dt, .fixed-rules__list dt { color: var(--brand-olive); font: 400 .62rem/1.9 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.design-section > h3 small { margin-left: .4rem; }
+.design-section .field-note, .design-section .validation-note { max-width: 44rem; margin: 0; }
+.rating-mark { margin-right: .3rem; cursor: default; vertical-align: baseline; }
+.rec-legend { margin: 1.25rem 0 0; }
+.rec-legend__list { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr)); gap: .45rem 1rem; color: var(--color-fg-muted); font-size: .74rem; line-height: 1.4; }
+.rec-legend__list li { display: flex; align-items: center; gap: .35rem; }
+.hypothesis-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 1.1rem; }
+.hypothesis-card { min-width: 0; padding: 1rem 1.1rem 1.1rem; border: 1px solid var(--color-border); border-left: 3px solid var(--color-emphasis); border-radius: var(--radius-sm); background: var(--color-surface); }
+.hypothesis-card__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .2rem 1rem; }
+.hypothesis-card__title { margin: 0; font: 600 1.12rem/1.3 var(--font-serif); letter-spacing: -.01em; }
+.hypothesis-card__id { margin-right: .3rem; color: var(--color-emphasis); font: 700 .72rem var(--font-mono); letter-spacing: .06em; }
+.hypothesis-card__cell { margin: 0; color: var(--color-fg-muted); font: 400 .64rem/1.6 var(--font-mono); overflow-wrap: anywhere; }
+.hypothesis-card__statement { max-width: 42rem; margin: .55rem 0 .85rem; font: italic 400 1rem/1.5 var(--font-serif); }
+.hypothesis-card__facts, .fixed-rules__list, .verdict-legend dl, .sample-size__ratings dl { margin: 0; }
+.hypothesis-card__facts > div, .fixed-rules__list > div { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: .15rem 1rem; padding: .45rem 0; border-top: 1px dotted var(--color-border-strong); font-size: .78rem; line-height: 1.55; }
+.hypothesis-card__facts dd, .fixed-rules__list dd, .verdict-legend dd, .sample-size__ratings dd { margin: 0; }
+.verdict-stamps { margin-top: .35rem; padding-top: .85rem; border-top: 1px dotted var(--color-border-strong); }
+.verdict-stamps__row { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .55rem .6rem; }
+/* Stamped by hand: no two sit quite level. */
+.verdict-stamps__row li:nth-child(odd) .verdict-stamp { transform: rotate(-.9deg); }
+.verdict-stamps__row li:nth-child(even) .verdict-stamp { transform: rotate(.7deg); }
+.verdict-stamps__reasons { margin: .75rem 0 0; padding: 0; list-style: none; display: grid; gap: .2rem; color: var(--color-fg-muted); font-size: .74rem; line-height: 1.5; }
+.verdict-stamps__reasons strong { color: var(--color-fg); font-weight: 600; }
+/* A verdict stamp: glyph and word inside a seeded pencil outline (lib/rough.ts) that stretches with the label. */
+.verdict-stamp { --stamp-wash: transparent; position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: .4rem; padding: .34rem .75rem; color: var(--color-fg); font: 700 .62rem/1.3 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap; }
+.verdict-stamp__outline { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.verdict-stamp__outline path { fill: var(--stamp-wash); stroke: currentColor; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.verdict-stamp__glyph { font-size: .85rem; letter-spacing: 0; line-height: 1; }
+.verdict-stamp--effect { --stamp-wash: var(--color-emphasis-soft); color: var(--color-emphasis); }
+.verdict-stamp--effect_within_margin { --stamp-wash: var(--color-highlight-soft); color: var(--color-secondary-emphasis); }
+.verdict-stamp--equivalent { --stamp-wash: var(--color-bg-subtle); }
+.verdict-stamp--inconclusive { --stamp-wash: var(--color-control-soft); color: var(--color-control); }
+.verdict-stamp--invalid { --stamp-wash: color-mix(in oklch, var(--color-warning) 8%, var(--color-surface)); color: var(--color-warning); }
+.verdict-stamp--unavailable { color: var(--color-fg-muted); }
+/* Out of reach: no wash, a broken outline and a struck word. The reason is written out under the row. */
+.verdict-stamp.is-unreachable { --stamp-wash: transparent; color: var(--color-fg-muted); }
+.verdict-stamp.is-unreachable .verdict-stamp__outline path { stroke: var(--color-border-strong); stroke-dasharray: 3 3; }
+.verdict-stamp.is-unreachable .verdict-stamp__label { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: color-mix(in oklch, currentColor 70%, transparent); }
+.verdict-stamp.is-reached .verdict-stamp__outline path { stroke-width: 2.2; }
+.verdict-legend dl > div, .sample-size__ratings dl > div { display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); align-items: baseline; gap: .3rem 1rem; padding: .5rem 0; border-top: 1px dotted var(--color-border-strong); font-size: .78rem; line-height: 1.55; }
+.sample-size__ratings dl > div { grid-template-columns: 8.5rem minmax(0, 1fr); }
+.sample-size { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+/* Its column heads are sentences; they wrap rather than push the table past the page. */
+.sample-size__table thead th { white-space: normal; vertical-align: bottom; }
+.sample-size__table td:nth-child(4) { min-width: 11rem; }
+.fixed-rules { margin: 0 0 1.75rem; padding: 1.2rem 0 0; border-top: 1px solid var(--color-border-strong); }
+.fixed-rules > summary { color: var(--color-emphasis); font: 700 .7rem var(--font-mono); letter-spacing: .07em; text-transform: uppercase; cursor: pointer; }
+.fixed-rules > summary small { margin-left: .5rem; color: var(--color-fg-muted); font-weight: 400; letter-spacing: .03em; text-transform: none; }
+.fixed-rules > .field-note { max-width: 44rem; margin: .9rem 0; }
+.fixed-rules__list dd { display: grid; justify-items: start; gap: .3rem; }
+.problem__source { grid-column: 2; color: var(--color-fg-muted); font-size: .72rem; line-height: 1.5; }
+.review-problems { margin-top: 1.5rem; }
+.review-problems__standing { max-width: 44rem; margin: 0; font-size: .85rem; line-height: 1.55; }
+.problem-groups { margin: 1.1rem 0 0; padding: 0; list-style: none; display: grid; gap: 1.4rem; }
+.problem-group__step { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; font: 600 1.1rem/1.3 var(--font-serif); }
+.problem-group__step small { color: var(--color-fg-muted); font: 400 .62rem var(--font-mono); letter-spacing: .04em; }
+.problem-group .problem-list { margin-top: .5rem; }
+.review-actions ~ .validation-note, .review-actions ~ .prereg-action-state { margin: .75rem 0 0; }
+.server-record { margin: 2rem 0; padding-top: 1.2rem; border-top: 1px solid var(--color-border-strong); }
+.server-record h3 { margin: 0 0 .4rem; color: var(--color-emphasis); font: 700 .7rem var(--font-mono); letter-spacing: .07em; text-transform: uppercase; }
+.server-record .hash-ledger { margin: 0; }
+.server-record .hash-ledger__note { max-width: 44rem; margin: .75rem 0 .4rem; }
+/* In a step the prompts table is as wide as its column allows: its heads and its per-arm readout wrap instead of pushing it past the column. */
+.wizard-step .design-table thead th, .wizard-step .design-table__readout { white-space: normal; }
+/* These sections go by the width of the column they are in, not of the window: beside the rail and the estimate a wide window can still leave a narrow column. */
+.design-section, .fixed-rules { container-type: inline-size; }
+@container (max-width: 34rem) {
+  .sample-size__table, .sample-size__table tbody, .sample-size__table tr, .sample-size__table th, .sample-size__table td { display: block; }
+  .sample-size__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+  .sample-size__table tr { padding: .6rem 0; border-bottom: 1px solid var(--color-border); }
+  .sample-size__table th, .sample-size__table td, .sample-size__table td:nth-child(4) { min-width: 0; padding: .2rem 0; border: 0; }
+  .sample-size__table td[data-label]::before { content: attr(data-label); display: block; color: var(--color-fg-muted); font: 400 .62rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+  .hypothesis-card__facts > div, .fixed-rules__list > div, .verdict-legend dl > div, .sample-size__ratings dl > div { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .hypothesis-card { padding: .9rem .8rem 1rem; }
+  .verdict-stamp { padding: .3rem .6rem; letter-spacing: .06em; }
+  .problem__source { grid-column: 1; }
+}
+/* ── end of design and review ── */
+/* ── Study bar and all settings: the bar, its menu, file state, load report, drop target, page dialog (components/study/StudyBar.tsx, AllSettings.tsx, LoadReport.tsx, ReplaceConfirm.tsx, components/Modal.tsx, routes/configure/index.tsx) ── */
+/* The shell measures the site header and the bar and writes their heights here; these stand until it has. */
+.setup-shell { --study-bar-height: 4.25rem; --site-header-height: var(--header-height); }
+:root:has(.setup-shell) { scroll-padding-top: calc(var(--header-height) + 5.5rem); }
+/* The bar carries the hand-drawn rule, so the header above it ends plainly. */
+.setup-shell .setup-header { padding-bottom: 1rem; }
+.setup-shell .setup-header::after { content: none; }
+.study-bar-dock { position: sticky; top: var(--site-header-height); z-index: 35; margin: 0 -.3rem; padding: 0 .3rem; background: var(--color-bg); }
+.study-bar { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1.5rem; padding: .7rem 0 .85rem; }
+.study-bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -5px; height: 10px; background: var(--hand-line) center / 100% 100% no-repeat; opacity: .5; pointer-events: none; }
+/* The study side asks for room enough to read the title; where the window has less, the actions wrap under it. */
+.study-bar__study { min-width: 0; flex: 1 1 36rem; display: flex; align-items: center; gap: .6rem 1rem; }
+.study-bar__name { min-width: 0; flex: 0 1 auto; display: grid; gap: .1rem; margin-right: auto; }
+.study-bar__title { min-width: 0; max-width: 100%; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-fg); font: 500 1.125rem/1.3 var(--font-serif); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; transition: color var(--motion-duration-quick) var(--ease-calm); }
+.study-bar__title:hover { color: var(--brand-wine); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2rem; }
+/* Where the study stands against its file. The words say it; the mark before them only repeats it. */
+.file-state { min-width: 0; margin: 0; color: var(--color-fg-muted); font: 400 .64rem/1.5 var(--font-mono); letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-state::before { content: "○"; margin-right: .4rem; }
+.file-state--saved::before { content: "✓"; color: var(--color-success); }
+.file-state--changed { color: var(--color-secondary-emphasis); }
+.file-state--changed::before { content: "●"; }
+/* How the study stands: a word and a glyph, and an edge that is solid, dotted or dashed with it. */
+.validity-pill { flex: none; min-height: 1.75rem; display: inline-flex; align-items: center; gap: .4rem; padding: .2rem .6rem; border: 1px solid currentColor; border-radius: var(--radius-sm); background: var(--color-success-soft); color: var(--color-success); font: 700 .66rem/1.3 var(--font-mono); letter-spacing: .03em; white-space: nowrap; }
+button.validity-pill { cursor: pointer; }
+.validity-pill--check { border-style: dotted; background: var(--color-highlight-soft); color: var(--color-secondary-emphasis); }
+.validity-pill--fix { border-style: dashed; background: color-mix(in oklch, var(--color-warning) 8%, transparent); color: var(--color-warning); }
+button.validity-pill:hover { background: var(--color-surface); }
+.view-switch { flex: none; display: inline-flex; border: 1px solid color-mix(in oklch, var(--brand-wine) 40%, transparent); border-radius: var(--radius-sm); }
+.view-switch button { min-height: 2rem; padding: .25rem .85rem; border: 0; background: transparent; color: color-mix(in oklch, var(--brand-wine) 80%, transparent); font: 400 1rem/1.2 var(--font-serif); cursor: pointer; transition: background var(--motion-duration-quick) var(--ease-calm), color var(--motion-duration-quick) var(--ease-calm); }
+.view-switch button + button { border-left: 1px solid color-mix(in oklch, var(--brand-wine) 40%, transparent); }
+.view-switch button:hover { color: var(--brand-wine); background: color-mix(in oklch, var(--brand-wine) 5%, transparent); }
+/* The view on screen is filled and set in italics, as the current page is in the site's navigation. */
+.view-switch button.is-current { background: var(--brand-plum); color: var(--color-fg-on-emphasis); font-style: italic; }
+.study-bar__actions { flex: 0 0 auto; display: flex; align-items: center; gap: .5rem; margin-left: auto; }
+.study-bar .button { min-height: 2.5rem; padding: .5rem 1rem; white-space: nowrap; }
+.study-bar__gear { flex: none; display: inline-grid; place-items: center; border-color: color-mix(in oklch, var(--brand-wine) 40%, transparent); }
+.study-bar__gear:hover { border-color: var(--brand-wine); }
+.study-bar__gear-icon { display: block; }
+.study-bar__more { position: relative; flex: none; }
+.study-bar__caret { font-size: .7rem; }
+.study-bar__menu { position: absolute; top: calc(100% + .35rem); right: 0; z-index: 5; min-width: 15.5rem; margin: 0; padding: .35rem; list-style: none; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-xl); }
+.study-bar__menu button { width: 100%; min-height: 2.5rem; padding: .5rem .7rem; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-fg); font: 400 .85rem/1.3 var(--font-sans); text-align: left; cursor: pointer; }
+.study-bar__menu button:hover:not(:disabled), .study-bar__menu button:focus-visible { background: var(--color-emphasis-soft); }
+.study-bar__menu button:disabled { opacity: .42; cursor: not-allowed; }
+.study-bar__menu small { display: block; padding: 0 .7rem .5rem; color: var(--color-fg-muted); font-size: .68rem; line-height: 1.4; }
+.study-bar__narrow-only { display: none; }
+/* What became of the last study file. Its mark and the style of its edge say what its colour says. */
+.load-report { position: relative; display: grid; gap: .35rem; margin: 1.25rem 0 0; padding: .8rem 6rem .8rem 1rem; border-left: 3px solid var(--color-success); background: color-mix(in oklch, var(--color-success) 6%, transparent); font-size: .8rem; line-height: 1.5; }
+.load-report p { margin: 0; overflow-wrap: anywhere; }
+.load-report--flagged { border-left-style: dotted; border-left-color: var(--color-secondary-emphasis); background: var(--color-highlight-soft); }
+.load-report--failed { border-left-color: var(--color-warning); background: color-mix(in oklch, var(--color-warning) 8%, transparent); }
+.load-report__mark { display: inline-block; width: 1.1rem; font: 700 .75rem var(--font-mono); }
+.load-report__dismiss { position: absolute; top: .8rem; right: 1rem; }
+.load-report code { font: .72rem var(--font-mono); overflow-wrap: anywhere; }
+.setup-shell > .prereg-error { margin: 1.25rem 0 0; }
+/* A file dragged over the setup: the whole page is where it lands. */
+.setup-shell.is-drop-target { outline: 2px dashed var(--brand-wine); outline-offset: .6rem; border-radius: var(--radius-md); }
+.drop-hint { position: fixed; left: 50%; bottom: 2rem; z-index: 95; transform: translateX(-50%); margin: 0; padding: .6rem 1rem; border-radius: var(--radius-sm); background: var(--brand-plum); color: var(--color-fg-on-emphasis); font: 400 .72rem var(--font-mono); letter-spacing: .04em; pointer-events: none; }
+.study-map-slot { min-width: 0; min-height: 24rem; }
+@media (min-width: 761px) {
+  /* The rail and the estimate stick under the bar, not under it and behind it. */
+  .setup-shell .step-rail, .setup-shell .estimate-readout { top: calc(var(--site-header-height) + var(--study-bar-height) + 1rem); }
+  .setup-shell .estimate-readout { max-height: calc(100vh - var(--site-header-height) - var(--study-bar-height) - 1.5rem); }
+  .setup-shell .wizard-step h2, .setup-shell .wizard-step .field, .setup-shell .wizard-step .settings-panel { scroll-margin-top: calc(var(--site-header-height) + var(--study-bar-height) + 1.5rem); }
+  .wizard-layout--map { grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem); }
+}
+/* The page dialog: as tall as the window, its header and footer in sight while its body scrolls. */
+.modal--page { width: min(100%, 72rem); height: calc(100vh - 2rem); height: calc(100dvh - 2rem); max-height: none; display: flex; flex-direction: column; overflow: hidden; }
+.modal--page .modal__header { flex: none; flex-wrap: wrap; align-items: center; gap: .75rem 1rem; padding: 1rem 1.5rem; }
+.modal--page .modal__header h2 { font-size: 1.5rem; }
+.modal__toolbar { flex: 1 0 100%; min-width: 0; }
+.modal--page .modal__body { flex: 1 1 auto; min-height: 0; padding: 0; overflow: auto; overscroll-behavior: contain; }
+.modal--page .modal__footer { flex: none; }
+.all-settings__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; }
+.all-settings__toolbar input[type="search"] { flex: 1 1 16rem; width: auto; min-width: 0; }
+.all-settings__toggle { flex: none; display: inline-flex; align-items: center; gap: .5rem; color: var(--color-fg); font-size: .8rem; font-weight: 500; cursor: pointer; }
+.all-settings { display: grid; grid-template-columns: 12.5rem minmax(0, 1fr); gap: 0 2.5rem; align-items: start; padding: 0 1.5rem; }
+.all-settings__nav { position: sticky; top: 0; padding: 1.5rem 0; }
+.all-settings__nav ol { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border-strong); }
+.all-settings__nav a { display: grid; gap: .1rem; padding: .6rem 0 .6rem .6rem; border-bottom: 1px solid var(--color-border); border-left: 2px solid transparent; color: color-mix(in oklch, var(--brand-wine) 80%, transparent); font: 400 1rem/1.2 var(--font-serif); text-decoration: none; transition: color var(--motion-duration-quick) var(--ease-calm); }
+.all-settings__nav a:hover { color: var(--brand-olive); }
+.all-settings__nav a.is-current { border-left-color: var(--brand-wine); color: var(--brand-wine); font-style: italic; }
+.all-settings__nav-state { color: var(--color-fg-muted); font: normal 400 .6rem/1.5 var(--font-mono); letter-spacing: .04em; }
+.all-settings__nav a.has-errors .all-settings__nav-state { color: var(--color-warning); font-weight: 700; }
+.all-settings__nav a.has-warnings .all-settings__nav-state { color: var(--color-secondary-emphasis); }
+.all-settings__sections { min-width: 0; padding: 1.5rem 0 2rem; }
+.all-settings__section { margin-bottom: 2.5rem; }
+.all-settings__section > h3 { margin: 0 0 1.25rem; padding-left: .75rem; border-left: 2px solid var(--brand-wine); font: 500 1.5rem/1.2 var(--font-serif); scroll-margin-top: 1.25rem; }
+.all-settings__section > h3:focus:not(:focus-visible) { outline: none; }
+.all-settings__problems { margin: 0 0 1.75rem; }
+.all-settings__problems .problem-list { margin-top: 0; }
+.all-settings .field, .all-settings .settings-panel { scroll-margin-top: 1.25rem; }
+.all-settings__panel.is-advanced > .settings-panel > legend::after { content: " · advanced"; color: var(--color-fg-muted); font-weight: 400; }
+.all-settings__empty { margin: 0; padding: 2rem 0; color: var(--color-fg-muted); font-size: .9rem; }
+.all-settings .load-report { margin: 0 0 1.75rem; }
+.all-settings__footer { width: 100%; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .6rem; }
+.all-settings__state { flex: 1 1 12rem; }
+.replace-confirm p { margin: 0 0 .75rem; line-height: 1.55; }
+.replace-confirm__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .6rem; }
+@media (max-width: 760px) {
+  /* Two rows: what the study is and how it stands, then the view and the actions. Save and the gear stay in sight; loading a file moves into More. */
+  .study-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: "name name pill pill" "view save gear more"; gap: .5rem; padding: .55rem 0 .7rem; }
+  .study-bar__study, .study-bar__actions { display: contents; }
+  .study-bar__name { grid-area: name; }
+  .study-bar .validity-pill { grid-area: pill; justify-self: end; }
+  .study-bar .view-switch { grid-area: view; justify-self: start; }
+  .study-bar__save { grid-area: save; }
+  .study-bar__gear { grid-area: gear; }
+  .study-bar__more { grid-area: more; }
+  .study-bar__load { display: none; }
+  .study-bar .button { padding: .5rem .8rem; }
+  .study-bar__wide-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .study-bar__narrow-only { display: list-item; }
+  .load-report { padding-right: 1rem; }
+  .load-report__dismiss { position: static; }
+  .modal-layer--page { padding: 0; }
+  .modal--page { width: 100%; height: 100vh; height: 100dvh; border: 0; border-radius: 0; }
+  .modal--page .modal__header { padding: .75rem 1rem; }
+  .modal--page .modal__header h2 { font-size: 1.25rem; }
+  .modal--page .modal__footer { padding: .6rem 1rem; }
+  .all-settings { grid-template-columns: minmax(0, 1fr); padding: 0 1rem; }
+  /* The sections become a strip that scrolls sideways and stays at the top of the dialog's body. */
+  .all-settings__nav { z-index: 2; margin: 0 -1rem; padding: 0 1rem; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+  .all-settings__nav ol { display: flex; gap: 1.25rem; overflow-x: auto; border-top: 0; scrollbar-width: thin; }
+  .all-settings__nav li { flex: none; }
+  .all-settings__nav a { padding: .6rem 0; border-bottom: 0; border-left: 0; white-space: nowrap; }
+  .all-settings__nav a.is-current { box-shadow: inset 0 -2px 0 var(--brand-wine); }
+  .all-settings__section > h3 { scroll-margin-top: 3.5rem; }
+  .all-settings .field, .all-settings .settings-panel { scroll-margin-top: 3.5rem; }
+  .all-settings__footer .button { min-height: 2.5rem; padding: .5rem .7rem; font-size: .8rem; }
+  .all-settings__state { flex-basis: 100%; }
+}
+/* ── end of study bar and all settings ── */
+
+/* ── Setup layout between a phone and a wide desk ──
+ * Three columns need about 74rem: narrower than that the step was left a strip in which sentences broke letter by
+ * letter and the prompts table ran under the estimate. So the rail lies across the top, as it does on a phone, and
+ * the step shares the row with the estimate only while there is room for both. */
+@media (min-width: 761px) and (max-width: 1180px) {
+  .setup-shell .wizard-layout:not(.wizard-layout--map) { grid-template-columns: minmax(0, 1fr) minmax(15rem, 17rem); row-gap: 1.5rem; }
+  .setup-shell .wizard-layout:not(.wizard-layout--map) .step-rail { grid-column: 1 / -1; position: static; }
+  .setup-shell .step-rail__progress { margin-bottom: .6rem; }
+  .setup-shell .step-rail ol { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); column-gap: .75rem; }
+  .setup-shell .step-rail li button { height: 100%; align-content: start; padding: .6rem 0 .65rem; border-bottom: 0; }
+  .setup-shell .step-rail li button.is-current { box-shadow: inset 0 -2px 0 var(--color-emphasis); }
+}
+@media (min-width: 761px) and (max-width: 960px) {
+  .setup-shell .wizard-layout:not(.wizard-layout--map) { grid-template-columns: minmax(0, 1fr); }
+  .setup-shell .wizard-layout:not(.wizard-layout--map) .estimate-readout { position: static; max-height: none; overflow-y: visible; }
+}
+/* ── end of setup layout between a phone and a wide desk ── */
+
+/* ── Eval rows: an eval's id is a name and is not broken in the middle; its title gives way instead ── */
+.eval-checklist .eval-check__body > span:first-child { flex-wrap: wrap; }
+.eval-checklist .eval-check__body strong { flex: 0 1 auto; max-width: 100%; }
+.eval-checklist .eval-check__body em { flex: 1 1 9rem; }
+/* ── end of eval rows ── */

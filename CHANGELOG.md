@@ -6,6 +6,719 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Result checks. The harness now looks at every reply, token record, score
+  and judgement while a run stores it. The rules are fixed by the harness
+  and are the same for every arm and every study: no setting of a study, no
+  eval card and no environment variable changes them, and no config, plan or
+  card hash moved. They are version 1 (`CHECKS_VERSION`), which a run
+  records as `checks_version` when it is first started.
+  `docs/ANALYSIS_PLAN.md` has a new section "Result checks" with every kind,
+  rule and threshold, and `docs/DESIGN.md` records the decision as D-16.
+- A flag marks a sample and excludes nothing. There are thirteen kinds: an
+  empty reply, a reply that ended at the token limit, a reply that ends in a
+  loop, damaged characters, reasoning text in the reply, a missing token
+  log, a random draw outside the bracket of the token that was sampled, a
+  scorer that failed, an answer the scorer could not extract, and four about
+  the judge (no reply, a reply without a score, a score the rubric does not
+  allow, a reply that was cut short). Flags are written to
+  `runs/<run_id>/flags.jsonl`, which is in the study bundle. No analysis
+  reads that file: a flagged sample is analysed exactly as an unflagged one.
+  The checks do not detect a loop with a counter in it, a loop the model
+  leaves again, reasoning written without `<think>` tags, or nonsense in
+  valid Unicode, and no check asks a model whether a reply makes sense.
+- More failures are recorded as the taints they are. A stream that ends
+  without a finish reason is a `stream_error`; before, it was stored as a
+  completed reply. A stream line that is not valid JSON is a `stream_error`
+  for that sample; before, it aborted the run. A token record that says the
+  engine drew from its fallback source taints the sample as
+  `engine_fallback` and withholds the quantum label, also when the engine's
+  fallback counter did not move. Token records that fail while they are
+  built, or hold a value that is not finite, are a `stateless_row` for that
+  sample; before, some of these aborted the run. An attempt that did not
+  complete writes its
+  `stream_error` taint and no entropy taint, and a sample's taints are
+  written before its reply.
+- One exclusion rule changed, for every plan, also for a study without a
+  design block: a `stream_error` taint no longer excludes a sample that has
+  a completed reply. That is a sample whose failed attempt was tried again
+  after a resume. Before, the failed attempt excluded the sample for good.
+  An existing run that holds an error row, its taint and a later completed
+  row for the same sample gains that sample when it is analysed again. A
+  sample that also carries another taint stays out. The pinned bytes of
+  legacy studies did not move.
+- A check stops a run that is plainly broken. Eleven rules: generations
+  failing (8 in a row on one arm, or half of the last 40), a degraded
+  quantum source (10 tainted samples in a row on a quantum arm, or 3 that
+  started while the entropy check already reported trouble), missing token
+  records (10 in a row on one arm), a failing scorer (10 in a row on one
+  eval), empty replies (20 in a row on one eval, from at least 3 prompts,
+  with at least 2 arms each giving at least 5 of them), no answer extracted
+  from any scored sample of an eval once there are at least 30 of them from
+  at least 2 prompts, samples still missing when generation or judging reaches its end,
+  a judge that refuses requests (401, 403 or 404), a judge that does not
+  answer (10 in a row, or half of the last 40), no score readable from any
+  of an eval's first 30 judge replies, and an unexpected error in the judge
+  phase. A rule that reads what replies say is counted over an eval, never
+  over one arm.
+- A stop is a pause with a stored reason, never an abort. The run takes no
+  new work, the requests under way finish, the stop is written to `run.json`
+  under `halts` (the rule, what it was counted over, a sentence with the
+  real counts, a tally of causes, up to three samples and what Resume
+  recovers), and the run is then `paused`. Nothing is removed and nothing
+  resumes by itself. The host's Resume starts a new pass: it plans the run
+  again from what is stored, generates the samples that have no completed
+  reply and asks the judgements that have no reply, with the keys the run
+  holds then. A restart of the server is the same case. A judge-phase error
+  that used to leave a run `running` with nothing running is now such a
+  stop. On an eval that runs through Inspect, a sample that does not
+  complete now pauses the run; before, it aborted it.
+- Before the first generation, on every start and every resume, a run that
+  holds a judge key and has an eval scored by the study's judge sends the
+  judge one small request with the study's judge settings. A status of 400,
+  401, 403 or 404 stops the run before any sample is generated. The request
+  and its reply are not stored.
+- The judge's score is read by a stricter reader: the last line of the form
+  `SCORE: n` or `SCORE = n`, or else the first JSON object with a numeric
+  `score`. The reader no longer falls back on the last number anywhere in
+  the reply. For the four evals whose rubric has fixed values
+  (`eval_awareness`, `self_referential_probe`, `self_reported_coincidence`:
+  0 or 1; `opinion_quantum_sampling`: -1, 0 or 1) a value outside them is
+  not stored as a score. A judge row has a `status` (`ok`, `failed`,
+  `unreadable`, `out_of_range`), the judge's `stop_reason` and a
+  `reader_version`. A reply that was received is final: a row without a
+  readable or allowed score keeps the reply, has no score and is not asked
+  again. Before, such a sample was asked again on every resume. Only a
+  judgement that got no reply is asked again. Stored rows are not read
+  again, so scores of earlier runs stay as they were stored.
+- `GET /api/runs/{id}/health` returns the health summary of a run: for each
+  arm and eval the planned, completed and failed samples, the taints, the
+  flags and what became of the judgements; the stops of the run; and
+  cautions, which are plain sentences written when a flag kind other than
+  "ended at the token limit" is on at least 5% of an arm's completed samples
+  on an eval, when the run is not complete, when a stop was not resumed, and
+  when judge replies were read by more than one reader version. No analysis
+  reads the summary. A run made before result checks says so and gives no
+  flag counts.
+- `GET /api/runs/{id}` and `GET /api/studies/{id}` carry each run's `halts`
+  and `checks_version`. `GET /api/studies/{id}` has a new `health` object
+  with each run's completed, failed and tainted samples, and the analysis
+  index has the same counts for the analysed run. The rows of the index's
+  `provenance` list count each sample once and have two new keys,
+  `excluded_samples` and `failed_samples`. Before, the public counts of
+  failed samples compared the finish reason with `aborted`, which the store
+  never writes, and the results page read its taints from a list on the run
+  record that is never filled.
+- New event `check.stopped` on a run's event stream, with the stored stop.
+  `sample.finished` has a new `flags` list. The generated contracts gain
+  `ResultFlag`, `Halt` and `HealthSummary`. A harness from before this
+  change cannot read a `run.json` that has `halts` or `checks_version`, or a
+  judge row that has `status`.
+- The pre-registration of a designed study has a new section "Result
+  checks", printed from the catalogue of the checks: that a flag excludes
+  nothing, which failures are tainted, what stops a run and what Resume
+  does. The pinned designed document changed
+  (`backend/tests/fixtures/prereg/golden_designed.md`); no plan hash moved,
+  and the document of a study without a design block is unchanged. The
+  README of a designed study's bundle names `flags.jsonl` and `halts`.
+- The run page shows "Stopped by a check" for every stop that was not
+  resumed: what the check saw, where and when, the tally of causes, up to
+  three samples, what Resume recovers, who can resume, and that Abort is
+  final. On a stop because the judge refused requests the notice has the
+  form to supply a judge key. The live page shows one line with a link to
+  the run page. The run page and the study results page have a new section
+  "Output health" with the cautions, the list of stops and a table per arm
+  and eval, for every study. The taint report on the results page counts
+  from the health summary. The Design step lists the result checks under
+  "Fixed by the harness" with a link to the analysis plan.
+- Smaller changes that came with the checks: the engine's token log is
+  looked for only when the request asked for one (before, every sample
+  waited up to half a second for a file whenever a log directory was
+  configured, also on greedy and provider arms); a row whose stream ended
+  without a finish reason keeps the text that arrived; and `scripts/smoke.py`
+  fails at once with the stop's sentence when a check stops its run.
+- Documents for the result checks: `docs/API.md` (the health route, the
+  stop record, the new event and fields, the judge row),
+  `docs/SETUP_GUIDE.md` ("When a check stops a run": what an operator does
+  after each rule), `docs/add-an-eval.md` (how an eval's `score()` reports
+  an answer it could not extract and how an eval gets on the catalogue's
+  lists) and `docs/ACCEPTANCE.md`.
+  `backend/tests/test_docs_result_checks.py` compares these documents with
+  the catalogue.
+
+- The number of permutations of a designed study is the largest of three
+  numbers: 10 000, 20 times the number of difference tests divided by α, and
+  2 times the number of seed-pair tests divided by α. Before, the seed pairs
+  were given 20 per unit as well, which refused designs the setup can build
+  (for example three outcomes with five control seeds at α 0.005, which now
+  runs 12 000). The designed Study 1 runs 10 000 at α 0.05 and 0.01 and
+  12 000 at 0.005. A design that needs more than 100 000 is still refused.
+- The texts about the control floor no longer say that the seed-against-seed
+  control cannot fail below it. With fewer prompts it is not certain that
+  two seeds that differ would fail the control, so the analysis does not
+  count the control as passed. At the floor itself a pair of seeds that
+  differ on every prompt fails in most analyses and not in all
+  (`docs/ANALYSIS_PLAN.md`, "Control gates and completeness").
+- `POST /config/parse` answers `400` for a `design.alpha` or a
+  `design.sensitivity_epsilon` outside its allowed values, and names the
+  setting and the values. Such a file is malformed, not a draft with a
+  problem.
+- A study without a design block that has no comparison of a quantum arm
+  with seeded controls, or fewer than two control seeds in a comparison, is
+  reported with warnings, not blocking problems: the server launches such a
+  study. With a design block both stay blocking.
+- New blocking problem `design.no_planned_data`: a study that decides on a
+  token-level outcome and selects no eval with a prompt list of its own
+  plans no data for that outcome.
+- "Declare a design" on the Design step adds the design block and nothing
+  else. It no longer raises repetitions, so declaring a design and returning
+  to the built-in plan gives back the study that was there, with its config
+  hash. The mark beside an eval's repetitions says "close" or "too few" and
+  "Use recommended" sets the k that would do.
+- Every save of a study file is checked. After the file is written the page
+  sends the same text to `POST /config/parse` and reports whether the file
+  will load back; when the server cannot be asked, the page's own check
+  answers and the report says so. A draft with a problem inside one setting
+  (an empty title or contact, no arms, no evals, an arm that contradicts
+  itself, a value out of range) is still written, but the report says the
+  file will not load back, the file state reads "will not load back as it
+  is", and "Save current study first" replaces nothing on such a file.
+- While a setting is outside what a study can hold, the browser does not
+  store the draft. The page now says so beside the problem and in the study
+  bar ("edits are not kept in this browser").
+- New blocking problem for an arm whose own settings contradict each other
+  (a seed on an arm whose source uses none, a bias on an arm that is not a
+  biased arm, greedy decoding on a quantum arm, an arm switched off without
+  a reason). The server refuses a file with such an arm.
+- On the results page of a designed study, the sentence about the
+  seed-against-seed control is built from what the table records. For a row
+  whose seed pairs did not differ but whose control could not have failed,
+  it says so and does not read as a pass.
+- The pre-registration page says which study it shows when a share link or a
+  stored draft cannot be read, also after the draft changed in another tab,
+  and says so when neither the link nor the draft can be read.
+- On the map of a study without a design block, the prompts of an eval say
+  what the built-in plan does with each of the eval's outcomes (a primary
+  test, a secondary test, or reported without a significance threshold).
+
+- A study that is already registered takes further runs. A later `POST /runs`
+  with the same configuration adds a run to the study and freezes nothing
+  again: a pilot is followed by the full run, an aborted run by another. The
+  study keeps the pre-registration and the plan of its first launch, the new
+  run is recorded under the frozen document's hash, and it is not marked as
+  having a stale pre-registration when the host presents that hash or the
+  hash of the document rendered for the new launch. Before, the second launch
+  of a study was refused with `409`: the document rendered for it prints that
+  launch's readiness report, so it never equalled the frozen one.
+- Samples the run marked as tainted (engine fallback, degraded entropy) never
+  enter the clean analysis, also when every sample of an arm on an eval is
+  tainted. Before, such an arm was analysed on its tainted samples. Its
+  comparisons are now unavailable.
+- A paired comparison whose complete pairs all lie on one prompt is reported
+  as unavailable ("fewer than two prompts with complete pairs"), and so is
+  its equivalence test. Before, the analysis failed on it.
+- `POST /config/parse` reads text that opens with `{` as JSON, and as YAML
+  only if it is not JSON. Before, JSON went through the YAML parser, which
+  refuses or alters some JSON documents. Text that parses and cannot be
+  built (a date that does not exist) or is nested too deeply is answered
+  with `400`; it was a `500`.
+
+- `livecodebench` is implemented and selectable, on the thin runner: the 175
+  problems of LiveCodeBench release v6, with the prompt, code extraction and
+  test comparison of the authors' runner. With it every card of the registry
+  is implemented. A reply is a program written by a model, and the harness
+  never runs it: `score()` sends it to a sandbox service over a Unix socket
+  (new units `infra/qr-llm-evals-sandbox.socket` and
+  `infra/qr-llm-evals-sandbox@.service`, installed by an operator), which
+  runs it under a throwaway user without network or access to the harness's
+  data. Without the service the eval generates and stores its replies
+  unscored. The units have not been started on the box yet
+  (`docs/SETUP_GUIDE.md`, section 1). The hidden tests are stored in a pickle
+  and are read with an unpickler that loads no code.
+- Three more registry evals are implemented and selectable: `sycophancy_ays`,
+  `deception_bench` and `mask`. Each asks the model more than once, so each
+  is a pair of cards on the thin runner: a first card writes the replies
+  (`sycophancy_ays_answers`, `deception_bench_beliefs`, `mask_beliefs`) and
+  the planned card, now derived from it, works on them. A study must select
+  both cards of a pair; the second card alone has no items. All three follow
+  their Inspect ports (`inspect_evals/sycophancy`, `inspect-deceptionbench`,
+  `inspect_evals/mask`), read their data at a pinned revision when a run
+  starts and refuse a file whose SHA-256 differs. MASK records carry a canary
+  string and are never stored in the repository.
+- `sycophancy_ays` uses the multiple-choice questions of the set only, and
+  reports how often the model admits a mistake after "Are you sure?"
+  (`admits_mistake_rate`, with upstream's `apologize_rate`, `confidence` and
+  `truthfulness`). Its planned endpoint `flip_rate` is gone: an answer flip
+  needs a third turn that neither upstream nor this card runs.
+- `mask` reports `lie_rate` per pressured reply as its headline; the planned
+  `lying_at_10` is computed for description only. The MASK cards need
+  `pyarrow` (new `[mask]` extra) and about 15,850 judge calls per arm at
+  their defaults (`docs/SETUP_GUIDE.md`, section 1).
+- `deception_bench/deception_rate`, `mask/lie_rate`,
+  `mask_beliefs/belief_held` and `sycophancy_ays_answers/first_answer_correct`
+  can be registered by a designed study.
+  `sycophancy_ays/admits_mistake_rate` cannot: the eval has one item per
+  first answer, a number known only when the first card has run.
+- The judge phase now judges a derived card after the cards it reads from and
+  rebuilds its items from the run store for each arm, as the generation phase
+  does. Before, a judged derived card was judged without its items. No such
+  card existed, so no stored run is affected.
+- Five more registry evals are implemented and selectable: `xstest`,
+  `strong_reject`, `darkbench`, `eval_awareness` and `sage_consistency`. The
+  first three were planned as Inspect tasks and now run on the thin runner
+  with upstream's prompts, judge templates and scoring rules, under the
+  study's sampling envelope and graded by the study judge. `xstest`,
+  `strong_reject`, `darkbench` and `sage_consistency` read their prompts at a
+  pinned revision when a run starts and refuse a file whose SHA-256 differs;
+  StrongREJECT's forbidden prompts are never stored in the repository.
+- `eval_awareness` needs its gated transcripts supplied by the operator at
+  `evals/eval_awareness/data/dataset.json` (ignored by git). The harness does
+  not download them, and without the file a run that selects the eval stops
+  when it builds the eval's prompts (`docs/SETUP_GUIDE.md`, section 1). The
+  eval has not been run on the real benchmark.
+- A judged eval can read several numbers from one judge reply: an optional
+  `judge_fields(sample, raw)` in its task module. The values are stored in the
+  judge row (new `JudgeRow.fields`) and reach the analysis under their own
+  names (`docs/add-an-eval.md`, section 4).
+- `strong_reject/harmfulness_score`, `darkbench/dark_pattern_rate` and
+  `eval_awareness/eval_belief_rate` are per-reply judge scores, so a designed
+  study can register them. `xstest/over_refusal_rate_safe` is defined on the
+  eval's safe prompts only and `sage_consistency` needs every answer to a
+  question at once; neither can decide a designed study yet.
+- Card corrections: `xstest` reads the authors' `Paul/XSTest` (was the mirror
+  `walledai/XSTest`), `sage_consistency` reads `vamshibon/SaGE` (the old
+  address redirects there), and `eval_awareness` names the Hugging Face
+  dataset `jjpn2/eval_awareness`.
+- Four registry evals are implemented and selectable: `aime2026`,
+  `gpqa_diamond`, `ifbench` and `psychobench`. The first three were planned as
+  Inspect tasks and now run on the thin runner with upstream's prompts and
+  grading rules (`inspect_evals` commit `c2d3d5e`, AI2's IFBench commit
+  `4889186`), so the harness sets the decoding envelope and every arm gets the
+  same k replies per prompt. Each eval reads its prompts at a pinned revision
+  when a run starts and refuses a file whose SHA-256 differs; GPQA questions
+  and PsychoBench item texts are never stored in the repository.
+- `psychobench` administers 352 statements of 11 instruments, one statement
+  per reply (the card said 500 statements of 13). Upstream's `16P` has no
+  scoring key, and the commercially licensed `EPQ-R` and `BSRI` are left out.
+- New optional extra `[ifbench]`: AI2's verifier, pinned to the commit the
+  prompts come from. Without it, or without its NLTK data, `ifbench` replies
+  are generated and stored and their scores are `null` with the reason
+  (`docs/SETUP_GUIDE.md`, section 1).
+- For these four evals the analysis tests a per-reply value (`pass_at_1`,
+  `strict_accuracy`, `rating_norm`). Their headline endpoints (`answer_entropy`,
+  `constraint_pass_entropy`, `test_retest_reliability`) need the k replies to a
+  prompt scored together; each task module computes them in `endpoints()` for
+  description, and they cannot decide a designed study yet.
+- A study file can carry a `design` block (`StudyConfig.design`): the
+  confirmatory endpoints, the claim (`difference` or
+  `difference_or_equivalence`), the significance level (0.05, 0.01 or 0.005),
+  the ε of the biased arm that serves as the positive control, and margins for
+  endpoints whose card states no SESOI. The block is validated against the
+  arms: every compared (model, sampling) cell needs one available unsupervised
+  quantum arm and at least two seeded arms on distinct seeds, and a positive
+  control must sit on a seed of its own.
+- A study without the block is unchanged, byte for byte. The `design` key is
+  left out of the serialized config when it is not set, so config hashes,
+  study ids, plan hashes and rendered pre-registrations of existing studies
+  are what they were; `backend/tests/test_legacy_bytes.py` pins them for
+  Study 1, the thesis study and an archived plan. Such a study keeps the
+  built-in Study 1 plan and its claim rule.
+- A study with a `design` block gets its own statistical plan
+  (`StatisticalPlan.design`): one hypothesis per confirmatory endpoint and
+  (model, sampling) cell, each with its quantum-vs-control contrast, its
+  seed-vs-seed negative controls, its positive control, its margin and a
+  sample-size rating computed before any data exist (`sufficient`, `marginal`,
+  `insufficient`, or `unknown` for the KS and MMD tests, which have no closed
+  form). The contrasts are the built-in ones; the level, the interval level
+  (1 − α) and the number of permutations follow the design. A design the
+  analysis cannot execute is refused when the plan is built: an endpoint the
+  harness does not compute per sample; a declared margin on an endpoint whose
+  test has no paired difference, that has a card SESOI or that has no fixed
+  range, or a margin above 10% or below 0.1% of that range; or more
+  difference tests or seed-pair control tests than 100 000 permutations can
+  resolve.
+- The sample-size ratings are bounds with stated assumptions. The variance
+  bound takes every reply of a quantum arm as independent and counts the told
+  cells of a seeded run as one value, because they share one seed for each
+  prompt and repetition. Each hypothesis also carries the control floor: the
+  fewest prompts for which the analysis counts the seed-against-seed control
+  of a paired test as one that could have failed (10 for the designed
+  Study 1). Fewer prompts are rated `insufficient`, are never recommended,
+  and are a blocking problem in the setup. The number of permutations takes
+  the seed-pair tests into account as well as the difference tests, so that
+  no control is out of reach of its own test (the rule is stated in an
+  entry above).
+- Repetitions have a recommendation (`recommend_k`, `SampleSize.k_recommended`):
+  the fewest k, within the bounds of the eval's card, at which all its
+  prompts are enough for the margin of an outcome that decides the study.
+  The designed Study 1 and the setup's template run `self_referential_probe`
+  at k = 24 where its card says 20: at 20 its 30 prompts give 72.8% power at
+  the margin, at 24 they give 81.4%.
+- Nine headline endpoints can decide a designed study today: the two Tier 0
+  tests, the experience-claim rate, the MEQ-30 total, the opinion axis score,
+  the warm-up reply length and the three per-reply judge scores named above
+  (`strong_reject`, `darkbench`, `eval_awareness`). An endpoint that needs
+  the k replies to a prompt scored together cannot, because the harness does
+  not score replies in groups; nor can one whose test does not resolve to a
+  verdict, or one of an eval that is not implemented (`cards/endpoint_meta.py`;
+  `backend/tests/test_endpoint_meta.py` checks the table against every card's
+  `score()`). `docs/ANALYSIS_PLAN.md` lists them.
+- The analysis of a designed study resolves every hypothesis to one verdict
+  and writes `tables/decisions.json`: per hypothesis the estimate, the
+  interval, the raw and Holm-adjusted p-values, the equivalence test against
+  the registered margin, the share of the planned data analysed, the
+  seed-vs-seed negative control, the biased-arm positive control, and the
+  verdict (`effect`, `effect_within_margin`, `equivalent`, `inconclusive`,
+  `invalid` or `unavailable`) with its reason and sentence; and for the study
+  one roll-up. The rows of the decision matrix are tried in the registered
+  order and a test that was not produced keeps its slot in its Holm family.
+  Whether the difference exceeds the seed-to-seed differences is reported
+  (`above_seed_noise`) and decides nothing; the seed pairs are a gate instead:
+  none may reject after correction (decision D-15 in `docs/DESIGN.md`). A
+  seed pair on fewer prompts than the control floor, or one whose test ran
+  too few permutations to return a p-value below the corrected level, does
+  not pass the gate either: the hypothesis is `invalid` with the reason
+  `negative_control_cannot_fail`. An
+  inconclusive result whose equivalence test did not pass gives the reason
+  "the equivalence test did not pass after correction". A designed analysis
+  leaves a value outside the outcome's registered range out of its paired
+  comparisons, and a hypothesis whose arm has only tainted samples on its
+  eval is `unavailable`.
+- In the tables of a designed study every interval is at the level the study
+  registered (1 − α): the comparisons, the told/actual effects and the
+  headline effect, the accuracy intervals of source guessing, of the outside
+  observer and of privileged access, and the envelope of the
+  cumulative-deviation figure (written as `envelope` with `envelope_level`).
+  The equivalence test runs at α against the fixed margin and reads no pilot
+  file, every comparison names its model and sampling preset, and the raw
+  `significant_at_05` flag is not written. A study without a design block
+  keeps the levels and fields it had.
+- Only the first full run of a designed study is confirmatory. A pilot run,
+  and any full run after the first, resolves its rows and is marked not
+  confirmatory. A full run that was launched and never started does not
+  count as a full run of the study while its state is `created`; a restart
+  of the backend moves it to `needs_keys`, and it counts from then on. The
+  first analysis of a full run writes
+  `run-order.json` beside `run.json` (the full runs of the study that came
+  before it); later analyses read that file and the bundle ships it, so
+  re-analysing one run from a downloaded bundle gives the status the server
+  gave, also when the copy does not hold the study's other runs. The README
+  of a frozen study describes the file when the study has a design block.
+- A study with a design block takes runs only from the launcher who
+  registered it: the account of the runs it has or, for runs launched with a
+  bare key, that key. Its configuration is public once frozen, so anybody
+  else could otherwise launch it again and use up its confirmatory run. Such
+  a launch is refused with `409` and the way to register the design as a
+  study of one's own (another title or creation time). A study without a
+  design block takes runs from anybody.
+- The share of its planned data that a token-stream hypothesis (PIT, MMD)
+  analysed is counted on the same evals on both sides: the selected evals
+  that are implemented, generate text and run on a prompt list fixed at
+  registration. An eval derived from the replies of another eval is in
+  neither count. For the KS test a generation counts as present only when
+  its token records carry the cumulative probabilities the test reads. The
+  designed Study 1 plans 89 860 generations per arm, and its
+  pre-registration says which evals are counted.
+- A token-stream hypothesis has no margin, so it can never resolve to
+  `equivalent`, and a study that makes one a deciding outcome cannot
+  conclude as a whole that there is no effect within its margins. The
+  recommended design includes both Tier 0 tests when they are selected. The
+  setup warns of this for a study that claims absence
+  (`design.study_absence_unreachable`), and the pre-registration names the
+  hypotheses that rule the study verdict out.
+- The pre-registration of a designed study is rendered from its own template
+  (`docs/prereg-design-template.md.j2`) and states what the study registered:
+  each hypothesis with its statement, outcome, compared arms, test, sidedness,
+  margin and the verdicts it cannot reach; the decision matrix with the
+  sentence each verdict prints, the controls of every (model, sampling)
+  comparison and the study roll-up; a sample-size table with a rating per
+  hypothesis; and the rules the harness fixes (Holm families, interval levels,
+  permutations, analysis seed). The sections are "Hypotheses", "Decision
+  rules" and "Sample size", ahead of the ones a legacy document has. The
+  embedded `template_hash` is that of the template used. The legacy template
+  is untouched. The document promises only what the harness computes: an
+  exploratory endpoint it does not compute is stated as unavailable, and the
+  card text it prints does not contradict the designed plan. It says which
+  verdicts the study cannot reach and why, how many prompts the analysis
+  asks of a paired test before it counts its seed control, how far the
+  biased arm must
+  move each outcome for the positive control to be detected (which no rating
+  covers), and that a test on pooled tokens has no margin and no effect-size
+  threshold.
+- A designed study's analysis plan is written to
+  `studies/<study_id>/prereg-plan.json` when the study is frozen at launch,
+  not at its first analysis, so code deployed between launch and analysis
+  cannot change the plan a study is judged by. A design the plan refuses is a
+  `400` that freezes nothing. The plan hash is printed in the frozen
+  pre-registration, and the server analyses the study, and takes a further
+  run of it, only with that plan: a plan file with another hash is refused
+  with `409`, and a missing one is rebuilt only if the eval registry still
+  gives the registered plan. A study without a `design` block keeps the
+  write at first analysis.
+- `GET /api/cards/{id}/items` lists a card's prompts as the target model
+  receives them, a page at a time, with a told-cell selector on told/actual
+  cards. It lists only the ten cards whose task module builds its prompts
+  from files in this repository (`PREVIEW_SAFE` in `runner/preview.py`); for
+  every other card it says where the prompts come from instead
+  (`derived_at_run`, `remote_dataset`, `inspect_task`, `no_prompts`). The
+  route is open, reaches no network, and answers `200` with `source: "error"`
+  when a task module cannot be read. A message is cut at 6000 characters,
+  which no prompt of the registry reaches (the longest, in
+  `altered_state_meq`, has 2 382); the largest page of 100 items is about
+  125 KiB.
+- The generated contracts gain `StudyDesign`, `EndpointRef`, `MarginDecl`,
+  `PlanDesign`, `HypothesisPlan`, `SampleSize`, `EndpointMeta`,
+  `CardItemsResponse` and `DecisionsTable`, and `StatisticalPlan.pilot_quantile`
+  may be null. The package exports `endpointMeta` (label, scale, unit and
+  range per headline endpoint). `scripts/gen_design_fixtures.py` writes the
+  vectors the web app's sample-size and design code is checked against
+  (`study1.designed.json`, `power.json`, `design.json`) and the pinned
+  pre-registration of the designed Study 1
+  (`backend/tests/fixtures/prereg/golden_designed.md`); its `--check` runs in
+  the `schemas` row of the gate.
+- A study file saved by the web app loads on the server as the same study:
+  `packages/contracts/fixtures/study1.study.yaml` and
+  `study1.designed.study.yaml` are the app's output for Study 1 and its
+  designed form, and `backend/tests/test_study_file_roundtrip.py` checks that
+  each loads to the pinned config hash, directly and through
+  `POST /api/config/parse`.
+- `POST /config/parse` reads a draft. The setup page saves a study as it
+  stands, so a file may break rules that span several fields (an outcome
+  whose eval is not selected, a claim of absence without a positive control,
+  an arm on a seed the study does not list). Such a file is answered with
+  `200`, the study and a new `problems` list in the server's own wording; the
+  list is empty for a study that can be launched. A malformed file is still a
+  `400`. No other route accepts a draft.
+- The MMD permutation test no longer holds a label matrix of permutations by
+  pooled sequences. It draws and reduces one prompt at a time, so its memory
+  grows with the permutations times the largest prompt and not with the size
+  of the study, and it returns the same numbers to the last bit for the same
+  seed and inputs (`backend/tests/test_mmd_batches.py` compares it with the
+  earlier implementation). On synthetic streams of about the size of the
+  designed Study 1 (93 700 sequences per arm over 7 470 prompts, 10 000
+  permutations) its five contrasts take about 19 minutes; the permutation
+  loop adds about 0.15 GiB, and the padded token matrices and their pooled
+  copy make up the rest of an 8.6 GiB peak.
+
+- The study setup is five steps instead of seven: Compare (models, sampling
+  presets, control seeds, positive controls, supervised sessions), Measure
+  (evals, prompts and repetitions), Design (the claim, the outcomes that
+  decide the study, the false-finding rate, the positive control, the margins
+  and the expectations), Instruments (the judge and the supervised sessions;
+  offered only when the study has a judged eval or supervised sessions) and
+  Review & launch (authors and contact, every problem of the study, the access
+  keys, the pre-registration and the launch). The step rail says in words how
+  each step stands ("1 to fix", "1 to check", "clear"). Every step can be
+  opened at any time; only a problem marked "Blocks launch" stops the
+  pre-registration and the launch, and each problem links to its setting. The
+  placeholder contact of the Study 1 template is now such a problem. The
+  estimate sidebar has an "Evidence · preview" block next to the cost: the
+  number of hypotheses, the sample-size rating of each deciding outcome and
+  the sizes of the Holm families with a sentence on what a family is,
+  computed in the browser. The study title is edited in the page header.
+- The Design step shows what its six choices add up to. Under them is one
+  generated card per hypothesis (outcome, model and sampling preset, test and
+  sidedness in words, margin, planned data, sample-size rating) with a row of
+  verdict stamps: the verdicts the hypothesis can end with as the study is
+  configured and, for each it cannot, the reason. A sample-size table follows.
+  It says that every rating is a worst-case bound, and it prints "Unknown: no
+  closed-form power for this test." for the KS and MMD tests, which are never
+  rated as enough. "Fixed by the harness" lists, folded, what a designed study
+  cannot change: the test of each outcome, the Holm correction and its
+  families, the interval level, the power the ratings use, the permutations,
+  the completeness threshold and the sampling envelope. A legend explains the
+  marks beside the settings. A study without a `design` block shows the claim
+  panel with a "Declare a design" button and is told that the built-in
+  Study 1 plan applies until one is declared. Declaring a design adds the
+  design block and nothing else, and "Return to the built-in plan" takes it
+  out again. The repetitions of an eval are marked as close or as too few
+  when a larger k within the eval's bounds would make its prompts enough for
+  an outcome that decides the study; the mark names that k.
+- Review & launch lists the problems of the study under the step each belongs
+  to, says in a sentence how many block the launch and how many are warnings,
+  and offers each problem's one-click fix. It shows the server's hashes of the
+  study as it stands (canonical config, statistical plan, pre-registration
+  draft), asked for through the pre-registration render call while the step is
+  open and again after each edit; the browser no longer computes a hash of its
+  own. A study the server refuses becomes a blocking problem with the server's
+  message word for word, and is withdrawn at the next edit. If the run service
+  cannot be reached the page says so and blocks nothing. "Copy share link"
+  copies a link that opens the setup with the study; it holds no key.
+- The problems the setup lists include what the pre-registration will warn
+  about, so that "Ready" means nothing is left to check: a model without a
+  pinned checkpoint, supervised sessions whose questionnaires and target
+  pool are not pinned by their hashes, and a judge that is sent a
+  temperature. They are warnings. The cross-references the server checks
+  (an id used twice, an arm on a model or seed the study does not list, an
+  observed arm without session settings, two quantum arms or a repeated
+  control seed in one comparison, an outcome listed twice, a margin for an
+  outcome that does not decide the study), an arm whose own settings
+  contradict each other and a setting outside what a study can hold are
+  blocking problems that name the setting. The Study 1 template
+  starts with one thing to fix and three to check.
+- The setup has a study bar on every step and over the map. It stays under
+  the site header while the page scrolls and shows the study's title, whether
+  the study is ready ("Ready", or the number of things to fix), a
+  "Steps | Map" switch, the state of the study's file, "Load study file",
+  "Save study file", a gear and a "More" menu ("Save", "Save as…", "Start
+  from Study 1 template", "Copy share link"). It replaces the two buttons the
+  page header had. On a
+  phone it takes two rows; Save and the gear stay in sight and loading a file
+  moves into "More". The switch sets `?view=map` without reloading anything.
+- "Save study file" writes the study to a `.study.yaml` file. Writing the
+  file needs no server and is never refused: it works offline, signed out
+  and for a draft with problems, and keys typed on the page are never in the
+  file. After the file is written the page checks whether it will load back
+  (see the entry on saving above). Where the
+  browser has a save dialog (Chromium browsers), the first save asks where to
+  put the file, later saves write the same file and "Save as…" asks again;
+  the bar reads `Saved to <name>` once the file was written and closed, and a
+  dialog that is closed saves nothing. Elsewhere the file is handed to the
+  browser as a download, which the page cannot follow, and the bar reads
+  `Downloaded as <name>`. Either state adds what is left to fix, and becomes
+  `Changed since <name>` after the next edit. A file the server accepts
+  loads back as the same study.
+- Loading a study file is stricter and says more. A file is refused before it
+  is read if it is larger than 200 kB or empty, and only one file is taken.
+  The server's parse stays the authority, and what it returns must also be a
+  study the page can hold. If the server cannot be reached, a complete JSON
+  study is loaded with the note "Loaded without the server's checks."; a YAML
+  file is not, and the page says it needs the server. A file that fails at any
+  point leaves the study on screen, its draft and its file state untouched.
+  A file that was saved with problems loads: the report says how many
+  problems the server would refuse at launch and shows its messages on
+  request, and the problems are listed under the steps. A whole number too
+  large for a browser to keep exactly is refused with the setting it is in.
+  Before a loaded study, the template or the study of a share link replaces
+  work that is in no file, the page asks: "Save current study first",
+  "Replace" or "Cancel"; the first replaces only after the study is in a
+  file that loads back. A
+  share link leaves the address bar once it is opened or declined. A report
+  under the bar says what was loaded (arms, evals, hypotheses, or that the
+  file has no design block), which evals the server does not have, and how
+  many things are left to fix, with a link to them; a refusal is shown in the
+  server's words with the setting it names. A study file can also be dropped
+  anywhere on the setup page.
+- The draft in the browser is kept safe in three cases. Two tabs on the
+  setup follow each other's edits, saves and loads, so neither overwrites the
+  other with an older study. A stored draft this version of the page cannot
+  read is set aside and offered as a download before the template takes its
+  place. And where the browser stores nothing for the site, the page still
+  works and warns that closing it loses the draft.
+- Unticking the last comparison on the Compare step and ticking one again
+  keeps the roles the study had: the positive controls, the observed arm with
+  its session settings, and whether the arms are replayable.
+- The gear opens "All settings": every setting of the study in one long
+  dialog, grouped as Study, Models & arms, Evals & repetitions, Design &
+  analysis, Supervised sessions, Judge & narrative and Advanced. It includes
+  the settings no step shows (the arm table, model list, seed list, estimate
+  assumptions, pilot, display settings, narrative model and the recorded
+  hashes). A filter finds settings by name, field label or key (`design.alpha`),
+  "Problems only" keeps the settings with a problem, and each section lists
+  its problems first with a link to the field. An edit applies at once to the
+  study behind the dialog; the footer has the file state, Load, Save and Done.
+- "Map" in the study bar shows the study as one hand-drawn diagram, from left
+  to right: the question, the arms, the prompts and their repetitions, what is
+  measured, the tests, the gates and the verdicts, with one lane per compared
+  model and sampling preset. It can be dragged, zoomed with the wheel, a pinch
+  or the toolbar, and walked with the arrow keys. Zoomed out it shows one
+  sentence per node, at reading size the numbers of the design, and zoomed in
+  every setting of a node. A node that holds others unfolds in place (the
+  seeded runs of the controls, the evals of a tier, the outcomes of an eval).
+  Every node and every value carries the state of the setup steps (enough,
+  close, too few, no closed-form power, recommended, your choice, not
+  runnable, set by the harness) as a colour, a glyph and a border, explained
+  in a legend above the diagram that folds; it starts unfolded where the
+  window is at least 1280 px wide and 960 px tall. The map is as tall as the
+  rest of the window, so the whole diagram is in sight without scrolling the
+  page. The view, the unfolded nodes and the legend stay as they were left
+  when a setting changes or the steps are opened and closed. "Outline" shows
+  the same graph as a nested list with the same states and buttons; it is
+  what a window of 760 px or less starts with. The nodes sit where the layout
+  puts them and cannot be dragged to other places.
+- The study can be edited on the map. A node opens a pencilled popover that
+  hangs on it and moves with the map; it holds the node's facts, the fields
+  of its settings and its problems with their one-click fix. A test's popover
+  has its hypothesis card; a verdict's has the verdict stamps, the decision
+  rules and what `pD`, `pE` and `alpha` stand for. The fields are those of
+  the setup steps and of
+  "All settings", so an edit changes the map, the steps and the stored draft
+  at once. A chip opens the popover on its own field; "Open in all settings"
+  and a node's problem badge open the settings dialog. Escape closes the
+  popover and returns to the node, and the Tab key stays inside it while it
+  is open. Settings that are not a node are pencilled beside where they
+  belong and open the same popover: the false-finding rate and the Holm
+  family at the tests, power and completeness at the gates, the narrative
+  model at the verdicts, authors and contact under the question, the sampling
+  envelope on the quantum arm, the session settings on the observed arm and
+  the judge on every eval it scores. In "Outline", "Open" on an entry shows
+  the same fields, problems and prompts under it.
+- An eval on the map opens down to its single prompts
+  (`GET /api/cards/{id}/items`): a list with each prompt's place, id and
+  first line, read a page at a time; the picked prompt in full, turn by turn;
+  and the told cell to read it in where the eval has told cells. Prompts
+  beyond the study's chosen count are struck through and marked "not in this
+  study". Under a prompt the map says which arms answer it and how often,
+  what is read off the answers and which hypothesis that feeds. An eval whose
+  prompts cannot be listed before a run says why (built from the study's own
+  generations, downloaded at run time, inside an Inspect task, computed from
+  the token log of the other evals, or the task module's error), and without
+  the run service the map
+  says that prompts need it.
+- Resting the pointer or the keyboard on a node of the map keeps everything
+  upstream and downstream of it inked and quiets the rest; a verdict stamp
+  shows the rule that leads to it. Nodes lean a couple of pixels toward a
+  nearby pointer and the notes shy away, except on touch and under reduced
+  motion. A note or a node the Tab key reaches is brought into view.
+- Between 761 px and 1180 px of window width the setup steps lie across the
+  top, as on a phone: from 961 px the estimate is beside the step, below that
+  under it.
+- A measure that generates nothing of its own (a token-level audit, a
+  session measure) says "no tokens of its own" where it said
+  "0 tokens / arm". The note on repetitions says that fewer
+  repetitions call for more prompts, as the sample-size rating beside it
+  shows.
+- The results page of a designed study shows the verdicts the script computed
+  (`tables/decisions.json`). The study verdict comes first, in one sentence; a
+  pilot run, or a full run after the first, is marked "Not confirmatory" with
+  the reason. Each hypothesis then has its own block: the verdict as a stamp,
+  the sentence from the table word for word, the estimate with its interval,
+  the raw and Holm-adjusted p-values, the margin and the equivalence test
+  where one is registered, the negative control, positive control and
+  completeness gates as "Passed" or "Failed", and the reason of an
+  inconclusive, invalid or unavailable verdict. Every number is the one in the
+  table; a p-value the table rounded to 0 is printed as "< 0.000001". The
+  comparison rows of such a study are listed without an adjusted-p column and
+  without the three-seed claim text, which belong to legacy analyses only. A
+  legacy analysis renders as before.
+- The pre-registration page lists the sections of the document and links to
+  each. For a designed study "Hypotheses", "Decision rules" and "Sample size"
+  come first; the results page links straight to the decision rules.
+  Expectations are no longer edited on this page (they are written in the
+  Design step) and no longer block rendering: a document without them says
+  so. Copying the share link no longer puts `?c=` back into the address bar,
+  where a reload would have put the copied study back over later edits. A
+  document rendered before the draft changed in another tab is marked stale.
+- The launch dialog says what a pilot is: it runs the study as configured, is
+  labelled non-confirmatory and does not set margins. For a designed study it
+  also says that only the first full run can be confirmatory. The earlier
+  text promised "a few prompts per eval", which the harness never did. The
+  kind of run selected when the dialog opens follows the study's pilot
+  setting as it stands then ("Preselect a pilot run in the launch dialog");
+  both kinds stay on offer.
+- Documents for the above: `docs/ANALYSIS_PLAN.md` has a "Designed studies"
+  section (the design block, the hypotheses, the recommended design and
+  repetitions, the permutation count, the Holm families, the decision
+  matrix, the control gates, token-stream outcomes, what is confirmatory and
+  who may add runs, the sample-size ratings with their variance bound and
+  their limits, and what the harness does not do); `docs/DESIGN.md` records
+  decision D-15; `docs/SETUP_GUIDE.md` section 6 describes the five steps,
+  the study bar, loading, All settings, saving, share links, the draft in the
+  browser, what Review & launch lists, and the map; `docs/API.md` gains
+  `POST /prereg/render` and `POST /runs/{id}/analyse`, a section on
+  launching a study that is already registered and one on study files with
+  problems; `docs/add-an-eval.md` says what a new eval needs to decide a
+  designed study and to show its prompts; `docs/ACCEPTANCE.md` names the
+  tests that cover each part.
 - The web app now uses the entropic.science design. It has the same palette
   (plum, wine, copper and peach on paper), the same type (EB Garamond for
   headings, navigation and prose, Inter for forms, Space Mono for labels and

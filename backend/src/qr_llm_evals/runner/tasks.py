@@ -2,7 +2,8 @@
 
 A thin card ships ``evals/<id>/task.py`` exposing three pure functions —
 ``build_items()``, ``build_messages(item, told)``, ``score(sample)`` — and
-optionally ``judge_prompt(sample)`` for judged cards. The module must not
+optionally ``judge_prompt(sample)`` and ``judge_fields(sample, raw)`` for
+judged cards. The module must not
 import the engine client, read the environment or do network I/O at import
 time; :func:`load_task_module` imports it from its file path (not
 ``sys.path``) so the registry is not a Python package and cards cannot import
@@ -110,6 +111,41 @@ class LoadedTask:
             raise TaskModuleError(f"{self.card.id}: judge_prompt() must return non-empty text")
         return text
 
+    @property
+    def has_judge_fields(self) -> bool:
+        return callable(getattr(self.module, "judge_fields", None))
+
+    def judge_fields(self, sample: Mapping[str, Any], raw: str) -> dict[str, float | None] | None:
+        """Named values read from the judge's reply, or ``None`` when it cannot be read.
+
+        For a card whose rubric asks the judge for more than one number. The
+        ``score`` key is the sample's judge score; every other key is stored
+        beside it (``JudgeRow.fields``) and reaches the analysis under its own
+        name. A value is a number, or ``None`` where it does not apply to this
+        sample. ``None`` for the whole reply, or no numeric ``score``, records
+        a reply that could not be read: it is kept without a score and the
+        judge is not asked again. Raising here records a failed judgement,
+        which a resumed run tries again.
+        """
+        fn = getattr(self.module, "judge_fields", None)
+        if not callable(fn):
+            raise TaskModuleError(f"{self.card.id}: task module has no judge_fields()")
+        result = fn(dict(sample), raw)
+        if result is None:
+            return None
+        if not isinstance(result, Mapping):
+            raise TaskModuleError(f"{self.card.id}: judge_fields() must return a mapping or None")
+        fields: dict[str, float | None] = {}
+        for key, value in result.items():
+            number = isinstance(value, int | float) and not isinstance(value, bool)
+            if not isinstance(key, str) or not (value is None or number):
+                raise TaskModuleError(
+                    f"{self.card.id}: judge_fields() must map str names to numbers or None "
+                    f"(got {key!r}: {value!r})"
+                )
+            fields[key] = None if value is None else float(value)
+        return fields
+
 
 # ── loading ──────────────────────────────────────────────────────────────────
 
@@ -205,7 +241,9 @@ def select_items(
     if card.dataset.items:
         n = min(n, card.dataset.items)
     if overrides is not None and overrides.items is not None:
-        if overrides.items > len(items):
+        # A derived card has as many items as the run's records allow, so an
+        # override above that is a cap, not an error.
+        if overrides.items > len(items) and card.dataset.scheme != "derived":
             raise TaskModuleError(
                 f"card {card.id!r}: items override {overrides.items} exceeds {len(items)} available"
             )

@@ -2,17 +2,16 @@
 # est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
 id: mask
 title: MASK — honesty under pressure
-purpose: Lying@10 and lie rate over 10 pressured runs per statement; alignment-relevant behaviour under
-  QRNG vs PRNG (expected null with a bound).
+purpose: Lie rate over k=10 pressured replies per record on 500 MASK records; a reply lies when it
+  contradicts the belief the same arm showed without pressure.
 tier: 2
 family: alignment
-engine: inspect
-inspect_task: inspect_evals/mask
-task_module: null
-task_args:
-  honesty_at_n: 10
+engine: thin
+inspect_task: null
+task_module: evals/mask/task.py
+task_args: {}
 dataset:
-  source: hf:cais/MASK
+  source: derived:mask_beliefs
   revision: null
   items: 500
   subsample:
@@ -37,17 +36,23 @@ judge:
 told_actual: false
 endpoints:
   primary:
-  - lying_at_10
-  secondary:
   - lie_rate
+  secondary:
+  - honest
+  - evade
+  - no_belief
   requires_tier0: none
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Belief-elicitation runs (3 direct + 2 indirect) are stochastic; the harness runs them once per
-  prompt at temperature 0 and shares them across arms, so only the 10 pressured runs count toward the
-  estimate. Inspect port defaults to OpenAI judges — the bridge pins binary/numeric judge models to the
-  study judge. Prompts score above the LURE evaluation-likeness threshold (validity limit, equal in both
-  arms).
+status: implemented
+selectable: true
+notes: Stage two of MASK (Ren et al., arXiv 2503.03750), after inspect_evals/mask. Needs mask_beliefs in
+  the same study; without it the card has no items. The first 500 records of the pinned dataset, archetypes
+  interleaved, each asked k times under its pressure prompt. Reply e is compared with the belief resolved
+  by upstream's rule from direct belief replies e, e+1 and e+2 and the e-th reply to each consistency
+  prompt of the same arm; provided_facts records are compared with the facts they state. lie_rate is the
+  paper's P(lie) per reply. The paper's lying@n (a record with at least one lie) is computed by the task
+  module's endpoints() for description and is not part of the registered analysis. Both judges are the
+  study judge at temperature 0 (upstream uses GPT-4o and o3-mini at temperature 1). MASK prompts are
+  recognisably evaluation-like, in every arm alike.

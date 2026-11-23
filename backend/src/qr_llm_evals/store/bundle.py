@@ -116,7 +116,36 @@ def licence_data_text() -> str:
     )
 
 
-def _readme(study_id: str, cfg_hash: str, prereg_hash: str) -> str:
+#: README paragraph of a study with a design block. A study without one has no
+#: first-full-run rule and no such file, and its README keeps the text it always had.
+_RUN_ORDER_NOTE = """
+A full run of a study with a design block also has
+`runs/<run_id>/run-order.json`: the full runs of the study that came before
+it, written by its first analysis. Keep it with the run. Only a study's first
+full run is confirmatory, and this file is what tells a re-analysis of one
+run which it was.
+"""
+
+
+#: README paragraph on the result-check records. The README of a study
+#: without a design block is pinned and keeps the text it always had, so the
+#: paragraph is written for a study with a design block only. The files
+#: themselves are in every bundle that has them.
+_RESULT_CHECKS_NOTE = """
+When a result check flagged a sample, the run also has
+`runs/<run_id>/flags.jsonl`: one line for each flag, with the sample, the kind
+of flag and what the harness counted. A flag never excludes a sample. What
+excludes a sample is a line of `taints.jsonl` that names it, with one
+exception: a `stream_error` line does not exclude a sample that has a
+completed reply in `generations.jsonl` and no taint of another kind (the
+attempt that failed was generated again after a resume). Each time a check
+stopped the run, `run.json` lists the stop under `halts`, with what the check
+saw and when the host resumed.
+"""
+
+
+def _readme(study_id: str, cfg_hash: str, prereg_hash: str, *, designed: bool) -> str:
+    run_order_note = _RUN_ORDER_NOTE + _RESULT_CHECKS_NOTE if designed else ""
     return f"""# Study bundle `{study_id}`
 
 This directory is the complete, self-describing record of one pre-registered
@@ -146,7 +175,7 @@ runs/<run_id>/analysis/<analysis_id>/{{plan.json, tables/, figures/, narrative.m
 
 Withdrawn runs stay in the bundle with `withdrawn: true` in `run.json` and a
 `WITHDRAWN.md` banner; nothing is deleted from a study.
-
+{run_order_note}
 ## Re-run the analysis
 
 ```
@@ -219,7 +248,9 @@ def write_frozen_study(
     write_text(study_dir.prereg_sha256, f"{p_hash}  prereg.md\n")
     write_text(study_dir.expectations_md, normalise_lf(study.expectations).rstrip("\n") + "\n")
     write_text(study_dir.licence_data, licence_data_text())
-    write_text(study_dir.readme_md, _readme(sid, cfg_hash, p_hash))
+    write_text(
+        study_dir.readme_md, _readme(sid, cfg_hash, p_hash, designed=study.design is not None)
+    )
     return study_dir
 
 

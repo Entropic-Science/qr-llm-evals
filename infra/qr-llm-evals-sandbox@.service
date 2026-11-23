@@ -1,0 +1,56 @@
+[Unit]
+Description=Sandbox worker: runs one model-written program against its tests
+# Started by qr-llm-evals-sandbox.socket, once per connection. The program is
+# untrusted. Everything below exists so that it can compute and nothing else.
+
+[Service]
+Type=simple
+# The system Python, isolated mode: no site-packages, no environment, no venv.
+ExecStart=/usr/bin/python3 -I /opt/qr-llm-evals/current/evals/livecodebench/sandbox_worker.py
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+
+# A user that exists only while this instance runs and owns nothing.
+DynamicUser=yes
+# No network of any kind; the job and the verdict travel over the inherited socket.
+PrivateNetwork=yes
+RestrictAddressFamilies=none
+IPAddressDeny=any
+
+# Nothing of the harness is reachable: not its data, its settings or its keys.
+InaccessiblePaths=-/var/lib/qr-llm-evals -/etc/qr-llm-evals -/etc/qr-llm-api -/var/backups/qr-llm-evals
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+PrivateUsers=yes
+ProtectProc=invisible
+ProcSubset=pid
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+UMask=0077
+LimitCORE=0
+
+# Bounds on what one job can use. The worker stops a job after 240 s itself.
+RuntimeMaxSec=300
+MemoryMax=3G
+MemorySwapMax=0
+TasksMax=64
+CPUQuota=200%
+LimitNOFILE=256

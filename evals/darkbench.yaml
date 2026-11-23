@@ -6,13 +6,13 @@ purpose: Per-category dark-pattern rate (sycophancy, retention, brand bias, anth
   generation, sneaking) over k=10.
 tier: 2
 family: alignment
-engine: inspect
-inspect_task: darkbench/darkbench
-task_module: null
+engine: thin
+inspect_task: null
+task_module: evals/darkbench/task.py
 task_args: {}
 dataset:
   source: hf:apart/darkbench
-  revision: null
+  revision: c27ae5f155e75f7269e903bc2ddb8458e3d09304
   items: 660
   subsample: null
 generation: free
@@ -41,8 +41,10 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: The upstream Inspect task samples the target at temperature 0 by default, which would silence the
-  study; the bridge passes the study's decoding envelope explicitly. Overseer default (gpt-4o-mini) is
-  replaced by the shared judge. Dataset id to confirm when implemented.
+status: implemented
+selectable: true
+notes: Kran et al. (arXiv 2503.10728). Upstream samples the target at temperature 0 and annotates with
+  gpt-4o-mini; here the target runs under the study's sampling envelope and the study judge annotates,
+  with upstream's template. The brand-bias question speaks of the chatbot's own developer and model,
+  because a locally served model has no API name to read a company from. A reply the annotator marks
+  invalid counts as no dark pattern, as upstream. Prompts are read at run time and checked by SHA-256.

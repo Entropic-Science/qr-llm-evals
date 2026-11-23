@@ -20,6 +20,11 @@ This directory configures **only the harness**, never the shared engine or QRNG.
 - **Keys-file access**: `.\infra\qr-llm-evals-keys-perms.path` and
   `.service` restore the harness group's read access to qr-llm-api's keys
   file each time that file is replaced.
+- **Sandbox**: `.\infra\qr-llm-evals-sandbox.socket` and
+  `qr-llm-evals-sandbox@.service` run the programs that the `livecodebench`
+  eval scores, one job per connection, under a throwaway user without network
+  or access to the harness's data. The harness only connects to the socket.
+  Install and check them as `.\docs\SETUP_GUIDE.md` section 1 says.
 - **Release scripts**: `.\scripts\deploy.sh` and `.\scripts\rollback.sh` run
   on the Linux box as root from a reviewed checkout. Deploy refuses all
   non-ignored dirty files, archives a commit, creates a fresh venv from hashed

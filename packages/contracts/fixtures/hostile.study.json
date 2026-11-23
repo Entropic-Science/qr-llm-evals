@@ -1,0 +1,442 @@
+{
+ "title": "Awkward strings, keys and numbers, as a study file would hold them",
+ "strings": [
+  "",
+  " ",
+  "  leading and trailing  ",
+  "key: value",
+  "a #comment",
+  "# starts as a comment",
+  "- leading dash",
+  "-",
+  "--- document",
+  "...",
+  "double \"quotes\"",
+  "single 'quotes'",
+  "back\\slash",
+  "\\",
+  "\\n is not a newline",
+  "ends with a backslash\\",
+  "\\\"",
+  "line\nbreak",
+  "crlf\r\nbreak",
+  "tab\there",
+  "trailing newline\n",
+  "\n\nleading newlines",
+  "three\nlines\nof text",
+  "null",
+  "~",
+  "true",
+  "false",
+  "yes",
+  "no",
+  "on",
+  "off",
+  "y",
+  "n",
+  "Null",
+  "TRUE",
+  "123",
+  "0x1F",
+  "0o17",
+  "010",
+  "1e3",
+  "1.5",
+  ".inf",
+  "-.inf",
+  ".nan",
+  "+1",
+  "1_000",
+  "2026-09-14",
+  "2026-09-14T00:00:00Z",
+  "12:30:45",
+  "<<",
+  "=",
+  "!!str x",
+  "!tag",
+  "&anchor",
+  "*alias",
+  "@at",
+  "`tick",
+  "%directive",
+  "? question",
+  "| pipe",
+  "> fold",
+  "{flow: map}",
+  "[flow, list]",
+  ", comma",
+  "ends with a colon:",
+  ": starts with a colon",
+  "\u00e9 \u00fc \u00f1 \u00df",
+  "Study 1 \u2014 quantum",
+  "\u91cf\u5b50\u30e9\u30f3\u30c0\u30e0",
+  "\u05e2\u05d1\u05e8\u05d9\u05ea",
+  "emoji \ud83d\ude00 pair",
+  "astral \ud835\udd18",
+  "\u0000",
+  "\u0001",
+  "\u0007",
+  "\b",
+  "\u000b",
+  "\f",
+  "\u001b",
+  "\u001f",
+  "\u007f",
+  "\u0080",
+  "\u0085",
+  "\u009f",
+  "\u00a0",
+  "\u2028",
+  "\u2029",
+  "\ufeff",
+  "\ufffd",
+  "\ufffe",
+  "\uffff",
+  "nel\u0085between",
+  "separator\u2028between",
+  "paragraph\u2029between",
+  "mark\ufeffinside",
+  "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+ ],
+ "by_key": {
+  "plain_key": 0,
+  "qr-llm": 1,
+  "openai:gpt-5": 2,
+  "has space": 3,
+  "has#hash": 4,
+  "has: colon": 5,
+  "-dash": 6,
+  "9lives": 7,
+  "": 8,
+  "on": 9,
+  "off": 10,
+  "yes": 11,
+  "no": 12,
+  "y": 13,
+  "n": 14,
+  "true": 15,
+  "False": 16,
+  "null": 17,
+  "NULL": 18,
+  "~": 19,
+  "\u00e9": 20,
+  "a.b": 21,
+  "a\nb": 22,
+  "q\"q": 23,
+  "separator\u2028": 24,
+  "back\\slash": 25,
+  "_": 26,
+  "_under": 27,
+  "A1": 28
+ },
+ "keyed": {
+  "plain_key": {
+   "text": "plain_key",
+   "list": [
+    "plain_key",
+    [
+     "plain_key"
+    ]
+   ]
+  },
+  "qr-llm": {
+   "text": "qr-llm",
+   "list": [
+    "qr-llm",
+    [
+     "qr-llm"
+    ]
+   ]
+  },
+  "openai:gpt-5": {
+   "text": "openai:gpt-5",
+   "list": [
+    "openai:gpt-5",
+    [
+     "openai:gpt-5"
+    ]
+   ]
+  },
+  "has space": {
+   "text": "has space",
+   "list": [
+    "has space",
+    [
+     "has space"
+    ]
+   ]
+  },
+  "has#hash": {
+   "text": "has#hash",
+   "list": [
+    "has#hash",
+    [
+     "has#hash"
+    ]
+   ]
+  },
+  "has: colon": {
+   "text": "has: colon",
+   "list": [
+    "has: colon",
+    [
+     "has: colon"
+    ]
+   ]
+  },
+  "-dash": {
+   "text": "-dash",
+   "list": [
+    "-dash",
+    [
+     "-dash"
+    ]
+   ]
+  },
+  "9lives": {
+   "text": "9lives",
+   "list": [
+    "9lives",
+    [
+     "9lives"
+    ]
+   ]
+  },
+  "": {
+   "text": "",
+   "list": [
+    "",
+    [
+     ""
+    ]
+   ]
+  },
+  "on": {
+   "text": "on",
+   "list": [
+    "on",
+    [
+     "on"
+    ]
+   ]
+  },
+  "off": {
+   "text": "off",
+   "list": [
+    "off",
+    [
+     "off"
+    ]
+   ]
+  },
+  "yes": {
+   "text": "yes",
+   "list": [
+    "yes",
+    [
+     "yes"
+    ]
+   ]
+  },
+  "no": {
+   "text": "no",
+   "list": [
+    "no",
+    [
+     "no"
+    ]
+   ]
+  },
+  "y": {
+   "text": "y",
+   "list": [
+    "y",
+    [
+     "y"
+    ]
+   ]
+  },
+  "n": {
+   "text": "n",
+   "list": [
+    "n",
+    [
+     "n"
+    ]
+   ]
+  },
+  "true": {
+   "text": "true",
+   "list": [
+    "true",
+    [
+     "true"
+    ]
+   ]
+  },
+  "False": {
+   "text": "False",
+   "list": [
+    "False",
+    [
+     "False"
+    ]
+   ]
+  },
+  "null": {
+   "text": "null",
+   "list": [
+    "null",
+    [
+     "null"
+    ]
+   ]
+  },
+  "NULL": {
+   "text": "NULL",
+   "list": [
+    "NULL",
+    [
+     "NULL"
+    ]
+   ]
+  },
+  "~": {
+   "text": "~",
+   "list": [
+    "~",
+    [
+     "~"
+    ]
+   ]
+  },
+  "\u00e9": {
+   "text": "\u00e9",
+   "list": [
+    "\u00e9",
+    [
+     "\u00e9"
+    ]
+   ]
+  },
+  "a.b": {
+   "text": "a.b",
+   "list": [
+    "a.b",
+    [
+     "a.b"
+    ]
+   ]
+  },
+  "a\nb": {
+   "text": "a\nb",
+   "list": [
+    "a\nb",
+    [
+     "a\nb"
+    ]
+   ]
+  },
+  "q\"q": {
+   "text": "q\"q",
+   "list": [
+    "q\"q",
+    [
+     "q\"q"
+    ]
+   ]
+  },
+  "separator\u2028": {
+   "text": "separator\u2028",
+   "list": [
+    "separator\u2028",
+    [
+     "separator\u2028"
+    ]
+   ]
+  },
+  "back\\slash": {
+   "text": "back\\slash",
+   "list": [
+    "back\\slash",
+    [
+     "back\\slash"
+    ]
+   ]
+  },
+  "_": {
+   "text": "_",
+   "list": [
+    "_",
+    [
+     "_"
+    ]
+   ]
+  },
+  "_under": {
+   "text": "_under",
+   "list": [
+    "_under",
+    [
+     "_under"
+    ]
+   ]
+  },
+  "A1": {
+   "text": "A1",
+   "list": [
+    "A1",
+    [
+     "A1"
+    ]
+   ]
+  }
+ },
+ "numbers": [
+  0,
+  -1,
+  1.5,
+  -0.25,
+  1e+21,
+  1e-7,
+  1.5e-7,
+  5e-324,
+  1.7976931348623157e+308,
+  9007199254740991,
+  -9007199254740991,
+  0.1,
+  100,
+  1000,
+  123456789.125
+ ],
+ "flags": [
+  true,
+  false
+ ],
+ "empty": {
+  "list": [],
+  "map": {},
+  "text": ""
+ },
+ "deep": {
+  "a": [
+   {
+    "b": [
+     [
+      1
+     ],
+     {},
+     [
+      []
+     ],
+     [
+      "x",
+      {
+       "y": []
+      }
+     ]
+    ]
+   }
+  ]
+ }
+}

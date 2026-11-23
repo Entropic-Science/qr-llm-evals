@@ -8,6 +8,11 @@ a truncated final line is skipped, never fatal, so a crashed run can resume.
 Resume follows the ``item_key`` pattern of qr-llm-research: the runner reads
 ``generations.jsonl`` back and skips every ``sample_ref`` that is already
 complete (:func:`completed_refs`). Aborted / errored rows are re-runnable.
+
+A record may name fields that are left out of the file while they are empty
+(``OMIT_WHEN_EMPTY`` on the record class, read by :func:`dump_row`). That is
+how a field added later leaves the files of records that do not use it as
+they were.
 """
 
 from __future__ import annotations
@@ -21,6 +26,8 @@ from typing import IO, Any, TypeVar
 
 from pydantic import BaseModel
 
+from qr_llm_evals.cards.result_checks import FINAL_JUDGE_STATUSES
+
 T = TypeVar("T")
 
 Row = dict[str, Any]
@@ -31,7 +38,19 @@ COMPLETE_FINISH_REASONS: frozenset[str] = frozenset({"stop", "length"})
 
 
 def dump_row(row: RowLike) -> Row:
-    return row.model_dump(mode="json") if isinstance(row, BaseModel) else dict(row)
+    """The JSON form of a record as it is written to a file.
+
+    A field the record class lists in ``OMIT_WHEN_EMPTY`` is dropped when it is
+    ``None`` or an empty list or mapping, so the file of a record that does not
+    use the field has no key for it.
+    """
+    if not isinstance(row, BaseModel):
+        return dict(row)
+    data = row.model_dump(mode="json")
+    for key in getattr(type(row), "OMIT_WHEN_EMPTY", ()):
+        if key in data and (data[key] is None or data[key] == [] or data[key] == {}):
+            del data[key]
+    return data
 
 
 def encode_line(row: RowLike) -> str:
@@ -130,11 +149,19 @@ def completed_refs(generations_jsonl: Path) -> set[str]:
 
 
 def completed_judge_refs(judge_jsonl: Path) -> set[str]:
-    """``sample_ref``s already judged (a row with a non-null ``score``)."""
+    """``sample_ref``s the judge is not asked about again.
+
+    A row with a score, and a row whose ``status`` says a reply was received
+    (also one no score could be read from, or whose value the rubric does not
+    allow): a reply that was received is final. A row without a reply, and a
+    row from before rows had a status that has no score, is asked again.
+    """
     refs: set[str] = set()
     for row in iter_jsonl(judge_jsonl):
         ref = row.get("sample_ref")
-        if isinstance(ref, str) and row.get("score") is not None:
+        if not isinstance(ref, str):
+            continue
+        if row.get("score") is not None or row.get("status") in FINAL_JUDGE_STATUSES:
             refs.add(ref)
     return refs
 

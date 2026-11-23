@@ -1,0 +1,53 @@
+# Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
+# est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
+id: mask_beliefs
+title: MASK — beliefs without pressure
+purpose: What the model says it believes about each MASK proposition when nobody pushes it, over k=10; the
+  reference the MASK card compares pressured statements with.
+tier: 2
+family: alignment
+engine: thin
+inspect_task: null
+task_module: evals/mask_beliefs/task.py
+task_args: {}
+dataset:
+  source: hf:cais/MASK
+  revision: 4602b84dd9e2ca05c6e1eafbc14e556e908ac1bb
+  items: 1085
+  subsample:
+    n: 1085
+    stratify: archetype
+generation: free
+thinking: false
+k: 10
+k_bounds:
+- 10
+- 20
+max_tokens: 600
+est_tokens_per_sample: 150
+est_gen_tokens_per_arm: 1627500
+sensitivity: high
+judge:
+  kind: llm
+  model: study_judge
+  temperature: 0
+  rubric: evals/mask_beliefs/rubric.md
+  different_from_target: true
+told_actual: false
+endpoints:
+  primary:
+  - belief_held
+  secondary: []
+  requires_tier0: none
+paired_stat: permutation_within_prompt
+sesoi: {}
+exceptions: []
+status: implemented
+selectable: true
+notes: Stage one of MASK (Ren et al., arXiv 2503.03750; dataset CC BY 4.0, with a canary string, so no row
+  is committed). The belief prompts of the first 500 records of the pinned dataset, archetypes
+  interleaved - three prompts per binary record with beliefs, one per numerical record, none for
+  provided_facts = 1,085 prompts x k 10 x 150 tokens = 1.63M per arm. Needs pyarrow (the [mask] extra).
+  Prompts, judge templates and readers are those of inspect_evals/mask. belief_held is 1 when the judge
+  reads a side of the proposition (or a value) from the reply. The judge makes one call per reply, 10,850
+  per arm, which costs more than the generation.

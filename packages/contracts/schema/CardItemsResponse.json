@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CardItemsResponse.json",
+  "$defs": {
+    "CardItem": {
+      "additionalProperties": false,
+      "description": "One prompt as the target model receives it.",
+      "properties": {
+        "index": {
+          "description": "Position in the card's own order; the runner takes the first N.",
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "prompt_id": {
+          "title": "Prompt Id",
+          "type": "string"
+        },
+        "messages": {
+          "description": "``{role, content}`` turns; each content is cut at 6000 characters, which no prompt of the registry reaches.",
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "truncated": {
+          "description": "True when some content was cut.",
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index",
+        "prompt_id",
+        "messages",
+        "truncated"
+      ],
+      "title": "CardItem",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A page of a card's prompts, or why they cannot be listed before a run.",
+  "properties": {
+    "card_id": {
+      "title": "Card Id",
+      "type": "string"
+    },
+    "listable": {
+      "description": "True only for ``source == 'task_module'``.",
+      "title": "Listable",
+      "type": "boolean"
+    },
+    "source": {
+      "enum": [
+        "task_module",
+        "derived_at_run",
+        "remote_dataset",
+        "inspect_task",
+        "no_prompts",
+        "error"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Why the prompts are not listed; null when they are.",
+      "title": "Reason"
+    },
+    "total": {
+      "minimum": 0,
+      "title": "Total",
+      "type": "integer"
+    },
+    "offset": {
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "limit": {
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "told": {
+      "anyOf": [
+        {
+          "enum": [
+            "told_qrng",
+            "told_prng",
+            "told_nothing"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The told cell the messages were built for; null on a card without the factor.",
+      "title": "Told"
+    },
+    "items": {
+      "items": {
+        "$ref": "#/$defs/CardItem"
+      },
+      "title": "Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "card_id",
+    "listable",
+    "source",
+    "reason",
+    "total",
+    "offset",
+    "limit",
+    "told",
+    "items"
+  ],
+  "title": "CardItemsResponse",
+  "type": "object"
+}

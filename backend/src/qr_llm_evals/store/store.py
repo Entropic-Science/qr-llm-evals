@@ -44,9 +44,11 @@ from qr_llm_evals.store.schema import (
     ArmProgress,
     CardProgress,
     GenerationRow,
+    Halt,
     JudgeRow,
     Progress,
     ReadinessReport,
+    ResultFlag,
     Run,
     Taint,
     Usage,
@@ -176,6 +178,46 @@ class RunStore:
 
     def taints(self) -> list[Taint]:
         return [Taint.model_validate(r) for r in iter_jsonl(self.run_dir.taints_jsonl)]
+
+    # -- result checks -----------------------------------------------------
+
+    def append_flag(self, flag: ResultFlag) -> None:
+        """Append one result-check flag to ``flags.jsonl``. A flag excludes nothing."""
+        append_jsonl(self.run_dir.flags_jsonl, flag)
+
+    def append_flags(self, flags: Iterable[ResultFlag]) -> int:
+        """Append the flags of one sample in one write; returns how many were written."""
+        rows = list(flags)
+        return append_jsonl(self.run_dir.flags_jsonl, rows) if rows else 0
+
+    def iter_flag_rows(self) -> Iterator[Row]:
+        return iter_jsonl(self.run_dir.flags_jsonl)
+
+    def flags(self) -> list[ResultFlag]:
+        return [ResultFlag.model_validate(r) for r in self.iter_flag_rows()]
+
+    def append_halt(self, halt: Halt) -> Run:
+        """Add a halt to the ``run.json`` on disk and return the record that was written.
+
+        The file is read first, so a halt stored by an earlier process is kept.
+        A caller that holds its own copy of the run must go on from the returned
+        record: writing an older copy afterwards would drop the halt.
+        """
+        run = self.read_run().with_halt(halt)
+        self.write_run(run)
+        return run
+
+    def stamp_resumed(self, at: datetime) -> Run:
+        """Stamp ``resumed_at`` on every open halt of the ``run.json`` on disk.
+
+        Returns the record as it now is; nothing is written when no halt is open.
+        """
+        run = self.read_run()
+        if not run.open_halts():
+            return run
+        run = run.with_halts_resumed(at)
+        self.write_run(run)
+        return run
 
     # -- reads -------------------------------------------------------------
 

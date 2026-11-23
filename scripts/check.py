@@ -8,7 +8,11 @@ via ``--only`` so the check set cannot drift between laptops and CI::
 
 The smoke row is mandatory: a missing script or an incomplete integration
 fails the gate. ``schemas`` runs ``scripts/export_schemas.py --check``
-(committed ``packages/contracts`` output equals a fresh export).
+(committed ``packages/contracts`` output equals a fresh export) and
+``scripts/gen_design_fixtures.py --check`` (the vectors the web app's power and
+design code is checked against equal what the backend computes, and so does
+the golden pre-registration of the designed Study 1,
+``backend/tests/fixtures/prereg/golden_designed.md``).
 
 Usage::
 
@@ -70,7 +74,10 @@ CHECKS: tuple[Check, ...] = (
     Check("tests", ((PY, "-m", "pytest"),)),
     Check(
         "schemas",
-        ((PY, "scripts/export_schemas.py", "--check"),),
+        (
+            (PY, "scripts/export_schemas.py", "--check"),
+            (PY, "scripts/gen_design_fixtures.py", "--check"),
+        ),
         skip_unless=_needs_script("scripts/export_schemas.py"),
     ),
     Check(

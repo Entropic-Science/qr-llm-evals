@@ -20,8 +20,18 @@ Knobs: ``chunk_delay_s`` (lets tests pause/abort mid-stream), ``fail_refs``
 engine), and ``closed_early`` records streams the client closed before
 completion (abort ⇒ engine-side sequence abort).
 
+``script`` makes one request misbehave the way a real engine or proxy can: it
+is called with the request body and answers with a :class:`Reply` (an HTTP
+status, a fixed text, another finish reason or none, a frame that is not JSON,
+tokens without a log-probability, reasoning text), or ``None`` for the normal
+deterministic reply.
+
 ``StubJudge`` is the Anthropic Messages API twin: ``SCORE: <n>`` derived from
-the user text, with ``fail_first`` calls answering ``500``.
+the user text, with ``fail_first`` calls answering ``500``. Its ``script``
+answers one call with a :class:`JudgeSay` (a status, a text, a stop reason).
+The request the harness makes before the first generation is recognised by
+its user text and kept in ``preflights``, apart from the judgements in
+``calls``.
 """
 
 from __future__ import annotations
@@ -32,6 +42,7 @@ import random
 import threading
 import time
 from collections.abc import Callable, Iterable, Iterator
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -62,6 +73,32 @@ WORDS = (
     "quantum", "entropy", "branch", "observer", "stream", "token", "sample", "field",
     "signal", "noise", "measure", "choice", "path", "collapse", "coherent", "random",
 )  # fmt: skip
+
+
+#: ``Reply.finish`` value that keeps the finish reason the stub would give.
+DEFAULT_FINISH = "default"
+#: User text of the request the harness makes before the first generation
+#: (``runner.judge_phase.PREFLIGHT_USER``; a test pins that they are equal).
+PREFLIGHT_USER = "Reply with the single word OK."
+
+
+@dataclass(frozen=True)
+class Reply:
+    """How the engine answers one request when a test scripts it."""
+
+    #: Not 200: the request is answered with this status and ``error_body``.
+    status: int = 200
+    error_body: str = "stub engine failure"
+    #: The visible reply, split into tokens at spaces. ``None`` keeps the seeded words.
+    text: str | None = None
+    #: ``None`` ends the stream without a finish reason.
+    finish: str | None = DEFAULT_FINISH
+    #: Reasoning text, sent before the reply as ``reasoning_content``.
+    thinking: str | None = None
+    #: Put a ``data:`` line that is not JSON after the first token.
+    malformed: bool = False
+    #: Send the tokens without a ``logprob`` key.
+    drop_logprob: bool = False
 
 
 def _seed_for(body: dict[str, Any]) -> int:
@@ -111,6 +148,7 @@ class StubEngine:
         on_request: Callable[[dict[str, Any]], None] | None = None,
         allowed_qr_keys: frozenset[str] = ALLOWED_QR_KEYS,
         source_type: str = "quantum_grpc",
+        script: Callable[[dict[str, Any]], Reply | None] | None = None,
     ) -> None:
         self.n_tokens = n_tokens
         self.chunk_delay_s = chunk_delay_s
@@ -120,6 +158,7 @@ class StubEngine:
         self.on_request = on_request
         self.allowed_qr_keys = allowed_qr_keys
         self.source_type = source_type
+        self.script = script
         self.requests: list[dict[str, Any]] = []
         self.closed_early: set[str] = set()
         self.health_reads = 0
@@ -180,13 +219,18 @@ class StubEngine:
             self.on_request(body)
         if ref in self.fail_refs:
             return httpx.Response(500, json={"error": {"message": "stub engine failure"}})
+        reply = self.script(body) if self.script is not None else None
+        if reply is not None and reply.status != 200:
+            return httpx.Response(reply.status, json={"error": {"message": reply.error_body}})
         with self._lock:
             self._in_flight.add(ref)
             if ref in self.fallback_refs:
                 self.fallback_count += 1
             if ref in self.degrade_refs:
                 self._degraded_pending.add(ref)
-        frames = self._frames(body)
+        # Subclasses in other tests override ``_frames(body)``; only a scripted
+        # request needs the second argument.
+        frames = self._frames(body) if reply is None else self._frames(body, reply)
 
         def on_close_early() -> None:
             with self._lock:
@@ -220,7 +264,7 @@ class StubEngine:
 
     # ── content ───────────────────────────────────────────────────────────
 
-    def _frames(self, body: dict[str, Any]) -> list[bytes]:
+    def _frames(self, body: dict[str, Any], reply: Reply | None = None) -> list[bytes]:
         rng = random.Random(_seed_for(body))  # noqa: S311 - deterministic fixture, not crypto
         max_tokens = int(body.get("max_tokens") or self.n_tokens)
         n = min(self.n_tokens, max_tokens) if max_tokens > 0 else self.n_tokens
@@ -231,27 +275,40 @@ class StubEngine:
         if thinking:
             for piece in ("considering the prompt", "answering"):
                 frames.append(_chunk(cid, body, {"reasoning_content": piece + " "}))
+        if reply is not None and reply.thinking:
+            frames.append(_chunk(cid, body, {"reasoning_content": reply.thinking}))
+        scripted: list[str] | None = None
+        if reply is not None and reply.text is not None:
+            pieces = reply.text.split(" ") if reply.text else []
+            scripted = [piece if i == 0 else " " + piece for i, piece in enumerate(pieces)]
+            n = len(scripted)
         for i in range(n):
             word = rng.choice(WORDS)
             text = word if i == 0 else " " + word
+            if scripted is not None:
+                text = scripted[i]
             delta = {"content": text}
             logprobs = None
             if want_logprobs:
                 lp = -rng.random() * 3
                 alts = [[rng.choice(WORDS), lp - rng.random()] for _ in range(3)]
-                logprobs = {
-                    "content": [
-                        {
-                            "token": text,
-                            "logprob": lp,
-                            "top_logprobs": [{"token": text, "logprob": lp}]
-                            + [{"token": t, "logprob": lp_alt} for t, lp_alt in alts],
-                        }
-                    ]
+                entry: dict[str, Any] = {
+                    "token": text,
+                    "logprob": lp,
+                    "top_logprobs": [{"token": text, "logprob": lp}]
+                    + [{"token": t, "logprob": lp_alt} for t, lp_alt in alts],
                 }
+                if reply is not None and reply.drop_logprob:
+                    del entry["logprob"]
+                logprobs = {"content": [entry]}
             frames.append(_chunk(cid, body, delta, logprobs=logprobs))
-        finish = "length" if n >= max_tokens > 0 else "stop"
-        frames.append(_chunk(cid, body, {}, finish_reason=finish))
+            if i == 0 and reply is not None and reply.malformed:
+                frames.append(b'data: {"id": "chatcmpl-cut", "choices": [{"delta": {"cont\n\n')
+        finish: str | None = "length" if n >= max_tokens > 0 else "stop"
+        if reply is not None and reply.finish != DEFAULT_FINISH:
+            finish = reply.finish
+        if finish is not None:
+            frames.append(_chunk(cid, body, {}, finish_reason=finish))
         prompt_tokens = sum(len(str(m.get("content", ""))) // 4 for m in body["messages"])
         frames.append(
             _sse(
@@ -309,16 +366,41 @@ def _chunk(
     )
 
 
+@dataclass(frozen=True)
+class JudgeSay:
+    """How the judge answers one call when a test scripts it."""
+
+    #: Not 200: the call is answered with this status and ``error_body``.
+    status: int = 200
+    error_body: str = "stub judge failure"
+    #: The reply text. ``None`` keeps the deterministic ``SCORE: <n>``.
+    text: str | None = None
+    stop_reason: str = "end_turn"
+
+
 class StubJudge:
     """Anthropic Messages API stub: deterministic ``SCORE: <n>`` per user text.
 
     ``fail_first`` makes the first N *distinct* samples (by user text) answer
     ``500`` on every attempt, so the client's retries cannot mask the failure.
+    ``script`` is called with the request body of every call, the one before
+    the first generation included, and answers with a :class:`JudgeSay` or
+    ``None`` for the normal reply.
     """
 
-    def __init__(self, *, fail_first: int = 0) -> None:
+    def __init__(
+        self,
+        *,
+        fail_first: int = 0,
+        script: Callable[[dict[str, Any]], JudgeSay | None] | None = None,
+    ) -> None:
         self.fail_first = fail_first
+        self.script = script
         self.calls: list[dict[str, Any]] = []
+        #: Requests made before the first generation; not judgements of a sample.
+        self.preflights: list[dict[str, Any]] = []
+        #: The ``x-api-key`` of every request, in order.
+        self.keys: list[str] = []
         self._failing: dict[str, None] = {}
         self._lock = threading.Lock()
 
@@ -329,16 +411,29 @@ class StubJudge:
     def handle(self, request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content.decode("utf-8"))
         user = str(body["messages"][0]["content"])
+        preflight = user == PREFLIGHT_USER
         with self._lock:
-            self.calls.append(body)
-            if user not in self._failing and len(self._failing) < self.fail_first:
-                self._failing[user] = None
+            self.keys.append(request.headers.get("x-api-key", ""))
+            if preflight:
+                self.preflights.append(body)
+            else:
+                self.calls.append(body)
+                if user not in self._failing and len(self._failing) < self.fail_first:
+                    self._failing[user] = None
             failing = user in self._failing
         if "x-api-key" not in request.headers:
             return httpx.Response(401, json={"error": {"message": "missing key"}})
+        say = self.script(body) if self.script is not None else None
+        if say is not None and say.status != 200:
+            return httpx.Response(
+                say.status, json={"error": {"type": "api_error", "message": say.error_body}}
+            )
         if failing:
             return httpx.Response(500, json={"error": {"type": "api_error", "message": "boom"}})
         score = int(hashlib.sha256(user.encode("utf-8")).digest()[0]) % 10 + 1
+        text = "OK" if preflight else f"Reasoning.\nSCORE: {score}"
+        if say is not None and say.text is not None:
+            text = say.text
         return httpx.Response(
             200,
             json={
@@ -346,11 +441,11 @@ class StubJudge:
                 "type": "message",
                 "role": "assistant",
                 "model": body.get("model"),
-                "content": [{"type": "text", "text": f"Reasoning.\nSCORE: {score}"}],
-                "stop_reason": "end_turn",
+                "content": [{"type": "text", "text": text}],
+                "stop_reason": say.stop_reason if say is not None else "end_turn",
                 "usage": {"input_tokens": 10, "output_tokens": 5},
             },
         )
 
 
-__all__ = ["ALLOWED_QR_KEYS", "StubEngine", "StubJudge"]
+__all__ = ["ALLOWED_QR_KEYS", "JudgeSay", "Reply", "StubEngine", "StubJudge"]

@@ -13,6 +13,11 @@ else here:
   UTF-8 bytes. The prereg embeds this hash, and any later config diff flips
   ``prereg_stale`` on the run (spec §2.8). The vectors in
   ``backend/tests/test_schemas.py`` pin the byte layout.
+* **Legacy bytes.** A config without a ``design`` block is a study from before
+  the block existed and serializes without the key, so its hash, its study id
+  and its frozen ``study.json`` are what they always were
+  (``backend/tests/test_legacy_bytes.py``). A new optional field must follow the
+  same rule: ``None`` by default and omitted when ``None``.
 
 Layer 0: this module imports nothing internal. ``EstimateAssumptions`` is
 therefore declared here as well as in :mod:`qr_llm_evals.cards.estimates`;
@@ -30,7 +35,17 @@ import json
 from collections.abc import Mapping
 from typing import Annotated, Any, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    ValidationInfo,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 # ── shared identifiers and enums ─────────────────────────────────────────────
 
@@ -79,10 +94,33 @@ EPSILON_LEVELS: tuple[float, ...] = (0.01, 0.03, 0.10, 0.50)
 SEED_MAX_EXCLUSIVE = 2**63
 #: Sources whose randomness is fixed by a study seed.
 SEEDED_SOURCES: frozenset[str] = frozenset({"prng_seeded", "prng_epsilon"})
+#: Significance levels a designed study may register.
+ALPHA_LEVELS: tuple[float, ...] = (0.05, 0.01, 0.005)
+
+
+def _on_grid(value: float, levels: tuple[float, ...]) -> bool:
+    """Floats on a registered grid are compared with a tolerance, never as literals."""
+    return any(abs(value - level) < 1e-12 for level in levels)
 
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+#: Validation-context key of a draft read (:func:`read_draft`): a list that the
+#: cross-field checks of ``StudyConfig`` add their problems to instead of raising.
+DRAFT_PROBLEMS = "draft_problems"
+
+
+def _settle(problems: list[str], info: ValidationInfo) -> None:
+    """Raise the cross-field problems of a study, or hand them to a draft read."""
+    if not problems:
+        return
+    collected = (info.context or {}).get(DRAFT_PROBLEMS)
+    if isinstance(collected, list):
+        collected.extend(problems)
+        return
+    raise ValueError("; ".join(problems))
 
 
 # ── §4.1 nested models ───────────────────────────────────────────────────────
@@ -259,6 +297,65 @@ class PilotConfig(_Strict):
     prompts: int = Field(default=200, ge=1)
 
 
+# ── the design block ─────────────────────────────────────────────────────────
+
+
+class EndpointRef(_Strict):
+    """One endpoint of one selected card, named as the card names it."""
+
+    card_id: CardId
+    endpoint: str = Field(min_length=1)
+
+
+class MarginDecl(EndpointRef):
+    """An equivalence margin declared for an endpoint whose card states no SESOI."""
+
+    margin: float = Field(gt=0, allow_inf_nan=False)
+
+
+class StudyDesign(_Strict):
+    """What the study claims and tests, declared by the researcher before launch.
+
+    Without this block the analysis plan is the built-in Study 1 plan. With it,
+    the plan is projected from these declarations: the confirmatory endpoints,
+    the significance level, whether the absence of an effect may be claimed, and
+    the biased-sampler level that has to be detected for that claim to stand.
+    Whether an endpoint can carry a confirmatory test is a property of its card
+    and is checked where the plan is built; this layer cannot see the cards.
+    """
+
+    version: Literal[1] = 1
+    claim: Literal["difference", "difference_or_equivalence"]
+    confirmatory: list[EndpointRef] = Field(min_length=1, max_length=8)
+    alpha: float = Field(default=0.05, json_schema_extra={"enum": list(ALPHA_LEVELS)})
+    sensitivity_epsilon: float | None = Field(
+        default=None,
+        json_schema_extra={"enum": [*EPSILON_LEVELS, None]},
+        description="The ε of the biased arm that serves as the positive control.",
+    )
+    margins: list[MarginDecl] = Field(default_factory=list)
+
+    # A level off its grid is a malformed value of one field, like a claim that
+    # is not one of the two. It is refused here and not with the cross-field
+    # checks of ``StudyConfig``, which a draft read reports instead of raising:
+    # the setup page holds both fields as enums and could not show such a draft.
+    @field_validator("alpha")
+    @classmethod
+    def _alpha_on_grid(cls, value: float) -> float:
+        if not _on_grid(value, ALPHA_LEVELS):
+            raise ValueError(f"design.alpha must be one of {list(ALPHA_LEVELS)}")
+        return value
+
+    @field_validator("sensitivity_epsilon")
+    @classmethod
+    def _epsilon_on_grid(cls, value: float | None) -> float | None:
+        if value is not None and not _on_grid(value, EPSILON_LEVELS):
+            raise ValueError(
+                f"design.sensitivity_epsilon must be one of {list(EPSILON_LEVELS)} or null"
+            )
+        return value
+
+
 # ── §4.1 StudyConfig ─────────────────────────────────────────────────────────
 
 
@@ -274,6 +371,10 @@ class StudyConfig(_Strict):
     models: list[ModelRef] = Field(min_length=1)
     arms: list[Arm] = Field(min_length=1)
     cards: list[CardSelection] = Field(min_length=1)
+    design: StudyDesign | None = Field(
+        default=None,
+        description="Absent on studies from before the design block; never serialized as null.",
+    )
     judge: JudgeSpec
     narrative_model: ModelRef
     supervised: SupervisedConfig | None = None
@@ -286,7 +387,7 @@ class StudyConfig(_Strict):
     data_licence: DataLicence = "CC-BY-4.0"
 
     @model_validator(mode="after")
-    def _check_cross_references(self) -> StudyConfig:
+    def _check_cross_references(self, info: ValidationInfo) -> StudyConfig:
         problems: list[str] = []
         model_ids = [m.id for m in self.models]
         for label, ids in (
@@ -309,9 +410,102 @@ class StudyConfig(_Strict):
                 problems.append(f"arm {arm.id!r} is supervised but supervised config is null")
             if arm.study_seed is not None and arm.study_seed not in self.seeds:
                 problems.append(f"arm {arm.id!r} study_seed {arm.study_seed} not in seeds")
-        if problems:
-            raise ValueError("; ".join(problems))
+        _settle(problems, info)
         return self
+
+    @model_validator(mode="after")
+    def _check_design(self, info: ValidationInfo) -> StudyConfig:
+        design = self.design
+        if design is None:
+            return self
+        problems: list[str] = []
+        epsilon = design.sensitivity_epsilon
+        if design.claim == "difference_or_equivalence" and epsilon is None:
+            problems.append(
+                "design.claim 'difference_or_equivalence' requires design.sensitivity_epsilon"
+            )
+
+        selected = {c.card_id for c in self.cards}
+        confirmatory = [(r.card_id, r.endpoint) for r in design.confirmatory]
+        margins = [(m.card_id, m.endpoint) for m in design.margins]
+        for label, refs in (("confirmatory", confirmatory), ("margins", margins)):
+            dupes = sorted({"/".join(ref) for ref in refs if refs.count(ref) > 1})
+            if dupes:
+                problems.append(f"duplicate design.{label} endpoints: {dupes}")
+        for card_id in dict.fromkeys(card_id for card_id, _ in confirmatory):
+            if card_id not in selected:
+                problems.append(
+                    f"design.confirmatory names card {card_id!r}, which is not selected"
+                )
+        for ref in dict.fromkeys(margins):
+            if ref not in confirmatory:
+                problems.append(
+                    f"design.margins names {'/'.join(ref)}, which is not a confirmatory endpoint"
+                )
+
+        # A source cell is one (model, sampling) pair in which quantum sampling
+        # is compared with seeded pseudo-random sampling. Cells are never pooled.
+        def compared(arm: Arm, source: str) -> bool:
+            return (
+                arm.source == source
+                and arm.observer_mode == "unsupervised"
+                and arm.availability == "available"
+            )
+
+        cells = sorted({(a.model, a.sampling) for a in self.arms if compared(a, "qrng")})
+        if not cells:
+            problems.append(
+                "design needs at least one (model, sampling) cell with an available "
+                "unsupervised qrng arm"
+            )
+        for model, sampling in cells:
+            cell = f"cell {model}/{sampling}"
+            arms = [a for a in self.arms if a.model == model and a.sampling == sampling]
+            quantum = [a.id for a in arms if compared(a, "qrng")]
+            if len(quantum) != 1:
+                problems.append(
+                    f"{cell}: exactly one available unsupervised qrng arm is required, "
+                    f"found {quantum}"
+                )
+            seeds = [a.study_seed for a in arms if compared(a, "prng_seeded")]
+            if len(seeds) < 2 or len(set(seeds)) != len(seeds):
+                problems.append(
+                    f"{cell}: at least two available unsupervised prng_seeded arms with "
+                    f"distinct seeds are required, found seeds {seeds}"
+                )
+            if epsilon is None:
+                continue
+            # The positive control may be unavailable (it then resolves to an
+            # absent control), but it must be declared, and on a seed of its
+            # own: sharing a seed with a control arm ties its stream to that arm.
+            biased = [
+                a
+                for a in arms
+                if a.source == "prng_epsilon"
+                and a.epsilon is not None
+                and abs(a.epsilon - epsilon) < 1e-12
+            ]
+            if len(biased) != 1:
+                problems.append(
+                    f"{cell}: exactly one prng_epsilon arm at epsilon {epsilon} is required, "
+                    f"found {[a.id for a in biased]}"
+                )
+            elif biased[0].study_seed in {a.study_seed for a in arms if a.source == "prng_seeded"}:
+                problems.append(
+                    f"{cell}: prng_epsilon arm {biased[0].id!r} shares study_seed "
+                    f"{biased[0].study_seed} with a prng_seeded arm"
+                )
+        _settle(problems, info)
+        return self
+
+    # No return annotation on purpose: pydantic would take it as the model's
+    # serialization schema, and the OpenAPI document would lose every field.
+    @model_serializer(mode="wrap")
+    def _omit_absent_design(self, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if data.get("design") is None:
+            data.pop("design", None)
+        return data
 
 
 # ── canonical JSON + hash (spec §2.8, D-11) ──────────────────────────────────
@@ -334,8 +528,35 @@ def config_hash(obj: BaseModel | Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_json(obj).encode("utf-8")).hexdigest()
 
 
+def read_draft(raw: Any) -> tuple[StudyConfig, list[str]]:
+    """``raw`` as a study that may still break the rules that span several fields.
+
+    A study that is being put together can be well formed and not yet
+    consistent: an outcome names an eval that was just unticked, the claim
+    needs a control that is not there yet. The setup page holds such a draft
+    and saves it to a file, so the file has to load again. This reads it:
+    every field is validated exactly as ``StudyConfig.model_validate`` does
+    (types, ranges, required fields, unknown keys, a level that is not on its
+    grid, and the rules of a single arm), so anything malformed still raises
+    ``ValidationError``, and the two
+    cross-field checks of ``StudyConfig`` (references between models, arms,
+    seeds and evals, and the design block against the arms and evals) report
+    what they find instead of raising.
+
+    Returns the study with its defaults filled in and the problems, in the
+    words the strict validation uses. No problems means the study is valid. A
+    study that has problems is a draft: it must not be launched, frozen or
+    planned, and every other caller keeps the strict validation.
+    """
+    problems: list[str] = []
+    study = StudyConfig.model_validate(raw, context={DRAFT_PROBLEMS: problems})
+    return study, problems
+
+
 __all__ = [
+    "ALPHA_LEVELS",
     "DEFAULT_SEEDS",
+    "DRAFT_PROBLEMS",
     "EPSILON_LEVELS",
     "SEED_MAX_EXCLUSIVE",
     "SEEDED_SOURCES",
@@ -350,10 +571,12 @@ __all__ = [
     "DeterminismTier",
     "Display",
     "DisplaySettings",
+    "EndpointRef",
     "EstimateAssumptions",
     "DEFAULT_JUDGE_MODEL",
     "JudgeSpec",
     "JudgeThinking",
+    "MarginDecl",
     "ModelFamily",
     "ModelId",
     "ModelRef",
@@ -366,6 +589,7 @@ __all__ = [
     "Source",
     "SourceLabel",
     "StudyConfig",
+    "StudyDesign",
     "StudyTemplate",
     "SupervisedConfig",
     "TextSize",

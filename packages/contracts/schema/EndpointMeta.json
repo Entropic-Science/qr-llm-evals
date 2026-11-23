@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "EndpointMeta.json",
+  "additionalProperties": false,
+  "description": "The registered facts about one (card, endpoint) pair.",
+  "properties": {
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "scale": {
+      "enum": [
+        "proportion",
+        "count",
+        "score",
+        "statistic"
+      ],
+      "title": "Scale",
+      "type": "string"
+    },
+    "level": {
+      "enum": [
+        "sample",
+        "prompt_group",
+        "token_stream"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "range": {
+      "anyOf": [
+        {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Range"
+    },
+    "executable": {
+      "title": "Executable",
+      "type": "boolean"
+    },
+    "k_locked": {
+      "default": false,
+      "title": "K Locked",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "label",
+    "scale",
+    "level",
+    "range",
+    "executable"
+  ],
+  "title": "EndpointMeta",
+  "type": "object"
+}

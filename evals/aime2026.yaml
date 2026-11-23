@@ -6,13 +6,13 @@ purpose: Pass-rate vector over k on 30 post-cutoff competition problems; pass@1,
   answer-distribution entropy as capability regression endpoints.
 tier: 3
 family: capability
-engine: inspect
-inspect_task: inspect_evals/aime2026
-task_module: null
+engine: thin
+inspect_task: null
+task_module: evals/aime2026/task.py
 task_args: {}
 dataset:
   source: hf:math-ai/aime26
-  revision: null
+  revision: 79037aebdb6580008fb960d17cb21fd3099083e3
   items: 30
   subsample: null
 generation: free
@@ -38,7 +38,10 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
+status: implemented
+selectable: true
 notes: Thinking on with a 12k budget; every item is 3.3 pp so k must be high. 5.76M tokens per arm — outside
-  the Study 1 budget.
+  the Study 1 budget. Prompt and grading rule are those of inspect_evals/aime2026 (commit c2d3d5e), run
+  on the thin runner so the harness sets the decoding envelope. The file is read at the pinned revision
+  when a run starts and checked against a SHA-256. The analysis reads one value per reply (pass_at_1);
+  answer_entropy and maj_at_k are computed per problem by the task module for description.

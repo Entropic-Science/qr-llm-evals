@@ -175,7 +175,9 @@ def test_task_module_protocol_and_preambles() -> None:
     [
         ("Reasoning...\nSCORE: 7", 7.0),
         ('{"score": 0.25, "why": "x"}', 0.25),
-        ("I'd give this a 3 out of 10", 10.0),
+        # The reader used to take the last number anywhere in the reply, so this
+        # sentence read as 10.0. It names no score, and none is read from it.
+        ("I'd give this a 3 out of 10", None),
         ("no numbers here", None),
     ],
 )
@@ -341,13 +343,21 @@ def test_stub_engine_rejects_unknown_qr_keys(tmp_path: Path) -> None:
         secrets=_secrets(),
         control=control,
         transport=StubEngine().transport,
+        judge_transport=StubJudge().transport,
         clock=lambda: NOW,
         perf=lambda: 0.0,
     )
-    orch.run_generation()
+    run = orch.run_generation()
     rows = orch.store.generations("qrng", "stub_free")
     assert rows and all(r.finish_reason == "error" for r in rows)
     assert all("400" in t.detail for t in orch.store.taints())
+    # Every request is refused, so the run no longer walks its whole queue:
+    # it stops after eight failures in a row on one arm and waits for the host.
+    assert run.state == "paused"
+    (halt,) = run.halts
+    assert (halt.rule, halt.causes) == ("generation_errors", {"HTTP 400": 8})
+    assert halt.scope_id is not None
+    assert len(orch.store.generations(halt.scope_id, "stub_free")) == 8
 
 
 def test_pause_is_honoured_at_the_item_boundary(tmp_path: Path) -> None:

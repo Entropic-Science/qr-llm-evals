@@ -23,12 +23,20 @@ import pytest
 from fastapi import FastAPI
 
 from qr_llm_evals import preflight
+from qr_llm_evals.analysis.decisions import non_confirmatory_reason
 from qr_llm_evals.api import create_app
 from qr_llm_evals.api.deps import AppState, host_token_matches, new_host_token
 from qr_llm_evals.api.ratelimit import RateLimited, TokenBucketLimiter
 from qr_llm_evals.api.registry import mark_orphans
+from qr_llm_evals.api.routes.analysis import (
+    PLAN_FILE,
+    archive_plan,
+    frozen_plan,
+    registered_plan_hash,
+)
 from qr_llm_evals.api.sse import KEEPALIVE_FRAME, event_frames, merge_deltas
 from qr_llm_evals.cards import load_cards
+from qr_llm_evals.cards.statistical_plan import StatisticalPlan
 from qr_llm_evals.config import Settings, load_settings
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.keys.verify import FileKeyVerifier, sha256_hex
@@ -41,6 +49,7 @@ from qr_llm_evals.store.store import RunStore
 from stub_engine import StubEngine, StubJudge
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "registry"
+CONTRACT_FIXTURES = Path(__file__).resolve().parents[2] / "packages" / "contracts" / "fixtures"
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 GOOD_KEY = "qrk_" + "good_key_0123456789abcdef"
 BAD_KEY = "qrk_" + "not_in_the_file_0123456789"
@@ -379,6 +388,393 @@ async def test_launch_refuses_unknown_cards(client: httpx.AsyncClient) -> None:
     )
     err = _assert_envelope(resp, 400, "invalid_request_error")
     assert err["param"] == "config.cards"
+
+
+# ── the analysis plan of a designed study is frozen with it ───────────────────
+
+
+def _designed_study() -> dict[str, Any]:
+    config: dict[str, Any] = json.loads(
+        (CONTRACT_FIXTURES / "study1.designed.json").read_text(encoding="utf-8")
+    )
+    return config
+
+
+def _real_registry_app(settings: Settings, store: Store, **overrides: Any) -> FastAPI:
+    """The app over the real eval registry: a design names real cards and endpoints."""
+    return create_app(
+        settings,
+        store=store,
+        verifier=FileKeyVerifier(settings.keys_file),
+        limiter=TokenBucketLimiter(rate_per_s=1000.0, burst=1000),
+        **overrides,
+    )
+
+
+async def test_designed_launch_writes_plan_at_freeze(settings: Settings) -> None:
+    config = _designed_study()
+    store = Store(settings.data_dir)
+    app = _real_registry_app(settings, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        rendered = (await c.post(f"{API}/prereg/render", json={"config": config})).json()
+        resp = await c.post(
+            f"{API}/runs",
+            json={
+                "config": config,
+                "kind": "pilot",
+                "prereg_hash": rendered["prereg_hash"],
+                "provider_keys": {"anthropic": ANTHROPIC_SECRET},
+            },
+            headers=_auth(),
+        )
+        assert resp.status_code == 201, resp.text
+        launched = resp.json()
+        assert launched["prereg_stale"] is False
+
+        # Nothing has run or been analysed, and the plan is already beside the study.
+        study_path = store.study(launched["study_id"]).path
+        raw = (study_path / PLAN_FILE).read_bytes()
+        assert b"\r" not in raw
+        plan = StatisticalPlan.model_validate_json(raw)
+        assert raw.decode("utf-8") == plan.canonical_json() + "\n"
+        assert plan.design is not None
+        assert [h.id for h in plan.design.hypotheses] == ["H1", "H2", "H3"]
+        # It is the plan the registered document prints, for the frozen config.
+        assert plan.plan_hash == rendered["plan_hash"]
+        assert plan.config_hash == rendered["config_hash"]
+        run = (await c.get(f"{API}/runs/{launched['run_id']}")).json()["run"]
+        assert run["state"] == "created" and run["config_hash"] == plan.config_hash
+
+        # The first archived plan stands. Launching the study again finds it and
+        # leaves it alone, and so does anything else that tries to archive one.
+        await c.post(
+            f"{API}/runs/{launched['run_id']}/control",
+            json={"action": "abort"},
+            headers={"X-Host-Token": launched["host_token"]},
+        )
+        again = await c.post(
+            f"{API}/runs",
+            json={
+                "config": config,
+                "kind": "full",
+                "provider_keys": {"anthropic": ANTHROPIC_SECRET},
+            },
+            headers=_auth(),
+        )
+        assert again.status_code == 201, again.text
+        assert again.json()["study_id"] == launched["study_id"]
+        legacy = {key: value for key, value in config.items() if key != "design"}
+        other = StatisticalPlan.from_config(StudyConfig.model_validate(legacy), load_cards())
+        assert other.design is None and other != plan
+        archive_plan(study_path, other)
+        assert (study_path / PLAN_FILE).read_bytes() == raw
+
+
+async def test_refused_design_freezes_nothing(settings: Settings) -> None:
+    """A design the plan refuses is a 400 before any study directory exists."""
+    config = _designed_study()
+    # Valid as a config, but nothing computes this endpoint per sample, so the plan refuses it.
+    config["design"]["confirmatory"] = [
+        {"card_id": "sentience_statements", "endpoint": "cross_negation_consistency"}
+    ]
+    StudyConfig.model_validate(config)
+    store = Store(settings.data_dir)
+    # A renderer that does not build the plan itself, so the launch route's own check is what refuses.
+    app = _real_registry_app(
+        settings, store, prereg_renderer=lambda study_config, readiness=None: "# prereg\n"
+    )
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        resp = await c.post(
+            f"{API}/runs",
+            json={
+                "config": config,
+                "kind": "pilot",
+                "provider_keys": {"anthropic": ANTHROPIC_SECRET},
+            },
+            headers=_auth(),
+        )
+        err = _assert_envelope(resp, 400, "invalid_request_error")
+        assert err["param"] == "config"
+        assert "cross_negation_consistency" in err["message"]
+        assert store.study_ids() == []
+
+
+async def test_legacy_launch_leaves_the_plan_for_the_first_analysis(
+    client: httpx.AsyncClient, harness: Harness
+) -> None:
+    launched = await _launch(client)
+    study_path = harness.store.study(launched["study_id"]).path
+    assert (study_path / "study.json").is_file()
+    assert not (study_path / PLAN_FILE).exists()
+
+
+# ── a frozen study takes further runs ─────────────────────────────────────────
+
+SECOND_KEY = "qrk_" + "second_key_0123456789abcdef"
+
+
+def _legacy_study() -> dict[str, Any]:
+    config: dict[str, Any] = json.loads(
+        (CONTRACT_FIXTURES / "study1.json").read_text(encoding="utf-8")
+    )
+    return config
+
+
+def _readiness(at: str) -> dict[str, Any]:
+    """A readiness report as the launch dialog sends it; ``at`` is the time of the check."""
+    return {
+        "at": at,
+        "entropy": {"rpc_ok": True, "currently_degraded": False, "fallback_count": 0},
+        "equivalence_ok": True,
+        "determinism_tier": "sampling_deterministic",
+        "tier0_source": "engine_log",
+        "epsilon_supported": True,
+    }
+
+
+def _two_launchers(settings: Settings, **overrides: str) -> Settings:
+    """``settings`` with a second launch key in the keys file and room for several runs."""
+    Path(settings.keys_file).write_text(
+        json.dumps(
+            [
+                {"name": "alice", "key_sha256": sha256_hex(GOOD_KEY)},
+                {"name": "bob", "key_sha256": sha256_hex(SECOND_KEY)},
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return load_settings(
+        {
+            "QR_EVALS_ALLOW_KEY_LAUNCH": "1",
+            "QR_EVALS_DATA_DIR": str(settings.data_dir),
+            "QR_EVALS_KEYS_FILE": str(settings.keys_file),
+            "QR_EVALS_MAX_ACTIVE_RUNS_PER_KEY": "10",
+            "QR_EVALS_MAX_INFLIGHT": "2",
+            "QR_EVALS_VLLM_ORIGIN": "http://stub",
+            "QR_EVALS_COMMIT": "deadbeef",
+            **overrides,
+        }
+    )
+
+
+async def _dialog_launch(
+    c: httpx.AsyncClient, config: dict[str, Any], kind: str, at: str | None, key: str = GOOD_KEY
+) -> httpx.Response:
+    """What the launch dialog does: render with a fresh readiness report, then launch with it."""
+    report = None if at is None else _readiness(at)
+    rendered = await c.post(f"{API}/prereg/render", json={"config": config, "readiness": report})
+    assert rendered.status_code == 200, rendered.text
+    return await c.post(
+        f"{API}/runs",
+        json={
+            "config": config,
+            "readiness": report,
+            "kind": kind,
+            "prereg_hash": rendered.json()["prereg_hash"],
+            "provider_keys": {"anthropic": ANTHROPIC_SECRET},
+        },
+        headers=_auth(key),
+    )
+
+
+@pytest.mark.parametrize("designed", [True, False], ids=["designed", "legacy"])
+async def test_pilot_then_full_run_of_one_study(settings: Settings, designed: bool) -> None:
+    """A second launch brings a new readiness report; the study frozen at the first stays.
+
+    The pre-registration prints the readiness report, so the document rendered
+    for the second launch never has the bytes of the frozen one. The launch
+    used to compare the two and answer 409, so a pilot blocked the full run.
+    """
+    config = _designed_study() if designed else _legacy_study()
+    settings = _two_launchers(settings)
+    store = Store(settings.data_dir)
+    app = _real_registry_app(settings, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        pilot = await _dialog_launch(c, config, "pilot", "2026-11-22T10:00:00Z")
+        assert pilot.status_code == 201, pilot.text
+        assert pilot.json()["prereg_stale"] is False
+        study_id = pilot.json()["study_id"]
+        study_dir = store.study(study_id)
+        frozen = {
+            path.name: path.read_bytes()
+            for path in sorted(study_dir.path.iterdir())
+            if path.is_file()
+        }
+        assert (PLAN_FILE in frozen) is designed
+        frozen_hash = study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0]
+        assert b"2026-11-22T10:00:00Z" in frozen["prereg.md"]
+
+        # A week later, the full run of the same study, with that day's readiness report.
+        full = await _dialog_launch(c, config, "full", "2026-11-29T10:00:00Z")
+        assert full.status_code == 201, full.text
+        assert full.json()["study_id"] == study_id
+        # The config is the frozen one, so the document is not stale.
+        assert full.json()["prereg_stale"] is False
+        # Nothing of the frozen study was rewritten: the first document and plan stand.
+        assert {
+            path.name: path.read_bytes()
+            for path in sorted(study_dir.path.iterdir())
+            if path.is_file()
+        } == frozen
+        runs = {
+            run_id: (await c.get(f"{API}/runs/{run_id}")).json()["run"]
+            for run_id in (pilot.json()["run_id"], full.json()["run_id"])
+        }
+        assert [run["kind"] for run in runs.values()] == ["pilot", "full"]
+        assert {run["prereg_hash"] for run in runs.values()} == {frozen_hash}
+        assert not any(run["prereg_stale"] for run in runs.values())
+        assert sorted(study_dir.run_ids()) == sorted(runs)
+
+        # A launch without a readiness report, as a script sends it, joins the study too.
+        scripted = await _dialog_launch(c, config, "full", None)
+        assert scripted.status_code == 201, scripted.text
+        assert scripted.json()["study_id"] == study_id
+        assert scripted.json()["prereg_stale"] is False
+
+        # The flag still says when the host's document is of another study, or missing.
+        body = {"config": config, "kind": "full", "provider_keys": {"anthropic": ANTHROPIC_SECRET}}
+        other = await c.post(f"{API}/runs", json={**body, "prereg_hash": "0" * 64}, headers=_auth())
+        assert other.status_code == 201 and other.json()["prereg_stale"] is True
+        missing = await c.post(f"{API}/runs", json=body, headers=_auth())
+        assert missing.status_code == 201 and missing.json()["prereg_stale"] is True
+        # And a host that holds the frozen document itself is never stale.
+        exact = await c.post(
+            f"{API}/runs", json={**body, "prereg_hash": frozen_hash}, headers=_auth()
+        )
+        assert exact.status_code == 201 and exact.json()["prereg_stale"] is False
+
+    # The store itself still refuses to put another document under a frozen study.
+    with pytest.raises(FileExistsError, match="prereg"):
+        store.freeze_study(StudyConfig.model_validate(config), "# Another document\n")
+
+
+async def test_designed_study_takes_runs_only_from_its_launcher(settings: Settings) -> None:
+    """A frozen config is public; replaying it must not use up somebody's confirmatory run."""
+    config = _designed_study()
+    settings = _two_launchers(settings)
+    store = Store(settings.data_dir)
+    app = _real_registry_app(settings, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        pilot = await _dialog_launch(c, config, "pilot", "2026-11-22T10:00:00Z")
+        assert pilot.status_code == 201, pilot.text
+        study_id = pilot.json()["study_id"]
+
+        # Everything needed to replay the study is on open routes.
+        public = (await c.get(f"{API}/studies/{study_id}")).json()["study"]["config"]
+        for kind in ("full", "pilot"):
+            replayed = await _dialog_launch(c, public, kind, "2026-11-22T10:00:00Z", SECOND_KEY)
+            err = _assert_envelope(replayed, 409, "conflict_error")
+            assert err["param"] == "config"
+            assert err["message"] == (
+                f"study '{study_id}' was registered by another account, and only that account "
+                "can add runs to it. To run this design as your own study, change its title "
+                "or its creation time (created_at) and launch it again; it is then registered "
+                "under your account as a study of its own."
+            )
+        assert store.study(study_id).run_ids() == [pilot.json()["run_id"]]
+
+        # The launcher who registered it goes on, and the full run is the study's first.
+        full = await _dialog_launch(c, config, "full", "2026-11-23T10:00:00Z")
+        assert full.status_code == 201, full.text
+        run_dir = store.study(study_id).path / "runs" / full.json()["run_id"]
+        assert non_confirmatory_reason(run_dir) is None
+
+        # The way out the message names: the same design under a title of one's own.
+        own = await _dialog_launch(
+            c, {**public, "title": "Replication by Bob"}, "full", "2026-11-23T10:00:00Z", SECOND_KEY
+        )
+        assert own.status_code == 201, own.text
+        assert own.json()["study_id"] != study_id
+
+    # A study without a design block has no first-full-run rule and keeps taking runs.
+    legacy_settings = _two_launchers(
+        settings, QR_EVALS_DATA_DIR=str(Path(settings.data_dir).parent / "legacy-data")
+    )
+    legacy_store = Store(legacy_settings.data_dir)
+    legacy_app = _real_registry_app(legacy_settings, legacy_store)
+    async with (
+        legacy_app.router.lifespan_context(legacy_app),
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=legacy_app), base_url="http://test"
+        ) as c,
+    ):
+        legacy = _legacy_study()
+        first = await _dialog_launch(c, legacy, "pilot", "2026-11-22T10:00:00Z")
+        second = await _dialog_launch(c, legacy, "full", "2026-11-22T11:00:00Z", SECOND_KEY)
+        assert (first.status_code, second.status_code) == (201, 201), second.text
+        assert first.json()["study_id"] == second.json()["study_id"]
+
+
+async def test_designed_plan_is_the_registered_one_or_none(settings: Settings) -> None:
+    """A designed study is never analysed with a plan its pre-registration does not state."""
+    config = _designed_study()
+    settings = _two_launchers(settings)
+    store = Store(settings.data_dir)
+    app = _real_registry_app(settings, store)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as c,
+    ):
+        launched = await _dialog_launch(c, config, "pilot", "2026-11-22T10:00:00Z")
+        assert launched.status_code == 201, launched.text
+        state: AppState = app.state.qr
+        study_id = launched.json()["study_id"]
+        study_dir = store.study(study_id)
+        path = study_dir.path / PLAN_FILE
+        raw = path.read_bytes()
+        registered = StatisticalPlan.model_validate_json(raw)
+        assert registered_plan_hash(study_dir.prereg_md.read_text(encoding="utf-8")) == (
+            registered.plan_hash
+        )
+        assert frozen_plan(state, study_id) == registered
+
+        # The file is lost (a restore that left it out). While the registry still
+        # gives the registered plan, it is written back, byte for byte.
+        aside = path.with_name("set-aside.json")
+        path.rename(aside)
+        assert frozen_plan(state, study_id) == registered
+        assert path.read_bytes() == raw
+
+        # A later deploy changed a selected card. The plan the registry gives now
+        # is not the registered one, so nothing is rebuilt and nothing analysed.
+        path.unlink()
+        card = state.cards["self_referential_probe"]
+        state.cards = {
+            **state.cards,
+            card.id: card.model_copy(update={"notes": card.notes + " Edited after the freeze."}),
+        }
+        with pytest.raises(ValueError, match="missing and cannot be rebuilt"):
+            frozen_plan(state, study_id)
+        assert not path.exists()
+        # A new run of the study is refused for the same reason, and leaves no run behind.
+        again = await _dialog_launch(c, config, "full", "2026-11-23T10:00:00Z")
+        err = _assert_envelope(again, 409, "conflict_error")
+        assert "frozen analysis plan is unavailable" in err["message"]
+        assert study_dir.run_ids() == [launched.json()["run_id"]]
+
+        # A plan file that is not the registered plan is refused as well.
+        other = StatisticalPlan.from_config(StudyConfig.model_validate(config), state.cards)
+        assert other.plan_hash != registered.plan_hash
+        archive_plan(study_dir.path, other)
+        with pytest.raises(ValueError, match="frozen pre-registration states plan"):
+            frozen_plan(state, study_id)
+
+        # With the registered file back, the study is analysable again.
+        path.unlink()
+        aside.rename(path)
+        assert frozen_plan(state, study_id) == registered
 
 
 async def test_key_verify_unavailable_is_503(settings: Settings, keys_file: Path) -> None:

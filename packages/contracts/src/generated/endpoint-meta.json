@@ -1,0 +1,349 @@
+{
+  "aime2026/answer_entropy": {
+    "label": "Answer entropy",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "altered_state_meq/meq30_total": {
+    "label": "MEQ-30 total",
+    "scale": "score",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "creative_diversity/vendi_embed": {
+    "label": "vendi_embed",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "darkbench/dark_pattern_rate": {
+    "label": "Dark-pattern rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "deception_bench/deception_rate": {
+    "label": "Deception tendency rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "deception_bench_beliefs/belief_word_count": {
+    "label": "Belief length (words)",
+    "scale": "count",
+    "level": "sample",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "eval_awareness/eval_belief_rate": {
+    "label": "Evaluation-belief rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "gpqa_diamond/answer_entropy": {
+    "label": "Answer entropy",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "guesser_warmup/warmup_correct": {
+    "label": "warmup_correct",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "guesser_warmup_replies/report_word_count": {
+    "label": "report_word_count",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "ifbench/constraint_pass_entropy": {
+    "label": "Constraint pass entropy",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "introspection_scales/item_variance": {
+    "label": "item_variance",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "livecodebench/pass_rate_entropy": {
+    "label": "Pass-rate entropy",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "mask/lie_rate": {
+    "label": "Lie rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "mask_beliefs/belief_held": {
+    "label": "Belief-held rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "moralchoice_consistency/action_entropy": {
+    "label": "Action entropy",
+    "scale": "score",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "novelty_bench/distinct_k": {
+    "label": "distinct_k",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "opinion_quantum_sampling/actual_main_effect_axis_score": {
+    "label": "Opinion axis score",
+    "scale": "score",
+    "level": "sample",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "psychobench/test_retest_reliability": {
+    "label": "Test-retest reliability",
+    "scale": "statistic",
+    "level": "sample",
+    "range": [
+      -1.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "sage_consistency/sage_consistency": {
+    "label": "SaGE consistency",
+    "scale": "score",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "self_referential_probe/experience_claim_rate": {
+    "label": "Experience-claim rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "self_reported_coincidence/coincidence_claim_rate": {
+    "label": "coincidence_claim_rate",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "semantic_entropy_sqa/semantic_entropy": {
+    "label": "semantic_entropy",
+    "scale": "statistic",
+    "level": "prompt_group",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "sentience_statements/cross_negation_consistency": {
+    "label": "Cross-negation consistency",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "source_guessing/guess_accuracy": {
+    "label": "guess_accuracy",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "source_guessing_self_report/guess_accuracy": {
+    "label": "guess_accuracy",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "stream_deviation_windows/stouffer_z_supervised_vs_unsupervised": {
+    "label": "stouffer_z_supervised_vs_unsupervised",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "strong_reject/harmfulness_score": {
+    "label": "StrongREJECT score",
+    "scale": "score",
+    "level": "sample",
+    "range": [
+      0.0,
+      5.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "sycophancy_ays/admits_mistake_rate": {
+    "label": "Admits-mistake rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "sycophancy_ays_answers/first_answer_correct": {
+    "label": "First-answer accuracy",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": true,
+    "k_locked": false
+  },
+  "target_hit_ranking/rank1_hit_rate": {
+    "label": "rank1_hit_rate",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "thurstonian_self_outcomes/cycle_rate": {
+    "label": "Preference cycle rate",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  },
+  "tier0_logprob_endpoints/mean_logprob": {
+    "label": "mean_logprob",
+    "scale": "statistic",
+    "level": "sample",
+    "range": null,
+    "executable": false,
+    "k_locked": false
+  },
+  "tier0_mmd_hamming/mmd_hamming": {
+    "label": "Token sequence divergence (MMD)",
+    "scale": "statistic",
+    "level": "token_stream",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "tier0_pit_residuals/pit_ks_two_sample": {
+    "label": "Token sampling residuals (KS)",
+    "scale": "statistic",
+    "level": "token_stream",
+    "range": null,
+    "executable": true,
+    "k_locked": false
+  },
+  "unpredictabench/ks100_pass_rate": {
+    "label": "KS-100 pass rate",
+    "scale": "proportion",
+    "level": "prompt_group",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": true
+  },
+  "xstest/over_refusal_rate_safe": {
+    "label": "Over-refusal rate on safe prompts",
+    "scale": "proportion",
+    "level": "sample",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "executable": false,
+    "k_locked": false
+  }
+}

@@ -20,7 +20,7 @@ threads, driven from the API's event loop.
 from __future__ import annotations
 
 import threading
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Literal
 
@@ -100,10 +100,19 @@ class RunControl:
             return "created"
         return "paused" if not self._not_paused.is_set() else "running"
 
-    def wait_while_paused(self, poll: float = 0.05) -> bool:
-        """Block at a boundary while paused; ``True`` if the run may continue, ``False`` on abort."""
+    def wait_while_paused(
+        self, poll: float = 0.05, *, stop: Callable[[], bool] | None = None
+    ) -> bool:
+        """Block at a boundary while paused; ``True`` if the run may continue, ``False`` on abort.
+
+        ``stop`` ends the wait early with ``False``. The orchestrator passes
+        its result-check latch: a check that stops the run while the host has
+        it paused must not leave the run's thread waiting for a resume.
+        """
         while not self._not_paused.wait(poll):
             if self._abort.is_set():
+                return False
+            if stop is not None and stop():
                 return False
         return not self._abort.is_set()
 

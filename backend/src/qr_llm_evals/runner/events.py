@@ -45,6 +45,8 @@ EVENT_TYPES: Final[frozenset[str]] = frozenset(
         "observer.presence",
         "analysis.progress",
         "quota.exhausted",
+        # A result check stopped the run; the payload is the stored halt plus run_id.
+        "check.stopped",
         "error",
         "resync",
     }

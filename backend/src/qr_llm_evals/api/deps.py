@@ -58,6 +58,7 @@ from qr_llm_evals.keys.verify import (
 from qr_llm_evals.models.catalogue import ModelCatalogue
 from qr_llm_evals.models.providers import ProviderProfile
 from qr_llm_evals.models.schema import StudyConfig
+from qr_llm_evals.runner.preview import PreviewCache
 from qr_llm_evals.store.schema import ReadinessReport
 from qr_llm_evals.store.store import RunStore, Store
 from qr_llm_evals.supervised.session import SessionRegistry
@@ -110,6 +111,7 @@ class AppState:
     sessions: SessionRegistry = field(default_factory=SessionRegistry)
     limiter: TokenBucketLimiter = field(default_factory=TokenBucketLimiter)
     storage: StorageMeter = field(default_factory=StorageMeter)
+    previews: PreviewCache = field(default_factory=PreviewCache)
     engine_transport: httpx.AsyncBaseTransport | None = None
     readiness_transport: httpx.BaseTransport | None = None
     analysis_transport: httpx.BaseTransport | None = None

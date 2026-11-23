@@ -1,0 +1,256 @@
+# {{ config.title | md }} — pre-registration
+
+- **Authors:** {{ config.authors | join(', ') | md }}
+- **Contact:** {{ config.contact | md }}
+- **Configuration date:** {{ config.created_at.isoformat() | md }}
+
+## Plain-language summary
+
+{% set n_hypotheses = hypotheses | length %}{% set n_outcomes = hypotheses | map(attribute='outcome') | unique | list | length %}{% set n_cells = controls | length -%}
+This study compares hardware quantum-random token sampling with seeded pseudo-random sampling on matched prompts. It registers {{ n_hypotheses }} confirmatory {{ 'hypothesis' if n_hypotheses == 1 else 'hypotheses' }}: {{ n_outcomes }} {{ 'outcome' if n_outcomes == 1 else 'outcomes' }}, tested in {{ n_cells }} model and sampling {{ 'comparison' if n_cells == 1 else 'comparisons' }}. A script resolves each hypothesis to exactly one verdict under the decision rules below, and nothing else in the analysis decides the study.
+
+{% if design.claim == 'difference_or_equivalence' %}The study registers two claims. The first is that the two sources differ on an outcome. The second is that they do not differ by more than a margin fixed in this document. The second claim is made only where the equivalence test passes and a sampler deliberately biased by ε = {{ levels.epsilon | md }} was detected on the same outcome.{% else %}The study registers one claim: that the two sources differ on an outcome. Where no difference is detected the verdict is inconclusive. This design cannot show that the two sources are the same.{% endif %} Neither consciousness nor an observer influence is assumed or established by the design.
+
+Publish this Markdown and its separately displayed SHA-256 **before the full run**. Generating this document is not a timestamped public registration or proof of prior publication. This export is a draft wherever pins or readiness evidence are missing.
+{% for warning in warnings %}
+- **Validity warning:** {{ warning | md }}
+{%- endfor %}
+
+## Hypotheses
+
+Each hypothesis is stated as the alternative. Its null is that quantum and seeded pseudo-random sampling do not differ on the outcome in that comparison. There is one hypothesis per confirmatory outcome and per (model, sampling) comparison; models and sampling presets are never pooled. The significance level is α = {{ levels.alpha | md }} across all of them together.
+
+Every other endpoint of the selected evals is exploratory. Where the harness computes it, it is reported with an effect size and an interval; an endpoint the harness does not compute is reported as unavailable. An exploratory endpoint is not corrected for multiple testing and decides nothing.
+{% for row in hypotheses %}
+**{{ row.plan.id | md }}: {{ row.plan.label | md }}, {{ row.cell | md }}**
+
+- **Statement:** {{ row.plan.statement | md }}
+- **Outcome:** endpoint {{ row.plan.endpoint | md }} of eval card {{ row.plan.card_id | md }}.
+- **Comparison:** {{ row.quantum | md }} (quantum) against {{ row.compared_with | md }} {{ row.seeded | md }} (seeded pseudo-random).
+- **Test:** {{ row.test | md }}; {{ row.sided | md }}.
+- **Equivalence margin:** {{ row.margin | md }}.
+- **Planned data:** {{ row.planned | md }}.
+- **Verdicts it cannot reach:** {{ row.unreachable | md }}.
+{% endfor %}
+## Decision rules
+
+A script resolves each hypothesis to exactly one verdict under decision matrix version {{ design.matrix_version }}. The rows are tried in order and the first whose condition holds decides. Nothing in this section is chosen after the data exist.
+
+| # | Condition | Verdict | Reason recorded | Result sentence |
+|---|---|---|---|---|
+{% for rule in decision_matrix -%}
+| {{ rule.number }} | {{ rule.condition | md }} | {{ rule.verdict | md }} | {{ 'the first that applies of ' if rule.reasons | length > 1 else '' }}{{ (rule.reasons | join(', ') or 'none') | md }} | {{ rule.wording | md }} |
+{% endfor %}
+Terms used in the conditions:
+
+- **alpha** is {{ levels.alpha | md }}, the significance level of the study.
+- **pD** is the p-value of the hypothesis's difference test after Holm–Bonferroni correction over every confirmatory hypothesis ({{ design.families.difference }} in this study). A hypothesis whose comparison could not be computed keeps its place in the family at p = 1.
+- **pE** is the p-value of the equivalence test against the registered margin, after Holm–Bonferroni correction over every hypothesis that has a margin ({{ design.families.equivalence }} in this study).
+- **Planned pairs analysed** is, for a paired test, the complete pairs divided by the planned pairs. For a test on pooled tokens it is the generations present in the arm that has the fewest, divided by the generations planned per arm. A generation is present for the MMD test when its tokens were recorded, and for the KS test when they were recorded with the cumulative probabilities that test is computed from. The threshold is {{ levels.min_completeness | md }}.
+- **The claim includes equivalence** {{ 'in this study.' if design.claim == 'difference_or_equivalence' else 'in no hypothesis of this study, which registers a claim of difference only.' }}
+- **The seed-vs-seed control** and **the positive control** are defined under Controls below.
+
+In a result sentence, {label} stands for the name of the outcome, {margin} for its registered margin, {epsilon} for the ε of the positive control with two decimals, and {reason_text} for the text of the reason that row 7 records:
+{% for row in reason_texts %}
+- {{ row.reason | md }}: {{ row.text | md }}
+{%- endfor %}
+
+Whether the estimate is larger than every seed-against-seed difference of its comparison is reported beside each verdict. It is not a condition.
+
+### Controls
+
+**Negative control (seed against seed).** Two runs of the same pseudo-random generator on different seeds must not differ. Every seed pair of a comparison is tested on each hypothesis's own outcome with that hypothesis's test. The control passes for a hypothesis when every one of its pairs was computed and none has a p-value below alpha after Holm–Bonferroni correction over every seed-pair test of the study ({{ design.families.negative_control }} in all). A failed or missing control makes the hypothesis invalid (row 3). So does a control that is not accepted as one that could have failed. That is a seed pair whose paired test had fewer prompts than the floor stated in the Sample size section, or whose permutation test ran too few permutations to return a p-value below the corrected level. Such a control says nothing about the seeds. The decision matrix calls it a control that could not have failed, and the reason recorded is then negative\_control\_cannot\_fail.
+
+**Positive control (biased sampler).** {% if levels.epsilon %}A seeded arm whose sampler is deliberately biased by ε = {{ levels.epsilon | md }} is compared with the seeded arms on each hypothesis's own outcome with that hypothesis's test. It is detected when its uncorrected p-value is below alpha. A hypothesis resolves to equivalent only where it was detected (row 6). The sample-size ratings do not cover this comparison. For each hypothesis that can resolve to equivalent, the list below states how far the biased arm must move the outcome to be detected with {{ levels.power | md }} power under the worst-case variance. How far a sampler bias of ε = {{ levels.epsilon | md }} moves an outcome is not known before the run, so whether the control will be detected is not rated. Where it is not detected, the hypothesis is inconclusive, not equivalent.{% else %}This study registers none, so no hypothesis can resolve to equivalent.{% endif %}
+{% for row in controls %}
+**{{ row.cell | md }}** ({{ row.hypotheses | md }})
+
+- **Quantum arm:** {{ row.quantum | md }}
+- **Seeded arms:** {{ row.seeded | md }}
+- **Seed pairs:** {{ row.negative | md }}
+- **Positive control:** {{ row.positive | md }}
+{%- if row.shifts %}
+- **Shift the positive control must produce:** {{ row.shifts | md }}
+{%- endif %}
+{% endfor %}
+### Study verdict
+
+The study is summarised by one verdict, the first of these that applies:
+
+1. `not_confirmatory`: the analysed run is a pilot run, or it is not the first full run of this study. Every result sentence then starts with "Not confirmatory: ".
+2. `invalid`: at least one hypothesis is invalid.
+3. `effect`: at least one hypothesis resolves to effect.
+4. `no_effect_within_margins`: every hypothesis resolves to equivalent.
+5. `mixed_or_inconclusive`: anything else.
+{% if never_equivalent %}
+In this study verdict 4 cannot occur, because the following cannot resolve to equivalent: {{ never_equivalent | md }}. The reason is given under "Verdicts it cannot reach" for each hypothesis. The study as a whole therefore cannot conclude that there is no effect.{% if design.claim == 'difference_or_equivalence' %} A hypothesis that has a margin can still resolve to equivalent on its own.{% endif %}
+{% endif %}
+## Sample size
+
+The prompt is the unit of analysis of a paired test. Repetitions (k) sharpen the value of each prompt and add no units. Told cells do the same on the quantum side only: the told cells of a seeded run share one seed for each prompt and repetition, so the variance bound counts them as one value on the control side. With {{ design.families.difference }} difference {{ 'test' if design.families.difference == 1 else 'tests' }} at α = {{ levels.alpha | md }}, a paired test on fewer than {{ levels.n_floor }} prompts cannot reach significance at the first step of the correction, whatever the effect. Every number below was computed before any data existed, at the first and strictest step of the Holm–Bonferroni correction.
+{% if control_floor is not none %}
+The seed-against-seed control has a floor of its own. It is corrected over {{ design.families.negative_control }} {{ 'test' if design.families.negative_control == 1 else 'tests' }}, so a seed pair fails only at a p-value below α / {{ design.families.negative_control }}. A paired test on n prompts has no exact p-value below 2 / 2ⁿ. From {{ control_floor }} prompts on, that smallest p-value is at most half the level a seed pair must reach. With fewer prompts it is not certain that two seeds that differ as much as the outcome allows would fail the control, so the harness does not accept such a control: a seed pair of a paired test on fewer than {{ control_floor }} prompts counts as a control that could not have failed, and the hypothesis is invalid (row 3). {% if below_control_floor %}In this study the following plan fewer prompts than that and can only resolve to invalid: {{ below_control_floor | md }}.{% elif paired_count %}Every paired hypothesis of this study plans at least that many.{% else %}This study has no paired hypothesis.{% endif %} No number of prompts below this floor is rated above insufficient or recommended.
+{% endif %}
+| ID | Outcome | Model · sampling | Planned | Rating | Smallest difference detected with {{ levels.power | md }} power | Prompts recommended |
+|---|---|---|---|---|---|---|
+{% for row in sample_size_rows -%}
+| {{ row.plan.id | md }} | {{ row.plan.label | md }} | {{ row.cell | md }} | {{ row.planned | md }} | {{ row.rating | md }} | {% if row.detectable is none %}Unknown: no closed-form power for this test.{% else %}{{ row.detectable | md }}{% endif %} | {{ row.recommended | md }} |
+{% endfor %}
+Worst-case variance, no prompt-by-source heterogeneity; true power may be lower.
+
+The variance bound takes every reply of the quantum arm as independent and counts the told cells of a seeded run as one value. Under those two facts it is the largest variance a bounded outcome can have.
+
+The recommended number of prompts gives {{ levels.power | md }} power for a difference as large as the margin, or for a difference of {{ levels.reference_effect | md }} standard deviations where the outcome has no margin in its own units. The ratings mean:
+
+- **sufficient**: at least {{ levels.power | md }} power for a difference as large as the registered margin, under the largest variance a bounded outcome can have.
+- **marginal**: at least {{ levels.marginal_power | md }} power at the margin. For an outcome without a margin in its own units: a detectable difference of at most {{ levels.reference_effect | md }} standard deviations. Such an outcome is never rated sufficient.
+- **insufficient**: less than that, or too few prompts to reach significance at all, or fewer prompts than the seed-against-seed control is asked for, as stated above.
+- **unknown**: the test runs on pooled tokens and has no closed-form power.
+
+A rating is not a verdict and changes no decision rule. With an insufficient or unknown rating, an inconclusive result is likely even if the sources differ.
+{% if pooled %}
+The following {{ 'is a test' if pooled_count == 1 else 'are tests' }} on pooled tokens: {{ pooled | md }}. Such a test has no margin and no effect-size threshold. Any corrected p-value below alpha resolves to effect, however small the difference, and the statistic is reported beside the verdict so that its size can be judged. A result that is not significant comes with no statement of the difference that could have been detected.
+{% endif %}
+## Arms and equivalence
+
+The harness pins the same amplifier (`zscore_mean`), calibration (`0`) and prefetch (`false`) across non-greedy qr-llm arms. Source, per-request seed and epsilon are the only intended differences in the sampling envelope. Prompts, per-card overrides and generations per prompt are matched. External provider pipelines and greedy controls cannot establish this equivalence. In this section "equivalence" means that the arms run the same sampling pipeline; it is not the verdict equivalent of the decision rules.
+
+| Arm | Model | Sampling | Source (not a quantum provenance claim) | Seed | Epsilon | Deterministic requested | Observer mode | Availability |
+|---|---|---|---|---|---|---|---|---|
+{% for row in arms -%}
+| {{ row.arm.id | md }} | {{ row.arm.model | md }} | {{ row.arm.sampling | md }} | {{ row.arm.source_label | md }} | {{ row.arm.study_seed | md }} | {{ row.arm.epsilon | md }} | {{ row.arm.deterministic | md }} | {{ row.arm.observer_mode | md }} | {{ row.status | md }} {{ row.reason | md }} |
+{% endfor %}
+**Study seeds:** {{ config.seeds | join(', ') | md }}. Per-request seed is derived from `(study_seed, card_id, prompt_id, epoch)`, not reused as one uniform stream for every prompt. PRNG is never labelled quantum. Any engine fallback taints the affected sample.
+
+**Achieved determinism:** {{ (readiness.determinism_tier if readiness else 'unverified') | md }}. Sampling-deterministic means replay under the measured conditions, not guaranteed load-invariant forward computation. Serialized replay constrains scheduling; load-invariant is a separate measured tier. Selecting a checkbox does not prove any tier.
+
+**Equivalence reported:** {{ (readiness.equivalence_ok if readiness else 'unverified') | md }}. The supplied readiness report is disclosed below, not independently authenticated by this document-rendering endpoint.
+
+## Models and exact settings
+
+| Model ID | Provider | Served name | Checkpoint/revision |
+|---|---|---|---|
+{% for model in config.models -%}
+| {{ model.id | md }} | {{ model.provider | md }} | {{ model.served_name | md }} | {{ (model.checkpoint or 'UNPINNED') | md }} |
+{% endfor %}
+**Judge:** {{ config.judge.provider | md }} / {{ config.judge.model | md }}; temperature {{ ('not sent (the model fixes its own sampling)' if config.judge.temperature is none else config.judge.temperature) | md }}; output limit {{ config.judge.max_tokens | md }} tokens; extended thinking {{ ('off' if config.judge.thinking == 'disabled' else 'left to the model') | md }}; rubric hash {{ (config.judge.rubric_hash or 'UNPINNED') | md }}. The judge runs on the launching account's own Anthropic key. Judge must differ from target. An exact model string is frozen, never resolved through “latest” during analysis; native Anthropic has no promised deterministic seed control.
+
+**Narrative model:** {{ config.narrative_model.id | md }} / {{ config.narrative_model.served_name | md }}. Its summary is labelled LLM-written and must pass numeric verification against script-produced tables.
+
+The following are illustrative envelopes for the stated example pairing key, not a seed reused for all requests. Card-specific settings/exceptions below apply identically across arms.
+{% for row in arms %}
+**{{ row.arm.id | md }}**
+{{ row.envelope | jsonblock }}
+{% endfor %}
+## Selected eval cards
+
+| Card | Tier | Items | k | Dataset source | Frozen revision/hash | Implementation | Judge |
+|---|---|---|---|---|---|---|---|
+{% for row in cards -%}
+| {{ row.card.id | md }} | {{ row.card.tier | md }} | {{ row['items'] | md }} | {{ row.k | md }} | {{ row.card.dataset.source | md }} | {{ row.revision | md }} | {{ row.status | md }} | {{ row.judge | md }} |
+{% endfor %}
+Each card is listed below with its title, the role each of its endpoints has in this study, and the settings of its task. The roles are those of this study: the hypotheses above are the only confirmatory tests. A headline endpoint that the harness does not compute is listed as such. The number of permutations of every test is the one under Statistical plan, whatever the task arguments of a card say.
+{% for row in cards %}
+**{{ row.card.id | md }}:** {{ row.card.title | md }}
+
+- **Confirmatory endpoints:** {{ confirmatory_endpoints.get(row.card.id, 'none; every endpoint of this card is exploratory') | md }}
+- **Endpoints:** {{ card_endpoints[row.card.id] | md }}
+- **Generation:** max_tokens={{ row.card.max_tokens | md }}, thinking={{ row.card.thinking | md }}, told cells={{ row.card.told_cells | md }}.
+- **Exceptions:** {{ (row.card.exceptions | join('; ') or 'none') | md }}
+- **Task arguments:** {{ card_task_args[row.card.id] | md }}
+{% endfor %}
+## Statistical plan
+
+**Claim rule:** {{ plan.claim_rule | md }}
+
+Fixed for this study:
+
+{% for row in fixed_rules -%}
+- **{{ row.name | md }}:** {{ row.rule | md }}
+{% endfor %}
+Every selected endpoint that is not named in a hypothesis is exploratory{% if plan.supervised_exploratory %}, and so are the supervised summaries ({{ plan.supervised_exploratory | join(', ') | md }}){% endif %}. Where the harness computes an exploratory endpoint, its result is reported with an effect size and an interval; it never resolves to a verdict. Exploratory results do not by themselves establish a causal consciousness effect.
+
+**Frozen executable contract:** reload this exact JSON into `StatisticalPlan`, verify its hash, and execute unchanged; do not rebuild it from the current registry. The card snapshots inside it carry the registry's own descriptions, which were written for the built-in plan. Where a description names a hypothesis number or calls an endpoint primary or secondary, that does not apply to this study, and a `permutations` task argument of a card is not used: the plan's own `permutations` value is.
+
+{{ plan_json | jsonblock }}
+
+## Budget and expected wall-clock
+
+These are **planned full-suite** estimates, including unavailable cards/arms for budgeting, not promises that those components can run today. They use the frozen card arithmetic, not rounded historical totals.
+
+| Arm | Availability | Generated tokens | Generation hours | Observer hours | Sessions | Wall-clock hours |
+|---|---|---|---|---|---|---|
+{% for row in budget -%}
+| {{ row.arm | md }} | {{ row.status | md }} | {{ row.tokens | md }} | {{ '%.3f' | format(row.generation_h) }} | {{ '%.3f' | format(row.observer_h) }} | {{ row.sessions | md }} | {{ '%.3f' | format(row.wall_h) }} |
+{% endfor %}
+**Base configured-arm tokens (excluding disabled optional arms):** {{ base_tokens }}. **All listed arms if enabled:** {{ budget | sum(attribute='tokens') }}. Throughput assumptions (tokens/s by model): {{ config.estimates.tps_by_model | md }}; reading pace: {{ config.estimates.reading_tps | md }} tokens/s. Generation-only hours sum under a shared aggregate engine budget; overlapping arms do not multiply engine capacity. Observer wall-clock includes scheduled sessions, breaks, intention and refocus periods; host delays and generation-boundary overruns are additional. Judge calls, reasoning overhead, monetary prices and queueing are not estimated here. Readiness throughput {{ (readiness.measured_tps if readiness else 'unmeasured') | md }} does not silently replace frozen assumptions.
+
+## Stopping and exclusion rules
+
+{{ plan.stopping_rule | md }} {{ plan.exclusion_rule | md }}
+
+Missing paired data are not imputed; report denominators and exclusions per arm/card and restrict paired analyses to complete matching units. A hypothesis with fewer than {{ levels.min_completeness | md }} of its planned data analysed is invalid, not negative. No silent retries that replace observed outcomes. Scheduling timers are advisory; every transition into running requires explicit host start/resume. A stopped run is labelled incomplete, not a completed negative finding. Paid-for artifacts are retained or quarantined, never deleted.
+
+The exclusion of error samples has one exception, stated under "Result checks" below: a sample whose attempt ended in an error, and which was generated again and completed after the host resumed the run, is analysed. A resume generates only samples that have no completed reply, so it replaces no observed outcome.
+
+## Result checks
+
+The harness checks every reply and its token records while the run stores them. On an eval that runs on the harness's own runner it also checks every score and every judgement. On an eval that runs through Inspect, Inspect scores and grades the samples itself, and the harness checks neither. This document describes version {{ result_checks.version }} of these checks. They are fixed by the harness and are the same for every arm and every study: no setting of this study changes them. No check asks a model whether a reply makes sense.
+
+**A flag excludes nothing.** A flag marks a sample and changes nothing else. A flagged sample stays in every analysis exactly as an unflagged one, and no test or verdict reads a flag. The flags are counted for each arm and eval on the results page. The kinds of flag are:
+{% for flag in result_checks.flags %}
+- **{{ flag.label | md }}** ({{ flag.kind | md }}): {{ flag.sentence | md }}
+{%- endfor %}
+
+The checks do not detect the following: {{ result_checks.not_detected | md }}.
+
+**A taint excludes.** Under the exclusion rule above, a tainted sample is left out of the clean analysis. A sample is tainted in these cases:
+{% for taint in result_checks.taints %}
+- {{ taint.kind | md }}: {{ taint.when | md }}.
+{%- endfor %}
+
+One taint is lifted by a completed reply. A {{ result_checks.lifted_taint | md }} taint does not exclude a sample that has a completed reply. That is the case when the run was resumed and the sample was generated again: the taint belongs to the attempt that failed, and the reply that completed is analysed. A sample that also carries another taint stays out, and a sample with no completed reply is not analysed.
+
+**What stops a run.** A check stops the run when one of the following holds. Each rule is followed by what Resume, the host's action that continues the run, does after it.
+{% for rule in result_checks.rules %}
+- **{{ rule.label | md }}** ({{ rule.rule | md }}): {{ rule.sentence | md }} {{ rule.recovery | md }}
+{%- endfor %}
+
+A stop is a pause, not an abort. No new sample or judgement is started, those under way finish, and nothing that was stored is removed. The run does not continue by itself: the host resumes it or aborts it. No completed reply is generated again and no judge reply that was received is asked for again because of what it says, with one exception: where an eval reads the judge's reply with its own code and that code fails on a reply, the judgement counts as failed and is asked again on resume. Every stop is stored with the run, with its rule, its counts and the time at which the run was resumed, and the stops of a run are listed on the results page.
+
+## Researcher expectations
+
+{{ expectations | md }}
+
+## Observer belief item
+
+Pre-session sheep–goat belief rating on a 1–7 scale and state check on a 1–5 scale; required post-session adapted coincidence survey. Exact wording/scales are governed by the frozen questionnaire asset, not invented here. If its hash is missing, the questionnaire is not frozen. Descriptives are grouped by belief item; multiple observers in the same session do not increase the independent sample count. Intention is shown only to observers, not inserted into target-model prompts.
+
+- **Questionnaire declared hash:** {{ (config.supervised.questionnaires_hash if config.supervised else 'not applicable') | md }}
+- **Questionnaire asset hash:** {{ (assets.get('questionnaires') or 'UNAVAILABLE') | md }}
+- **Target-pool declared hash:** {{ (config.supervised.target_pool_hash if config.supervised else 'not applicable') | md }}
+- **Target-pool asset hash:** {{ (assets.get('target_pool') or 'UNAVAILABLE') | md }}
+
+## Data sharing
+
+Public by default: frozen config, preregistration, script-generated statistics/figures and consented pseudonymous session data. Raw data licence **CC-BY-4.0**; prose **CC-BY-SA-4.0**; code **Apache-2.0**. Observers consent before participation to publishing intention text, timing and questionnaire responses; avoid personal identifiers. Provider/judge credentials are never included. Withdrawal labels retained artifacts rather than erasing paid-for evidence.
+
+## Validity limits
+
+The consciousness/intention mechanism is a hypothesis, not an established physical fact. QRNG-vs-PRNG differences alone would not demonstrate that mechanism. Forward-pass nondeterminism, unequal compute/scheduling, observer selection and timing, prompt dependence, judge/embedding bias, evaluation awareness and told-source priming are nuisance factors. Equivalent sampling is a conditional engineering claim, not proof of quantum purity or of consciousness influence. Raw-logprob fallback does not recover post-truncation probabilities or PIT residuals. T0-a and T4-l require engine logs; T0-c is only partially available on API logprobs. A public render request does not verify the submitted readiness evidence. The sample-size ratings are bounds computed before the run, not achieved power. Arms are not randomised against each other in time, so a drift of the engine or of the entropy source during the run is not separated from the difference between the sources.
+
+## Hashes and frozen inputs
+
+- **config_hash:** {{ config_hash }}
+- **plan_hash:** {{ plan.plan_hash }}
+- **cards_hash:** {{ plan.cards_hash }}
+- **template_hash:** {{ template_hash }}
+- **prereg_hash:** displayed separately as SHA-256 of these exact UTF-8 LF Markdown bytes; intentionally not embedded in its own preimage.
+
+### Frozen study config
+
+{{ config_json | jsonblock }}
+
+### Supplied readiness snapshot
+
+{{ readiness_json | jsonblock }}

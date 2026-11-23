@@ -1,19 +1,19 @@
 # Eval card — schema in backend/src/qr_llm_evals/cards/schema.py, rules in docs/add-an-eval.md.
 # est_gen_tokens_per_arm = dataset.items × k × est_tokens_per_sample × (3 if told_actual else 1).
 id: livecodebench
-title: LiveCodeBench (post-cutoff window)
-purpose: Execution-scored code generation on ~150 problems dated after the model's cutoff; contamination-resistant
-  by date.
+title: LiveCodeBench (release v6 problems)
+purpose: Execution-scored code generation on the 175 problems of LiveCodeBench release v6 (contests of
+  January to April 2025) over k=10; contamination-resistant by date.
 tier: 3
 family: capability
-engine: inspect
-inspect_task: qr_llm_evals/livecodebench
-task_module: null
+engine: thin
+inspect_task: null
+task_module: evals/livecodebench/task.py
 task_args: {}
 dataset:
   source: hf:livecodebench/code_generation_lite
-  revision: null
-  items: 150
+  revision: 0fe84c3912ea0c4d4a78037083943e8f0c4dd505
+  items: 175
   subsample: null
 generation: free
 thinking: true
@@ -23,7 +23,7 @@ k_bounds:
 - 16
 max_tokens: 10000
 est_tokens_per_sample: 4000
-est_gen_tokens_per_arm: 6000000
+est_gen_tokens_per_arm: 7000000
 sensitivity: low
 judge:
   kind: none
@@ -38,7 +38,14 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Inspect only ships LCB-Pro, so a small custom task with sandboxed unit tests is needed (v6 lite,
-  windowed by date). Registry proposed k=4; raised to the admission floor of 10.
+status: implemented
+selectable: true
+notes: The problems release v6 added to livecodebench/code_generation_lite (test6.jsonl, 134 MB), read at
+  run time at the pinned revision and checked by SHA-256; newest contest first. Prompt, code extraction
+  and test comparison are those of the authors' runner. A reply is a model-written program, and the
+  harness never runs it itself - score() sends it to the sandbox service
+  (infra/qr-llm-evals-sandbox.socket), which an operator installs; without it replies are generated and
+  not scored (verifier_status unavailable). Whether these contests are after a model's training cutoff
+  depends on the model. The analysis tests pass_at_1 per reply; pass_rate_entropy and pass_at_k are
+  computed by the task module's endpoints() for description. Registry proposed k=4; raised to the
+  admission floor of 10.

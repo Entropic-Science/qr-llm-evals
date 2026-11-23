@@ -102,10 +102,19 @@ class LiveRun:
             raise RunControlError(f"cannot resume a run in state {run.state!r}")
         with self._lock:
             if self.thread_alive:
+                if run.open_halts():
+                    # Lifting the pause would do nothing: the orchestrator is on
+                    # its way out and only a new one goes on past a check stop.
+                    raise RunControlError(
+                        "a check has stopped this run and the samples that were already "
+                        "being generated are still finishing; resume once the run is paused"
+                    )
                 self.control.resume()
                 return self.read()
-        # The orchestrator returned (needs_keys after a restart, or a prior
-        # backend process): start a fresh one; it skips completed sample_refs.
+        # The orchestrator returned (a check stop, needs_keys after a restart,
+        # or a prior backend process): start a fresh one. It plans again from
+        # the store, so it skips completed sample_refs, tries the rest again
+        # with the keys held now, and stamps an open halt as resumed.
         self.control = RunControl()
         self._launch(factory)
         return self.read()

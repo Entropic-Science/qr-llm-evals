@@ -245,3 +245,401 @@
   margin: 0;
   font-size: 0.85rem;
 }
+
+/* ── Verdicts of a designed study (components/results/Verdicts.tsx) ──────────
+   A verdict is never told by colour alone: every stamp carries a glyph and a
+   word, and its border style differs per verdict. */
+.results-verdicts {
+  display: grid;
+  gap: 1.5rem;
+}
+.results-verdicts h2 {
+  margin-bottom: 0;
+}
+.results-study-verdict {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-left: 4px solid var(--color-fg);
+  background: var(--color-surface);
+}
+.results-study-verdict--not_confirmatory {
+  border-style: dashed;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      transparent 0 9px,
+      color-mix(in oklch, var(--color-control) 9%, transparent) 9px 10px
+    ),
+    var(--color-surface);
+}
+.results-study-verdict--invalid {
+  border-left-color: var(--color-warning);
+}
+.results-study-verdict--effect {
+  border-left-color: var(--color-emphasis);
+}
+.results-page .results-study-verdict__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.1rem;
+  max-width: none;
+  margin: 0.5rem 0 0;
+}
+.results-study-verdict__sentence {
+  flex: 1 1 18rem;
+  font: 500 1.4rem/1.35 var(--font-serif);
+}
+.results-page .results-study-verdict__detail {
+  margin: 0.75rem 0 0;
+  color: var(--color-fg-muted);
+  font-size: 0.9rem;
+}
+.results-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border: 1.5px solid currentColor;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-fg);
+  font: 700 0.7rem/1.25 var(--font-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transform: rotate(-1.2deg);
+}
+.results-stamp__glyph {
+  font-size: 0.95rem;
+  letter-spacing: 0;
+  line-height: 1;
+}
+.results-stamp--effect {
+  background: var(--color-emphasis-soft);
+  color: var(--color-emphasis);
+}
+.results-stamp--effect_within_margin {
+  background: var(--color-highlight-soft);
+  color: var(--color-secondary-emphasis);
+}
+.results-stamp--equivalent,
+.results-stamp--no_effect_within_margins {
+  border-width: 3px;
+  border-style: double;
+  background: var(--color-bg-subtle);
+}
+.results-stamp--inconclusive,
+.results-stamp--mixed_or_inconclusive {
+  border-style: dotted;
+  background: var(--color-control-soft);
+  color: var(--color-control);
+}
+.results-stamp--invalid {
+  border-style: dashed;
+  background: color-mix(in oklch, var(--color-warning) 8%, var(--color-surface));
+  color: var(--color-warning);
+}
+.results-stamp--unavailable {
+  border-style: dashed;
+  border-color: var(--color-border-strong);
+  background: transparent;
+  color: var(--color-fg-muted);
+}
+.results-stamp--not_confirmatory {
+  border-style: dashed;
+}
+.results-stamp__note {
+  padding-bottom: 0.1rem;
+  border-bottom: 1px dashed currentColor;
+  color: var(--color-fg-muted);
+  font: 700 0.62rem/1.3 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.results-verdict-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.results-verdict {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 1.5rem 3rem;
+  padding: 2rem 0;
+  border-top: 1px solid var(--color-border-strong);
+}
+.results-verdict__head h3 {
+  margin: 0 0 0.9rem;
+}
+.results-page .results-verdict__stamps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  margin: 0 0 1rem;
+}
+.results-page .results-verdict__wording {
+  margin: 0 0 0.75rem;
+  font: 500 1.3rem/1.45 var(--font-serif);
+}
+.results-page .results-verdict__reason {
+  margin: 0;
+  color: var(--color-fg-muted);
+  font-size: 0.85rem;
+}
+.results-verdict__reason strong {
+  color: var(--color-fg);
+}
+.results-verdict code,
+.results-verdicts__rules code {
+  font-size: 0.85em;
+}
+.results-verdict__registered {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1.25rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px dotted var(--color-border-strong);
+}
+.results-verdict__registered dt,
+.results-verdict__figures dt {
+  color: var(--color-fg-muted);
+  font: 400 0.66rem/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.results-verdict__registered dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.results-verdict__figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 1.75rem;
+  margin: 0;
+  border-top: 1px solid var(--color-border);
+}
+.results-verdict__figures > div {
+  padding: 0.7rem 0;
+  border-bottom: 1px dotted var(--color-border-strong);
+}
+.results-verdict__figures > .is-wide {
+  grid-column: 1 / -1;
+}
+.results-verdict__figures dd {
+  margin: 0.25rem 0 0;
+}
+.results-verdict__number {
+  font: 400 0.95rem/1.45 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.results-verdict__prose {
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.results-verdict__figures small {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-fg-muted);
+  font: 400 0.72rem/1.5 var(--font-sans);
+}
+.results-verdict__evidence h4 {
+  margin: 1.5rem 0 0.6rem;
+  color: var(--color-fg-muted);
+  font: 400 0.66rem/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.results-gates {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.results-gate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  align-items: baseline;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-control);
+  background: var(--color-surface);
+}
+.results-gate__name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.results-gate__state {
+  font: 700 0.66rem/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.results-gate__detail {
+  grid-column: 1 / -1;
+  color: var(--color-fg-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+.results-gate--passed {
+  border-left-color: var(--color-success);
+}
+.results-gate--passed .results-gate__state {
+  color: var(--color-success);
+}
+.results-gate--failed {
+  border-style: dashed;
+  border-left-style: solid;
+  border-left-color: var(--color-warning);
+}
+.results-gate--failed .results-gate__state {
+  color: var(--color-warning);
+}
+.results-gate--none {
+  border-style: dotted;
+}
+.results-gate--none .results-gate__state {
+  color: var(--color-control);
+}
+.results-page .results-verdicts__rules {
+  max-width: 80ch;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border-strong);
+  color: var(--color-fg-muted);
+  font-size: 0.82rem;
+}
+.results-rows {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--color-border);
+}
+@media (max-width: 760px) {
+  .results-verdict {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .results-study-verdict {
+    padding: 1rem;
+  }
+  .results-study-verdict__sentence {
+    font-size: 1.2rem;
+  }
+}
+@media (max-width: 420px) {
+  .results-verdict__figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Pre-registration document: contents and anchors (routes/Prereg.tsx) ─────
+   Used by the draft page (/prereg) and the published study page alike. */
+.prereg-contents {
+  margin-top: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.prereg-contents ul,
+.prereg-contents ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.prereg-contents__deciding ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.prereg-contents__deciding a {
+  display: inline-block;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--brand-wine);
+  font: 500 1.1rem/1.3 var(--font-serif);
+  text-decoration: none;
+  transition: border-color var(--motion-duration-quick) var(--ease-calm);
+}
+.prereg-contents__deciding a:hover {
+  border-color: var(--brand-wine);
+}
+.prereg-contents details {
+  margin-top: 0.75rem;
+}
+.prereg-contents summary {
+  padding: 0.35rem 0;
+  color: var(--color-fg-muted);
+  font: 400 0.68rem/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.prereg-contents ol {
+  columns: 2 14rem;
+  column-gap: 2rem;
+  margin-top: 0.4rem;
+}
+.prereg-contents ol li {
+  padding: 0.25rem 0;
+  break-inside: avoid;
+}
+.prereg-contents ol a {
+  color: var(--color-fg);
+  font-size: 0.85rem;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25rem;
+}
+.prereg-contents ol a:hover {
+  color: var(--brand-wine);
+}
+.prereg-preview h2[id] {
+  scroll-margin-top: calc(var(--header-height) + 1.25rem);
+}
+/* The study on the draft page is not the one the reader asked for: a share
+   link or a saved draft could not be read (routes/Prereg.tsx). */
+.prereg-load-note {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: start;
+  margin-top: 2rem;
+  padding: 1rem 1.4rem;
+  border-left: 4px solid var(--color-warning);
+  background: color-mix(in oklch, var(--color-warning) 7%, var(--color-surface));
+}
+.prereg-load-note p {
+  max-width: 62rem;
+  margin: 0;
+  line-height: 1.55;
+}
+.prereg-load-note__kept {
+  margin: 2rem 0 0;
+}
+/* Which study the draft page shows, and where it came from. */
+.prereg-study {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 0 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.prereg-study strong {
+  font: 500 1.2rem/1.3 var(--font-serif);
+  overflow-wrap: anywhere;
+}
+.prereg-study > span:last-child {
+  color: var(--color-fg-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+.prereg-expectations__text {
+  max-height: 14rem;
+  margin: 0.75rem 0;
+  padding-left: 0.9rem;
+  overflow: auto;
+  border-left: 2px solid var(--brand-gold);
+  font: 400 1.05rem/1.5 var(--font-serif);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

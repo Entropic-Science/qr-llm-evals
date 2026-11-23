@@ -6,6 +6,7 @@ Pipeline (one command, deterministic bytes)::
     pydantic models ──► packages/contracts/schema/<Model>.json      (one JSON Schema per contract)
                     ──► packages/contracts/schema/_bundle.json      (all contracts, shared $defs)
     evals/*.yaml    ──► packages/contracts/src/generated/cards.json (the registry, for the SPA)
+    ENDPOINT_META   ──► packages/contracts/src/generated/endpoint-meta.json (keys ``card/endpoint``)
     _bundle.json    ──► packages/contracts/src/generated/types.ts   (json-schema-to-typescript)
     <Model>.json    ──► packages/contracts/src/generated/zod.ts     (z.fromJSONSchema wrappers)
 
@@ -40,6 +41,7 @@ from qr_llm_evals.api.schema import (
     AdminUserView,
     AnalyseResponse,
     AuthResponse,
+    CardItemsResponse,
     CardsResponse,
     CardView,
     ConfigParseRequest,
@@ -80,11 +82,16 @@ from qr_llm_evals.api.schema import (
     WithdrawResponse,
 )
 from qr_llm_evals.cards import EvalCard, SelectionEstimate, load_cards
+from qr_llm_evals.cards.design_schema import DecisionsTable
+from qr_llm_evals.cards.endpoint_meta import EndpointMeta, endpoint_meta_export
 from qr_llm_evals.models.schema import StudyConfig
+from qr_llm_evals.store.health import HealthSummary
 from qr_llm_evals.store.schema import (
     GenerationRow,
+    Halt,
     JudgeRow,
     ReadinessReport,
+    ResultFlag,
     Run,
     Taint,
 )
@@ -98,6 +105,7 @@ GENERATED_SUBDIR = Path("src") / "generated"
 GENERATOR = CONTRACTS_DIR / "scripts" / "generate.ts"
 BUNDLE_NAME = "_bundle.json"
 CARDS_NAME = "cards.json"
+ENDPOINT_META_NAME = "endpoint-meta.json"
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 #: The contracts, in the order they appear in ``_bundle.json`` / ``types.ts`` / ``zod.ts``.
@@ -160,6 +168,14 @@ EXPORTS: tuple[type[BaseModel], ...] = (
     AdminUserUpdate,
     SettleRequest,
     StorageResponse,
+    # designed studies
+    EndpointMeta,
+    CardItemsResponse,
+    DecisionsTable,
+    # result checks
+    ResultFlag,
+    Halt,
+    HealthSummary,
 )
 
 #: Hand-written files that live next to the generated ones and must survive ``--check``.
@@ -220,6 +236,7 @@ def render_python_outputs() -> dict[Path, str]:
         out[Path(SCHEMA_SUBDIR) / f"{model.__name__}.json"] = _dump(model_schema(model))
     out[Path(SCHEMA_SUBDIR) / BUNDLE_NAME] = _dump(bundle_schema())
     out[GENERATED_SUBDIR / CARDS_NAME] = _dump(cards_export())
+    out[GENERATED_SUBDIR / ENDPOINT_META_NAME] = _dump(endpoint_meta_export())
     return out
 
 

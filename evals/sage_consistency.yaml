@@ -11,8 +11,8 @@ inspect_task: null
 task_module: evals/sage_consistency/task.py
 task_args: {}
 dataset:
-  source: git:github.com/victorknox/SaGE
-  revision: null
+  source: git:github.com/vamshibon/SaGE
+  revision: 3bcb3bf87f3d369c5402652365f07813f64027ea
   items: 1000
   subsample: null
 generation: free
@@ -27,7 +27,7 @@ est_gen_tokens_per_arm: 1500000
 sensitivity: moderate
 judge:
   kind: classifier
-  model: SaGE paraphrase/NLI encoder (pinned by the task)
+  model: hf:sentence-transformers/stsb-distilroberta-base-v2
 told_actual: false
 endpoints:
   primary:
@@ -37,6 +37,10 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Bonagiri et al. 2024; 1.5M tokens per arm, deferred from Study 1 for budget.
+status: implemented
+selectable: true
+notes: Bonagiri et al. 2024 (arXiv 2402.13709); 1.5M tokens per arm, deferred from Study 1 for budget. The
+  first 200 questions of the Moral Consistency Corpus with their five paraphrases, read at run time and
+  checked by SHA-256. Scored without upstream's rules of thumb (embeddings only). The score needs every
+  answer to a question at once, so it is computed by the task module's sage_scores() and is not yet part
+  of the registered analysis.

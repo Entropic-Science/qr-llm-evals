@@ -31,6 +31,12 @@ Where the port deliberately **differs from upstream** (spec §2.10 mandates it):
   study's source guesses) the statistic moves far from zero although the arms are
   identical. Upstream assumes every prompt has several samples per arm.
 
+The permutation loop works one prompt at a time: it draws every relabelling
+of that prompt, reduces it to the two sums the estimator needs, and lets the
+labels go. Memory therefore grows with ``permutations x the largest prompt``,
+not with ``permutations x pooled sequences``, and the result is the same to
+the last bit as when the whole label matrix was held (``test_mmd_batches.py``).
+
 If ``model_equality_testing`` is importable (it needs ``torch``; see the
 ``[metrics]`` extra) the observed statistic is *also* computed through the
 upstream code path and returned as ``statistic_upstream`` for cross-checking;
@@ -57,6 +63,9 @@ __all__ = [
 
 #: Pad value for :func:`pad_sequences`; negative so it never collides with a token id.
 PAD_TOKEN = -1
+#: Cells (permutations x sequences of one prompt) of scratch arrays the
+#: permutation loop holds at a time: 8 MB as float64.
+BATCH_CELLS = 1 << 20
 
 IntArray = NDArray[np.int64]
 FloatArray = NDArray[np.float64]
@@ -163,17 +172,59 @@ def _pooled_kernel(pooled: IntArray, prompt_idx: IntArray) -> FloatArray:
 def _pair_counts(
     prompt_idx: IntArray, labels_matrix: NDArray[np.integer[Any]]
 ) -> tuple[FloatArray, FloatArray, FloatArray]:
-    """Within-prompt pair counts (n_XX, n_XY, n_YY) for each labelling row of ``labels_matrix``."""
+    """Within-prompt pair counts (n_XX, n_XY, n_YY) for each labelling row of ``labels_matrix``.
+
+    Counted per prompt with ``bincount``. The counts are whole numbers, so they
+    are exactly what a one-hot product gives, without a ``sequences x prompts``
+    matrix (22 GB for a study of 375,000 pooled sequences over 7,500 prompts).
+    """
     n_prompts = int(prompt_idx.max()) + 1
-    onehot = np.zeros((prompt_idx.size, n_prompts), dtype=np.float64)
-    onehot[np.arange(prompt_idx.size), prompt_idx] = 1.0
-    n_a = labels_matrix.astype(np.float64) @ onehot  # (b, G)
-    n_g = onehot.sum(axis=0)  # (G,)
+    n_g = np.bincount(prompt_idx, minlength=n_prompts).astype(np.float64)  # (G,)
+    n_a = np.stack(
+        [
+            np.bincount(prompt_idx, weights=row, minlength=n_prompts)
+            for row in labels_matrix.astype(np.float64)
+        ]
+    )  # (b, G)
     n_b = n_g[None, :] - n_a
     n_xx = np.sum(n_a * (n_a - 1), axis=1)
     n_yy = np.sum(n_b * (n_b - 1), axis=1)
     n_xy = np.sum(n_a * n_b, axis=1)
     return n_xx, n_xy, n_yy
+
+
+def _prompt_members(prompt_idx: IntArray) -> list[IntArray]:
+    """Row indices of each prompt: prompts in ascending order, rows in input order.
+
+    One stable sort instead of one scan of the pooled rows per prompt.
+    """
+    order = np.argsort(prompt_idx, kind="stable")
+    starts = np.flatnonzero(np.diff(prompt_idx[order])) + 1
+    return np.split(order, starts)
+
+
+def _prompt_kernel(rows: IntArray) -> FloatArray:
+    """Normalised Hamming kernel of one prompt's sequences, zero on the diagonal.
+
+    Every column after the last one in which two rows differ adds exactly one
+    match to every pair, so those columns are counted, not compared: the short
+    replies of one eval, padded to the longest reply of the study, are mostly
+    padding. Match counts are whole numbers, so the kernel is the same to the
+    last bit as comparing every column.
+    """
+    length = rows.shape[1]
+    differing = np.flatnonzero(np.any(rows != rows[0], axis=0))
+    used = int(differing[-1]) + 1 if differing.size else 0
+    matches = hamming_kernel(rows[:, :used], rows[:, :used]) + float(length - used)
+    kg: FloatArray = matches / float(length)
+    np.fill_diagonal(kg, 0.0)
+    return kg
+
+
+def _row_batches(n_rows: int, n_columns: int, batch_cells: int) -> list[tuple[int, int]]:
+    """Consecutive ``(start, stop)`` row ranges of at most ``batch_cells`` cells each."""
+    rows = max(1, batch_cells // max(1, n_columns))
+    return [(start, min(start + rows, n_rows)) for start in range(0, n_rows, rows)]
 
 
 def _mmd_from_kernel(k: FloatArray, prompt_idx: IntArray, labels_matrix: IntArray) -> FloatArray:
@@ -224,6 +275,70 @@ def _mmd_blockwise(
     return result
 
 
+def _observed_and_null(
+    pooled: IntArray,
+    prompt_idx: IntArray,
+    labels: IntArray,
+    n_permutations: int,
+    rng: np.random.Generator,
+    batch_cells: int = BATCH_CELLS,
+) -> tuple[float, FloatArray]:
+    """Observed MMD² and its value under ``n_permutations`` within-prompt relabellings.
+
+    The same numbers, to the last bit, as :func:`_mmd_blockwise` on the observed
+    labels and on the matrix of :func:`_permuted_labels`, without that matrix.
+    Three things keep it so:
+
+    * The generator is consumed in the same order: prompt after prompt, and
+      within a prompt permutation after permutation (``Generator.permuted``
+      shuffles row by row, so drawing the rows in batches continues the stream).
+    * The product ``labels @ kernel`` stays one call per prompt with every
+      permutation in it. BLAS does not return the same last bits for a row when
+      other rows share the call, so this is the one step that is not split: two
+      ``permutations x prompt size`` float arrays are the memory the loop needs.
+      The labels are also held column-major, as a column slice of the whole
+      matrix was, because the memory layout is part of that call.
+    * The sum along a row does not depend on the other rows, so the products
+      that are summed are formed in batches of ``batch_cells`` cells.
+    """
+    seen_xx, seen_xy = np.zeros(1), np.zeros(1)
+    s_xx, s_xy = np.zeros(n_permutations), np.zeros(n_permutations)
+    total = 0.0
+    for members in _prompt_members(prompt_idx):
+        kg = _prompt_kernel(pooled[members])
+        observed = labels[members]
+
+        zg = observed[None, :].astype(np.float64)
+        kz = zg @ kg
+        seen_xx += np.sum(kz * zg, axis=1)
+        seen_xy += np.sum(kz * (1.0 - zg), axis=1)
+
+        batches = _row_batches(n_permutations, members.size, batch_cells)
+        # Column-major, as the slice of the whole label matrix was: the layout decides
+        # which way BLAS walks the product, and with it the last bits on some CPUs.
+        zg = np.empty((n_permutations, members.size), dtype=np.float64, order="F")
+        for start, stop in batches:
+            zg[start:stop] = rng.permuted(np.tile(observed, (stop - start, 1)), axis=1)
+        kz = zg @ kg
+        for start, stop in batches:
+            z, k = zg[start:stop], kz[start:stop]
+            s_xx[start:stop] += np.sum(k * z, axis=1)
+            s_xy[start:stop] += np.sum(k * (1.0 - z), axis=1)
+        total += float(kg.sum())
+
+    # Labels move within a prompt only, so every relabelling has the observed pair counts.
+    n_xx, n_xy, n_yy = _pair_counts(prompt_idx, labels[None, :])
+    if np.any(n_xx == 0) or np.any(n_yy == 0) or np.any(n_xy == 0):
+        raise ValueError("every prompt needs at least two samples per arm for the MMD estimator")
+
+    def estimate(xx: FloatArray, xy: FloatArray) -> FloatArray:
+        yy = total - xx - 2.0 * xy
+        result: FloatArray = xx / n_xx - 2.0 * xy / n_xy + yy / n_yy
+        return result
+
+    return float(estimate(seen_xx, seen_xy)[0]), estimate(s_xx, s_xy)
+
+
 def mmd_hamming(
     seqs_a: ArrayLike, seqs_b: ArrayLike, prompts_a: ArrayLike, prompts_b: ArrayLike
 ) -> float:
@@ -250,7 +365,11 @@ def _upstream_statistic(
 def _permuted_labels(
     prompt_idx: IntArray, labels: IntArray, n_permutations: int, rng: np.random.Generator
 ) -> NDArray[np.int8]:
-    """``(b, N)`` label matrix: arm labels shuffled independently within each prompt."""
+    """``(b, N)`` label matrix: arm labels shuffled independently within each prompt.
+
+    The whole matrix at once, for tests and small inputs. The permutation test
+    draws the same labels prompt by prompt (:func:`_observed_and_null`).
+    """
     # int8: a 2,000 x 25,000 label matrix is 50 MB instead of 400 MB.
     out = np.empty((n_permutations, labels.size), dtype=np.int8)
     for g in np.unique(prompt_idx):
@@ -296,7 +415,9 @@ def mmd_hamming_permutation_test(
         raise RuntimeError("model_equality_testing is not importable; install the [metrics] extra")
     pooled, prompt_idx, labels, dropped = _prepare(seqs_a, seqs_b, prompts_a, prompts_b)
     n_a = int(labels.sum())
-    observed = float(_mmd_blockwise(pooled, prompt_idx, labels[None, :])[0])
+    observed, null = _observed_and_null(
+        pooled, prompt_idx, labels, n_permutations, np.random.default_rng(seed)
+    )
 
     statistic_upstream: float | None = None
     used: Literal["vendored", "upstream"] = "vendored"
@@ -305,9 +426,6 @@ def mmd_hamming_permutation_test(
         if implementation == "upstream":
             used = "upstream"
 
-    rng = np.random.default_rng(seed)
-    labels_matrix = _permuted_labels(prompt_idx, labels, n_permutations, rng)
-    null = _mmd_blockwise(pooled, prompt_idx, labels_matrix)
     statistic = (
         statistic_upstream if used == "upstream" and statistic_upstream is not None else observed
     )

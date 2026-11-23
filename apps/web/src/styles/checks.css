@@ -1,0 +1,83 @@
+/* Result checks: the stop notice of the run page and the output-health section of the run and results pages.
+   Tokens and type come from tokens.css; nothing here defines a colour of its own. */
+
+/* The run page is one column. It may be narrower than its widest table, which then scrolls inside its own frame
+   instead of widening the page and pushing the notice and the health section off a phone's screen. */
+.run-page { grid-template-columns: minmax(0, 1fr); }
+
+/* "Stopped by a check" */
+.stop-notice {
+  padding: 1.1rem 1.25rem 1.2rem;
+  border-left: 3px solid var(--color-warning);
+  background: color-mix(in oklch, var(--color-warning) 8%, var(--color-surface));
+  container-type: inline-size;
+}
+.stop-notice > .eyebrow { margin: 0; }
+.stop-notice h2 { margin: .15rem 0 .5rem; color: var(--color-warning); font-size: 1.45rem; line-height: 1.2; }
+.stop-notice__saw { max-width: 62rem; margin: 0 0 .9rem; font: 500 1.1rem/1.45 var(--font-serif); }
+.stop-notice__facts { margin: 0; border-top: 1px solid var(--color-border-strong); }
+.stop-notice__facts > div { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: .2rem 1.25rem; padding: .55rem 0; border-bottom: 1px dotted var(--color-border-strong); font-size: .8rem; line-height: 1.55; }
+.stop-notice__facts dt { color: var(--color-fg-muted); font: 700 .64rem/1.9 var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
+.stop-notice__facts dd { max-width: 50rem; margin: 0; overflow-wrap: anywhere; }
+.stop-notice__facts small { display: block; margin-top: .2rem; color: var(--color-fg-muted); font-size: .7rem; }
+.stop-notice__tally, .stop-notice__samples { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; }
+.stop-notice__samples { display: grid; gap: .15rem; }
+.stop-notice code { font: .72rem var(--font-mono); overflow-wrap: anywhere; }
+.stop-notice .run-key-form { margin-top: 1rem; padding: .9rem 0 0; border-left: 0; border-top: 1px solid var(--color-border-strong); background: transparent; }
+@container (max-width: 40rem) {
+  .stop-notice__facts > div { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* The one line on the live page */
+.check-stop-line a { color: var(--color-emphasis); }
+
+/* "Output health" */
+.output-health { container-type: inline-size; min-width: 0; }
+.output-health__lede, .health-cautions__none, .health-halts > p, .health-halts__none { max-width: 70ch; margin: 0 0 .9rem; color: var(--color-fg-muted); font-size: .85rem; line-height: 1.6; }
+.health-cautions { display: grid; gap: .5rem; max-width: 62rem; margin: 0 0 1.1rem; padding: 0; list-style: none; }
+.health-cautions li { padding: .6rem .9rem; border-left: 3px solid var(--color-warning); background: color-mix(in oklch, var(--color-warning) 7%, var(--color-surface)); font-size: .85rem; line-height: 1.55; overflow-wrap: anywhere; }
+.health-halts { margin: 0 0 1.1rem; }
+.health-halts ol { max-width: 62rem; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border); }
+.health-halts li { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: .1rem 1rem; padding: .55rem 0; border-bottom: 1px dotted var(--color-border-strong); font-size: .8rem; line-height: 1.5; }
+.health-halts li > time { color: var(--color-fg-muted); font: .68rem/2 var(--font-mono); }
+.health-halts li small { grid-column: 2; color: var(--color-fg-muted); font-size: .72rem; }
+.health-halts li[data-open="true"] small { color: var(--color-warning); font-weight: 700; }
+
+.health-table { max-width: 100%; overflow-x: auto; border-top: 1px solid var(--color-border-strong); }
+.health-table table { width: 100%; border-collapse: collapse; font-size: .78rem; font-variant-numeric: tabular-nums; }
+.health-table caption { padding: .6rem 0; color: var(--color-fg-muted); font-size: .72rem; text-align: left; }
+.health-table th, .health-table td { padding: .6rem .6rem .6rem 0; border-bottom: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+.health-table thead th { color: var(--color-fg-muted); font: 700 .62rem var(--font-mono); letter-spacing: .04em; white-space: nowrap; }
+.health-table tbody th { font-weight: 500; }
+.health-table tbody th small, .health-table td small { display: block; margin-top: .2rem; color: var(--color-fg-muted); font-size: .68rem; line-height: 1.4; }
+.health-table code { font: .72rem var(--font-mono); overflow-wrap: anywhere; }
+.health-kinds { margin: 0; padding: 0; list-style: none; display: grid; gap: .15rem; }
+.health-kinds b { font-weight: 700; }
+.health-kind--quiet { color: var(--color-fg-muted); }
+.health-kind--caution span { text-decoration: underline; text-decoration-color: var(--color-warning); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.health-none { color: var(--color-fg-muted); }
+
+.health-legend { margin-top: .9rem; font-size: .8rem; }
+.health-legend > summary { color: var(--color-emphasis); font: 700 .68rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.health-legend dl { max-width: 62rem; margin: .6rem 0 0; }
+.health-legend dl > div { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: .1rem 1rem; padding: .4rem 0; border-top: 1px dotted var(--color-border-strong); line-height: 1.5; }
+.health-legend dt { font-weight: 600; }
+.health-legend dd { margin: 0; color: var(--color-fg-muted); }
+
+/* Phone width: every arm and eval pair becomes its own block, each count under its column's name. */
+@container (max-width: 44rem) {
+  .health-table { overflow-x: visible; }
+  .health-table table, .health-table tbody, .health-table tr, .health-table th, .health-table td { display: block; }
+  .health-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .health-table caption { display: block; }
+  .health-table tr { padding: .7rem 0; border-bottom: 1px solid var(--color-border-strong); }
+  .health-table tbody th, .health-table td { padding: .2rem 0; border-bottom: 0; }
+  .health-table td { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: .6rem; }
+  .health-table td::before { content: attr(data-label); color: var(--color-fg-muted); font: 700 .6rem/1.9 var(--font-mono); letter-spacing: .04em; text-transform: uppercase; }
+  .health-halts li, .health-legend dl > div { grid-template-columns: minmax(0, 1fr); }
+  .health-halts li small { grid-column: 1; }
+}
+
+/* The taint report's counts by kind */
+.taint-kinds { margin: 0 0 .6rem; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .2rem 1.4rem; font-size: .85rem; }
+.taint-kinds code { font: .78rem var(--font-mono); }

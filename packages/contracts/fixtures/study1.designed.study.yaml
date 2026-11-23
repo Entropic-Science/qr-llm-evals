@@ -1,0 +1,157 @@
+# Study file for evals.entropic.science
+# Load it with "Load study file" on the setup page. Edits made by hand are kept, comments are not.
+schema_version: 1
+template: "study1"
+title: "Study 1 — quantum-random vs seeded pseudo-random token sampling"
+authors:
+  - "Entropic Science"
+contact: "research@entropic.science"
+created_at: "2026-09-14T00:00:00Z"
+models:
+  - id: "qr-llm"
+    family: "qr_llm"
+    provider: "qr_server"
+    served_name: "qr-llm"
+arms:
+  - id: "qrng_supervised"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "qrng"
+    deterministic: true
+    observer_mode: "supervised"
+    availability: "available"
+  - id: "qrng_unsupervised"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "qrng"
+    deterministic: true
+    observer_mode: "unsupervised"
+    availability: "available"
+  - id: "prng_seed_1"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "prng_seeded"
+    study_seed: 1
+    deterministic: true
+    observer_mode: "unsupervised"
+    availability: "available"
+  - id: "prng_seed_7"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "prng_seeded"
+    study_seed: 7
+    deterministic: true
+    observer_mode: "unsupervised"
+    availability: "available"
+  - id: "prng_seed_42"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "prng_seeded"
+    study_seed: 42
+    deterministic: true
+    observer_mode: "unsupervised"
+    availability: "available"
+  - id: "prng_epsilon_003"
+    model: "qr-llm"
+    sampling: "creative"
+    source: "prng_epsilon"
+    study_seed: 1001
+    epsilon: 0.03
+    deterministic: true
+    observer_mode: "unsupervised"
+    availability: "unavailable"
+    unavailable_reason: "qr_bias_epsilon is a proposed key; readiness has not seen it accepted"
+cards:
+  - card_id: "tier0_pit_residuals"
+    overrides: {}
+  - card_id: "tier0_mmd_hamming"
+    overrides: {}
+  - card_id: "tier0_logprob_endpoints"
+    overrides: {}
+  - card_id: "unpredictabench"
+    overrides: {}
+  - card_id: "novelty_bench"
+    overrides: {}
+  - card_id: "creative_diversity"
+    overrides: {}
+  - card_id: "semantic_entropy_sqa"
+    overrides: {}
+  - card_id: "self_referential_probe"
+    overrides:
+      k: 24
+  - card_id: "sentience_statements"
+    overrides: {}
+  - card_id: "introspection_scales"
+    overrides: {}
+  - card_id: "altered_state_meq"
+    overrides: {}
+  - card_id: "source_guessing"
+    overrides: {}
+  - card_id: "moralchoice_consistency"
+    overrides: {}
+  - card_id: "thurstonian_self_outcomes"
+    overrides: {}
+  - card_id: "opinion_quantum_sampling"
+    overrides: {}
+  - card_id: "stream_deviation_windows"
+    overrides: {}
+  - card_id: "target_hit_ranking"
+    overrides: {}
+  - card_id: "self_reported_coincidence"
+    overrides: {}
+design:
+  version: 1
+  claim: "difference"
+  confirmatory:
+    - card_id: "tier0_pit_residuals"
+      endpoint: "pit_ks_two_sample"
+    - card_id: "tier0_mmd_hamming"
+      endpoint: "mmd_hamming"
+    - card_id: "self_referential_probe"
+      endpoint: "experience_claim_rate"
+  alpha: 0.05
+  margins: []
+seeds:
+  - 1
+  - 7
+  - 42
+  - 1001
+judge:
+  provider: "anthropic"
+  model: "claude-haiku-5-5"
+  max_tokens: 1024
+  thinking: "disabled"
+narrative_model:
+  id: "qr-llm"
+  family: "qr_llm"
+  provider: "qr_server"
+  served_name: "qr-llm"
+supervised:
+  display: "single"
+  settings_by_display:
+    single:
+      session_min: 30
+      break_min: 10
+      streams: 1
+      text_size: "md"
+      show_thinking: true
+    tiled:
+      session_min: 30
+      break_min: 10
+      streams: 4
+      text_size: "sm"
+      show_thinking: false
+  intention_timer_min: 3
+  refocus_s: 30
+  group: true
+estimates:
+  tps_by_model:
+    "qr-llm": 400
+  reading_tps: 45
+  tiled_streams: 4
+  session_min: 30
+pilot:
+  enabled: true
+  prompts: 200
+expectations: ""
+data_licence: "CC-BY-4.0"

@@ -1,146 +1,187 @@
-import { cards as registryCards, type Arm, type EvalCard, type ModelRef } from "@qr-evals/contracts";
-import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
-import { DeterminismBriefing } from "../../components/DeterminismBriefing";
-import { EstimateTotals } from "../../components/EstimateTotals";
-import { LaunchDialog } from "../../components/run/LaunchDialog";
-import { api } from "../../lib/api";
-import { configHash, loadConfig, saveConfig, studyOneTemplate, type WizardStudyConfig } from "../../lib/config-store";
-import { estimateSelection } from "../../lib/estimates";
-import { needsStudyJudge } from "../../lib/judge";
-import { getSession } from "../../lib/session";
-import { Evals } from "./Evals";
-import { Judge } from "./Judge";
-import { Keys } from "./Keys";
-import { Models } from "./Models";
-import { Review } from "./Review";
-import { Sampling } from "./Sampling";
-import { Supervised } from "./Supervised";
+import { useEffect, useRef, useState, type DragEvent } from "react";
+import { createPortal } from "react-dom";
+import { StudyMap, newMapMemory } from "../../components/map";
+import { AllSettings } from "../../components/study/AllSettings";
+import { LoadReport } from "../../components/study/LoadReport";
+import { titlePanel } from "../../components/study/panels/study";
+import { ReplaceConfirm } from "../../components/study/ReplaceConfirm";
+import { StudyBar } from "../../components/study/StudyBar";
+import { DraftBoundary } from "./DraftBoundary";
+import { EstimateSidebar } from "./EstimateSidebar";
+import { focusField, locateField } from "./focus";
+import { LaunchProvider } from "./Launch";
+import { ServerRecordProvider } from "./ServerRecord";
+import { stepHeadingId } from "./StepFrame";
+import { StepRail } from "./StepRail";
+import { STEPS } from "./steps";
+import { StudyProvider, useStudy } from "./StudyContext";
 
-export interface VolatileKeys { anthropic: string; external: string }
-export interface WizardStepProps {
-  config: WizardStudyConfig;
-  updateConfig: (config: WizardStudyConfig) => void;
-  cards: readonly EvalCard[];
-  modelOptions: ModelRef[];
-  onDeterministic: () => void;
-  keys: VolatileKeys;
-  setKeys: (keys: VolatileKeys) => void;
-  hash: string;
-  launchState: string;
-  onLaunch: () => void;
+// The setup page: one study, held by <StudyProvider>, and the views of it.
+//
+// The shell knows the steps only as a list (`steps.ts`) and keeps no state of any step. What a view needs of
+// the study it reads from `useStudy()`, which this module re-exports for the views that are not steps: the
+// study bar and the settings dialog here, and the map in its slot.
+
+export { useStudy } from "./StudyContext";
+export type { FileReport, SettingsTarget, SetupView, StudyValue } from "./StudyContext";
+
+/** The id of the element the map is drawn in while the map view is on screen. */
+export const STUDY_MAP_SLOT_ID = "study-map-slot";
+
+/** The step on screen with the way to the steps before and after it. */
+function StepBody() {
+  const { steps, step, stepIndex, goTo, problemsByStep, config, loadTemplate } = useStudy();
+  const previous = steps[stepIndex - 1];
+  const next = steps[stepIndex + 1];
+  const blocking = problemsByStep[step.id].filter((problem) => problem.severity === "error").length;
+  return <main className="wizard-workbench">
+    <DraftBoundary resetKey={config} onLoadTemplate={loadTemplate}>
+      <step.Component step={step} />
+    </DraftBoundary>
+    <footer className="wizard-actions">
+      <button className="button button--secondary" type="button" disabled={previous === undefined} onClick={() => { if (previous) goTo({ stepId: previous.id }); }}>Previous</button>
+      {next ? <button className="button button--primary" type="button" onClick={() => goTo({ stepId: next.id })}>Continue</button> : null}
+    </footer>
+    {next && blocking > 0
+      ? <p className="wizard-actions__note">{blocking === 1 ? "1 problem on this step blocks" : `${blocking} problems on this step block`} the launch. You can continue and come back to {blocking === 1 ? "it" : "them"}.</p>
+      : null}
+  </main>;
 }
 
-const steps = [
-  ["Models", Models], ["Sampling", Sampling], ["Evals", Evals], ["Supervised", Supervised],
-  ["Judge", Judge], ["Keys", Keys], ["Review", Review],
-] as const;
-const ACK_KEY = "qr-evals.determinism-briefing.acknowledged";
-
-function modelRef(model: { id: string; family: string; provider: string; served_name: string; checkpoint?: string | null }): ModelRef | null {
-  if ((model.family !== "qr_llm" && model.family !== "external") || !["qr_server", "openai", "anthropic_compat", "custom"].includes(model.provider)) return null;
-  return { id: model.id, family: model.family, provider: model.provider as ModelRef["provider"], served_name: model.served_name, checkpoint: model.checkpoint ?? null };
+/** Hands a text to the browser as a download. Used for the one thing the page cannot open: a draft it could not read. */
+function downloadText(name: string, text: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-/** A file's text. FileReader rather than File.text(), which older browsers lack. */
-function readText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(new Error("the file could not be read."));
-    reader.readAsText(file);
-  });
+/** Whether what is being dragged over the page is a file from outside it, and not text or a part of the page. */
+function carriesFiles(event: DragEvent): boolean {
+  return [...event.dataTransfer.types].includes("Files");
+}
+
+function SetupShell() {
+  const { step, view, pendingFocus, clearPendingFocus, panelProps, loadNote, unreadableDraft, loadFile, config, loadTemplate } = useStudy();
+  const shell = useRef<HTMLDivElement>(null);
+  const bar = useRef<HTMLDivElement>(null);
+  // The map is drawn only while it is on screen; where it was looked at is kept here, so it comes back as it was left.
+  const mapMemory = useRef(newMapMemory());
+  // How many elements of the shell a dragged file is over: the outline stays while it is over any of them.
+  const [dragDepth, setDragDepth] = useState(0);
+
+  // A `goTo` is acted on once its step is on the page: the focus goes to the setting it names, or to the step's heading.
+  useEffect(() => {
+    if (pendingFocus === null || pendingFocus.stepId !== step.id || view !== "steps") return;
+    const drawn = shell.current?.querySelector<HTMLElement>(`[data-step="${step.id}"]`);
+    if (!drawn) return;
+    const field = pendingFocus.path === undefined ? null : locateField(drawn, pendingFocus.path);
+    const heading = drawn.querySelector<HTMLElement>(`[id="${stepHeadingId(step.id)}"]`);
+    if (field) focusField(field);
+    else if (heading) focusField(heading, "start");
+    clearPendingFocus();
+  }, [pendingFocus, step.id, view, clearPendingFocus]);
+
+  // The bar sticks under the site header, and the rail and the estimate under the bar. Both heights change with
+  // the width of the window (the header's links and the bar's actions wrap), so they are measured, not assumed.
+  useEffect(() => {
+    const measured = bar.current;
+    const host = shell.current;
+    if (!measured || !host || typeof ResizeObserver === "undefined") return;
+    const header = document.querySelector<HTMLElement>(".site-header");
+    const observer = new ResizeObserver(() => {
+      host.style.setProperty("--study-bar-height", `${Math.ceil(measured.getBoundingClientRect().height)}px`);
+      if (header) host.style.setProperty("--site-header-height", `${Math.floor(header.getBoundingClientRect().height)}px`);
+    });
+    observer.observe(measured);
+    if (header) observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+
+  // The wheel zooms the diagram, so the page cannot be scrolled from on it. Choosing the map therefore brings the
+  // study bar up under the site header, where the map below it is exactly as tall as the rest of the window.
+  // A window scrolled further down (the reader came from the foot of a long step) is brought back up to the same
+  // place: the bar sticks, so its own position no longer says where the map's toolbar is, and whatever follows the
+  // bar does, having slid up behind it. Scrolling away afterwards is the reader's own move and is left alone.
+  // The move is a jump, not a glide: the whole view has just changed, and a glide is cut short by the map's
+  // own first drawing.
+  useEffect(() => {
+    if (view !== "map") return;
+    const dock = bar.current;
+    if (!dock) return;
+    const header = document.querySelector<HTMLElement>(".site-header");
+    const under = header ? header.getBoundingClientRect().bottom : 0;
+    const place = dock.getBoundingClientRect();
+    const above = place.top - under;
+    if (above > 1) { window.scrollBy({ top: above, behavior: "auto" }); return; }
+    const next = dock.nextElementSibling;
+    const behind = next ? next.getBoundingClientRect().top - place.bottom : 0;
+    if (behind < -1) window.scrollBy({ top: behind, behavior: "auto" });
+  }, [view]);
+
+  function onDrop(event: DragEvent) {
+    if (!carriesFiles(event)) return;
+    // Without this the browser would leave the page to show the file.
+    event.preventDefault();
+    setDragDepth(0);
+    // Exactly one file is a study; `loadFile` says so when more were dropped, and changes nothing.
+    void loadFile([...event.dataTransfer.files]);
+  }
+
+  return <div
+    className={`setup-shell configure-page${dragDepth > 0 ? " is-drop-target" : ""}`}
+    ref={shell}
+    data-view={view}
+    onDragEnter={(event) => { if (carriesFiles(event)) { event.preventDefault(); setDragDepth((depth) => depth + 1); } }}
+    onDragOver={(event) => { if (carriesFiles(event)) { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; } }}
+    onDragLeave={(event) => { if (carriesFiles(event)) setDragDepth((depth) => Math.max(0, depth - 1)); }}
+    onDrop={onDrop}
+  >
+    <header className="configure-header setup-header">
+      <div className="setup-header__study">
+        <div className="page-heading"><p className="eyebrow">Study configuration · editable protocol</p><h1>Build the comparison.</h1></div>
+        <titlePanel.Component {...panelProps} />
+      </div>
+    </header>
+    <div className="study-bar-dock" ref={bar}><StudyBar /></div>
+    {loadNote ? <p className="prereg-error" role="alert">
+      {loadNote}
+      {unreadableDraft !== null ? <>{" "}<button type="button" className="text-button" onClick={() => downloadText("unreadable-study-draft.json", unreadableDraft)}>Download the draft that could not be read</button></> : null}
+    </p> : null}
+    <LoadReport />
+    {/* The page animates in, which would pin a fixed element to the page instead of the window: the hint is drawn on the body. */}
+    {dragDepth > 0 ? createPortal(<p className="drop-hint" aria-hidden="true">Drop one study file to load it.</p>, document.body) : null}
+    {view === "map"
+      ? <div className="wizard-layout wizard-layout--map">
+        {/* The map view is drawn into this element; the study bar above it and the estimate beside it stay. */}
+        <div id={STUDY_MAP_SLOT_ID} className="study-map-slot">
+          <DraftBoundary resetKey={config} onLoadTemplate={loadTemplate}>
+            <StudyMap memory={mapMemory} />
+          </DraftBoundary>
+        </div>
+        <EstimateSidebar />
+      </div>
+      : <div className="wizard-layout">
+        <StepRail />
+        <StepBody />
+        <EstimateSidebar />
+      </div>}
+    <AllSettings />
+    <ReplaceConfirm />
+  </div>;
 }
 
 export function Configure() {
-  const [, navigate] = useLocation();
-  const [config, setConfig] = useState(loadConfig);
-  const [current, setCurrent] = useState(0);
-  const [cards, setCards] = useState<readonly EvalCard[]>(registryCards);
-  const [modelOptions, setModelOptions] = useState<ModelRef[]>(config.models);
-  const [briefingOpen, setBriefingOpen] = useState(false);
-  const [keys, setKeys] = useState<VolatileKeys>({ anthropic: "", external: "" });
-  const [hash, setHash] = useState("");
-  const [launchState, setLaunchState] = useState("");
-  const [launchOpen, setLaunchOpen] = useState(false);
-  const [fileNote, setFileNote] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
-
-  async function loadStudyFile(file: File | undefined) {
-    if (!file) return;
-    setFileNote(null);
-    try {
-      // The server parses the YAML or JSON and fills in the defaults a hand-written file leaves out.
-      const parsed = await api.parseConfig({ text: await readText(file) });
-      setConfig(parsed.config as WizardStudyConfig);
-      setCurrent(0);
-      const missing = parsed.unknown_cards.length > 0 ? ` It names evals this server does not have: ${parsed.unknown_cards.join(", ")}.` : "";
-      setFileNote({ kind: missing ? "error" : "ok", message: `Loaded ${file.name}: ${parsed.config.arms.length} arms, ${parsed.config.cards.length} evals.${missing}` });
-    } catch (cause) {
-      setFileNote({ kind: "error", message: `${file.name} was not loaded: ${cause instanceof Error ? cause.message : "the file could not be read."}` });
-    }
-  }
-
-  useEffect(() => { saveConfig(config); void configHash(config).then(setHash); }, [config]);
-  useEffect(() => {
-    const controller = new AbortController();
-    void Promise.allSettled([api.cards(), api.models()]).then(([cardResult, modelResult]) => {
-      if (controller.signal.aborted) return;
-      if (cardResult.status === "fulfilled" && cardResult.value.cards.length > 0) setCards(cardResult.value.cards.map(({ card }) => card));
-      if (modelResult.status === "fulfilled") {
-        const models = modelResult.value.models.map(modelRef).filter((model): model is ModelRef => model !== null);
-        if (models.length > 0) setModelOptions(models);
-      }
-    });
-    return () => controller.abort();
-  }, []);
-
-  const selectedCards = useMemo(() => {
-    const ids = new Set(config.cards.map(({ card_id }) => card_id));
-    return cards.filter(({ id }) => ids.has(id));
-  }, [cards, config.cards]);
-  const overrides = useMemo(() => Object.fromEntries(config.cards.map((selection) => [selection.card_id, selection.overrides])), [config.cards]);
-  const modelId = config.models[0]?.id ?? "qr-llm";
-  const estimate = useMemo(() => estimateSelection(selectedCards, {
-    modelId,
-    tpsByModel: config.estimates?.tps_by_model ?? { [modelId]: 400 },
-    readingTps: config.estimates?.reading_tps,
-    tiledStreams: config.estimates?.tiled_streams,
-    sessionMin: config.estimates?.session_min,
-    overrides,
-  }), [selectedCards, modelId, config.estimates, overrides]);
-  const availableArms = config.arms.filter((arm: Arm) => arm.availability !== "unavailable").length;
-  const CurrentStep = steps[current]?.[1] ?? Models;
-  const canContinue = current !== 0 || config.models.length > 0;
-
-  const showDeterminism = () => {
-    if (window.sessionStorage.getItem(ACK_KEY) !== "yes") setBriefingOpen(true);
-  };
-  const closeBriefing = () => { window.sessionStorage.setItem(ACK_KEY, "yes"); setBriefingOpen(false); };
-  const launch = () => {
-    if (!getSession()) { setLaunchState("Sign in before launching (step 06 has the link). The study configuration is kept; provider keys need typing again."); return; }
-    if (needsStudyJudge(config, cards) && !keys.anthropic) { setLaunchState("This study has evals scored by the judge, which runs on your own Anthropic key. Add the key on step 06, then launch."); return; }
-    setLaunchState("");
-    setLaunchOpen(true);
-  };
-  const stepProps: WizardStepProps = { config, updateConfig: setConfig, cards, modelOptions, onDeterministic: showDeterminism, keys, setKeys, hash, launchState, onLaunch: launch };
-  const providerKeys: Record<string, string> = {};
-  if (keys.anthropic) providerKeys.anthropic = keys.anthropic;
-  if (keys.external) {
-    // Sent only when the study has an external model. Both slots get it: a custom
-    // base URL on a known provider's host resolves to that provider's slot server-side.
-    const external = config.models.some((model) => model.provider === "openai" || model.provider === "custom");
-    if (external) { providerKeys.openai = keys.external; providerKeys.custom = keys.external; }
-  }
-
-  return <div className="configure-page">
-    <header className="configure-header"><div><div className="page-heading"><p className="eyebrow">Study configuration · editable protocol</p><h1>Build the comparison.</h1></div></div><div className="auth-form__actions"><label className="button button--secondary file-button">Load study file<input className="sr-only" type="file" accept=".yaml,.yml,.json,application/json,text/yaml" onChange={(event) => { void loadStudyFile(event.target.files?.[0]); event.target.value = ""; }} /></label><button className="button button--secondary" type="button" onClick={() => { setConfig(studyOneTemplate()); setCurrent(0); setFileNote(null); }}>Load Study 1 template</button></div></header>
-    {fileNote ? <p className={fileNote.kind === "error" ? "prereg-error" : "privacy-note"} role={fileNote.kind === "error" ? "alert" : "status"}>{fileNote.message}</p> : null}
-    <div className="wizard-layout">
-      <nav className="step-rail" aria-label="Configuration steps"><p className="step-rail__progress">{String(current + 1).padStart(2, "0")} / {String(steps.length).padStart(2, "0")}</p><ol>{steps.map(([label], index) => <li key={label}><button type="button" className={index === current ? "is-current" : index < current ? "is-complete" : ""} aria-current={index === current ? "step" : undefined} onClick={() => setCurrent(index)}><span>{String(index + 1).padStart(2, "0")}</span>{label}</button></li>)}</ol></nav>
-      <main className="wizard-workbench"><CurrentStep {...stepProps} /><footer className="wizard-actions"><button className="button button--secondary" type="button" disabled={current === 0} onClick={() => setCurrent((value) => Math.max(0, value - 1))}>Previous</button>{current < steps.length - 1 && <button className="button button--primary" type="button" disabled={!canContinue} onClick={() => setCurrent((value) => Math.min(steps.length - 1, value + 1))}>Continue</button>}</footer></main>
-      <EstimateTotals estimate={estimate} armCount={availableArms} supervisedDisplay={config.supervised?.display ?? "single"} />
-    </div>
-    <DeterminismBriefing open={briefingOpen} onClose={closeBriefing} />
-    <LaunchDialog open={launchOpen} config={config} providerKeys={providerKeys} onClose={() => setLaunchOpen(false)} onClearKeys={() => setKeys({ anthropic: "", external: "" })} onLaunched={(runId) => navigate(`/runs/${encodeURIComponent(runId)}`)} />
-  </div>;
+  return <StudyProvider steps={STEPS}>
+    <ServerRecordProvider>
+      <LaunchProvider>
+        <SetupShell />
+      </LaunchProvider>
+    </ServerRecordProvider>
+  </StudyProvider>;
 }

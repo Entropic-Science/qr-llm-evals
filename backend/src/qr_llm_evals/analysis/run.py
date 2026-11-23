@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from qr_llm_evals.analysis.decisions import record_run_order
 from qr_llm_evals.analysis.endpoints import execute, load_data
 from qr_llm_evals.analysis.figures import write_figures
 from qr_llm_evals.analysis.manifest import build_manifest
@@ -47,6 +48,11 @@ def run(study_dir: str | Path, plan: StatisticalPlan, *, run_id: str | None = No
     output = run_dir / "analysis" / analysis_id
     output.mkdir(parents=True, exist_ok=True)
     (output / "plan.json").write_text(plan.canonical_json() + "\n", encoding="utf-8", newline="\n")
+    if plan.design is not None:
+        # Only a designed study asks whether this is its first full run. What the
+        # first analysis finds is kept with the run, so a later analysis of a copy
+        # that lacks the other runs answers the same (``decisions.record_run_order``).
+        record_run_order(run_dir)
     tables = execute(load_data(run_dir), plan)
     write_tables(output / "tables", tables)
     write_figures(output / "figures", tables)

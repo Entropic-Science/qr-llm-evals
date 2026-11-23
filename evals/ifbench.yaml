@@ -5,13 +5,13 @@ title: IFBench — verifiable instruction following
 purpose: Programmatically verified constraint satisfaction over k on 300 prompts; no judge.
 tier: 3
 family: capability
-engine: inspect
-inspect_task: qr_llm_evals/ifbench
-task_module: null
+engine: thin
+inspect_task: null
+task_module: evals/ifbench/task.py
 task_args: {}
 dataset:
-  source: hf:allenai/IFBench_test
-  revision: null
+  source: git:github.com/allenai/IFBench
+  revision: 488918665d53f867fa908a293769ec6e71e74aec
   items: 300
   subsample: null
 generation: free
@@ -37,7 +37,11 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
-notes: Custom Inspect task using the AI2 verifier. Registry proposed k=8; raised to the admission floor
-  of 10.
+status: implemented
+selectable: true
+notes: Registry proposed k=8; raised to the admission floor of 10. Prompts and verifier come from one commit
+  of AI2's IFBench repository; the 300 rows equal hf:allenai/IFBench_test. Scoring needs the [ifbench] extra
+  and NLTK data installed beforehand (evals/ifbench/README.md); without them replies are generated and
+  stored but every score is null with the reason. The analysis reads one value per reply (pass_at_1 is
+  upstream's loose prompt-level score, strict_accuracy the strict one); constraint_pass_entropy is computed
+  per prompt by the task module for description.

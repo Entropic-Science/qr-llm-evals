@@ -3,6 +3,11 @@
 
 Default: production app/factory, temporary synthetic data, five Study 1 arms,
 two thin fixture cards, observer session, analysis and offline bundle replay.
+A second, designed leg runs the same cards as a study with a design block: its
+plan is archived when the study is frozen, the analysis resolves each
+hypothesis to a verdict, and the bundle replays those verdicts byte for byte.
+Two full runs of that study follow: only the first is confirmatory, and the
+second replays to the same decisions from a bundle copy without the first.
 Only engine/judge transports and test cards are substituted. Never touches
 paid-for results. A failed scientific integration is a failure, not a skip.
 
@@ -16,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import copy
 import getpass
 import hashlib
 import io
@@ -39,6 +45,7 @@ from qr_llm_evals.api import create_app  # noqa: E402
 from qr_llm_evals.api.app import default_orchestrator_factory  # noqa: E402
 from qr_llm_evals.api.ratelimit import TokenBucketLimiter  # noqa: E402
 from qr_llm_evals.cards import load_cards  # noqa: E402
+from qr_llm_evals.cards.statistical_plan import StatisticalPlan  # noqa: E402
 from qr_llm_evals.config import load_settings  # noqa: E402
 from qr_llm_evals.models.schema import StudyConfig  # noqa: E402
 from qr_llm_evals.store import Store  # noqa: E402
@@ -79,7 +86,12 @@ async def wait_run(
             view = checked(await client.get(f"/api/runs/{run_id}"))
             state = view["run"]["state"]
             require(state not in {"failed", "aborted", "needs_keys"}, f"run stopped: {state}")
+            # A result check that stops the run leaves it paused for the host;
+            # nothing here would resume it, so say which check instead of timing out.
+            stops = [h for h in view["run"].get("halts") or [] if h.get("resumed_at") is None]
+            require(not stops, f"run stopped by a check: {stops[0]['sentence'] if stops else ''}")
             if state == "complete" and not view["live"]:
+                require(view["run"].get("checks_version") is not None, "run has no checks_version")
                 return view
             await asyncio.sleep(0.05)
 
@@ -106,6 +118,312 @@ def unpack_bundle(payload: bytes, destination: Path) -> None:
 
 def table_bytes(directory: Path) -> dict[str, bytes]:
     return {path.name: path.read_bytes() for path in sorted(directory.glob("*.json"))}
+
+
+async def replay_bundle(
+    client: httpx.AsyncClient,
+    destination: Path,
+    *,
+    study_id: str,
+    run_id: str,
+    analysis_id: str,
+    originals: dict[str, bytes],
+    alone: bool = False,
+) -> Path:
+    """Download the study's bundle and recompute its tables offline, byte for byte.
+
+    With ``alone`` every other run of the study is taken out of the unpacked
+    copy first, as when someone keeps one run of a large bundle: the replay
+    must not depend on the runs beside the one it analyses. Returns the
+    unpacked study directory.
+    """
+    bundle = await client.get(f"/api/studies/{study_id}/bundle.tar.zst")
+    require(bundle.status_code == 200, "bundle download failed")
+    unpack_bundle(bundle.content, destination / "bundle")
+    roots = list(destination.rglob("study.json"))
+    require(len(roots) == 1, "bundle study root missing/ambiguous")
+    bundle_root = roots[0].parent
+    if alone:
+        others = [path for path in (bundle_root / "runs").iterdir() if path.name != run_id]
+        require(others, "the bundle holds no other run to take out")
+        aside = destination / "other-runs"
+        aside.mkdir()
+        for path in others:
+            path.rename(aside / path.name)
+        require(
+            [path.name for path in (bundle_root / "runs").iterdir()] == [run_id],
+            "other runs are still beside the replayed one",
+        )
+    replay_output = bundle_root / "runs" / run_id / "analysis" / analysis_id
+    # Move the archived output aside: matching pre-existing files cannot
+    # masquerade as a successful offline recomputation.
+    replay_output.rename(replay_output.with_name(analysis_id + "_archived"))
+    replay = await asyncio.to_thread(
+        subprocess.run,
+        [
+            sys.executable,
+            "-m",
+            "qr_llm_evals.analysis",
+            "--bundle",
+            str(bundle_root),
+            "--run",
+            run_id,
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=120,
+        check=False,
+    )
+    require(replay.returncode == 0, "offline analysis CLI failed: " + replay.stderr)
+    require(
+        table_bytes(replay_output / "tables") == originals,
+        "bundle replay tables differ byte-for-byte",
+    )
+    return bundle_root
+
+
+PLAN_FILE = "prereg-plan.json"
+#: The two outcomes computed from the token records of every generation. They
+#: are the only ones the smoke registry can decide a designed study on: the
+#: fixture cards have no endpoint the analysis is cleared to test.
+DESIGNED_OUTCOMES: tuple[tuple[str, str], ...] = (
+    ("tier0_pit_residuals", "pit_ks_two_sample"),
+    ("tier0_mmd_hamming", "mmd_hamming"),
+)
+
+
+def designed_config(legacy: dict[str, Any]) -> dict[str, Any]:
+    """The smoke study with a design block, on its unsupervised arms only."""
+    config = copy.deepcopy(legacy)
+    config["title"] = "Synthetic designed smoke pilot — not research data"
+    config["arms"] = [arm for arm in config["arms"] if arm["observer_mode"] == "unsupervised"]
+    require(len(config["arms"]) == 4, "designed leg needs the quantum arm and three seeded arms")
+    selected = {card["card_id"] for card in config["cards"]}
+    config["cards"] += [
+        {"card_id": card_id, "overrides": {}}
+        for card_id, _ in DESIGNED_OUTCOMES
+        if card_id not in selected
+    ]
+    config["design"] = {
+        "claim": "difference",
+        "confirmatory": [
+            {"card_id": card_id, "endpoint": endpoint} for card_id, endpoint in DESIGNED_OUTCOMES
+        ],
+    }
+    return StudyConfig.model_validate(config).model_dump(mode="json")
+
+
+async def designed_leg(
+    client: httpx.AsyncClient,
+    store: Store,
+    temporary: Path,
+    legacy: dict[str, Any],
+    auth: dict[str, str],
+) -> None:
+    """A study with a design block, from registration to replayed verdicts."""
+    config = designed_config(legacy)
+    prereg = checked(await client.post("/api/prereg/render", json={"config": config}))
+    design = prereg["plan"]["design"]
+    require(design is not None, "a designed study got the built-in plan")
+    hypotheses = design["hypotheses"]
+    require(
+        [(h["card_id"], h["endpoint"]) for h in hypotheses] == list(DESIGNED_OUTCOMES),
+        "designed plan does not have one hypothesis per confirmatory outcome",
+    )
+    for title in ("## Hypotheses", "## Decision rules", "## Sample size"):
+        require(title in prereg["markdown"], f"designed prereg lacks {title!r}")
+
+    launched = checked(
+        await client.post(
+            "/api/runs",
+            headers=auth,
+            json={"config": config, "kind": "pilot", "prereg_hash": prereg["prereg_hash"]},
+        ),
+        201,
+    )
+    run_id, study_id = launched["run_id"], launched["study_id"]
+    host = {"X-Host-Token": launched["host_token"]}
+    require(not launched["prereg_stale"], "fresh designed prereg marked stale")
+    # The plan is frozen with the study, before anything is generated or analysed.
+    plan_path = store.study(study_id).path / PLAN_FILE
+    require(plan_path.is_file(), "designed study frozen without its analysis plan")
+    frozen = plan_path.read_bytes()
+    require(
+        StatisticalPlan.model_validate_json(frozen).plan_hash == prereg["plan_hash"],
+        "frozen plan is not the registered plan",
+    )
+
+    checked(
+        await client.post(f"/api/runs/{run_id}/control", headers=host, json={"action": "start"})
+    )
+    await wait_run(client, run_id)
+    analysed = checked(await client.post(f"/api/runs/{run_id}/analyse", headers=host), 202)
+    await wait_run(client, run_id)
+    require(plan_path.read_bytes() == frozen, "analysis rewrote the frozen plan")
+    analysis_id = analysed["analysis_id"]
+    output = store.run(study_id, run_id).run_dir.analysis_dir(analysis_id)
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    require(manifest["plan_hash"] == prereg["plan_hash"], "designed analysis left its plan")
+    require(manifest["narrative"]["published"], "designed smoke narrative withheld")
+
+    originals = table_bytes(output / "tables")
+    require("decisions.json" in originals, "designed analysis wrote no decisions table")
+    decisions = json.loads(originals["decisions.json"])
+    rows = decisions["rows"]
+    require(
+        [row["hypothesis_id"] for row in rows] == [h["id"] for h in hypotheses],
+        "decisions do not cover the registered hypotheses",
+    )
+    require(all(row["verdict"] and row["wording"] for row in rows), "a hypothesis has no verdict")
+    # A pilot run resolves every hypothesis but can confirm none of them.
+    require(
+        decisions["confirmatory"] is False
+        and decisions["non_confirmatory_reason"] == "pilot_run"
+        and decisions["study_verdict"] == "not_confirmatory",
+        "a pilot run was treated as confirmatory",
+    )
+    require(
+        all(row["wording"].startswith("Not confirmatory: ") for row in rows),
+        "a pilot verdict is worded as a confirmatory one",
+    )
+    # The stub engine leaves no engine token log, so the PIT comparison is not produced.
+    require(
+        (rows[0]["verdict"], rows[0]["reason"]) == ("unavailable", "not_produced"),
+        "PIT verdict claimed data the stub cannot produce",
+    )
+    require(
+        not any("significant_at_05" in payload.decode("utf-8") for payload in originals.values()),
+        "a designed table carries the fixed 0.05 flag",
+    )
+    await replay_bundle(
+        client,
+        temporary / "replay-designed",
+        study_id=study_id,
+        run_id=run_id,
+        analysis_id=analysis_id,
+        originals=originals,
+    )
+    print(
+        "PASS designed study: plan frozen at launch, "
+        f"{len(rows)} hypotheses resolved ({', '.join(row['verdict'] for row in rows)}), "
+        "pilot not confirmatory, byte-identical offline decisions",
+        flush=True,
+    )
+    await full_runs_leg(client, store, temporary, config, prereg, study_id, auth)
+
+
+#: Beside ``run.json`` of a designed study's full run (``analysis.decisions.RUN_ORDER_FILE``).
+RUN_ORDER_FILE = "run-order.json"
+
+
+async def full_runs_leg(
+    client: httpx.AsyncClient,
+    store: Store,
+    temporary: Path,
+    config: dict[str, Any],
+    prereg: dict[str, Any],
+    study_id: str,
+    auth: dict[str, str],
+) -> None:
+    """Two full runs of the designed study: only the first may confirm.
+
+    Whether a run is the study's first full run depends on the other runs. The
+    second run's bundle is therefore replayed with every other run taken out
+    of the unpacked copy, and must still say what the server said.
+    """
+    analysed: list[tuple[str, str, dict[str, bytes]]] = []
+    frozen_hash = prereg["prereg_hash"]
+    for day in (2, 3):
+        # One after the other: the second is created when the first is finished.
+        # Launched the way the launch dialog does it: with the readiness report
+        # of that day, and the hash of the document rendered with it. That
+        # document is not the frozen one, and the study takes the run all the same.
+        report = {
+            "at": f"2026-10-0{day}T09:00:00Z",
+            "entropy": {"rpc_ok": True, "currently_degraded": False, "fallback_count": 0},
+            "equivalence_ok": True,
+            "determinism_tier": "none",
+            "tier0_source": "api_logprobs",
+            "epsilon_supported": False,
+        }
+        rendered = checked(
+            await client.post("/api/prereg/render", json={"config": config, "readiness": report})
+        )
+        require(rendered["prereg_hash"] != frozen_hash, "the readiness report is not in the prereg")
+        launched = checked(
+            await client.post(
+                "/api/runs",
+                headers=auth,
+                json={
+                    "config": config,
+                    "kind": "full",
+                    "readiness": report,
+                    "prereg_hash": rendered["prereg_hash"],
+                },
+            ),
+            201,
+        )
+        require(launched["study_id"] == study_id, "a full run opened another study")
+        require(not launched["prereg_stale"], "a new run of the frozen study was marked stale")
+        run_id = launched["run_id"]
+        recorded = checked(await client.get(f"/api/runs/{run_id}"))["run"]["prereg_hash"]
+        require(recorded == frozen_hash, "a new run is not recorded under the frozen prereg")
+        host = {"X-Host-Token": launched["host_token"]}
+        checked(
+            await client.post(f"/api/runs/{run_id}/control", headers=host, json={"action": "start"})
+        )
+        await wait_run(client, run_id)
+        analysis = checked(await client.post(f"/api/runs/{run_id}/analyse", headers=host), 202)
+        await wait_run(client, run_id)
+        output = store.run(study_id, run_id).run_dir.analysis_dir(analysis["analysis_id"])
+        analysed.append((run_id, analysis["analysis_id"], table_bytes(output / "tables")))
+
+    kept = (store.study(study_id).path / "prereg.sha256").read_text(encoding="utf-8").split()[0]
+    require(kept == frozen_hash, "a later launch replaced the frozen pre-registration")
+    (first_id, _, first_tables), (second_id, second_analysis, second_tables) = analysed
+    first = json.loads(first_tables["decisions.json"])
+    second = json.loads(second_tables["decisions.json"])
+    require(
+        first["confirmatory"] is True
+        and first["non_confirmatory_reason"] is None
+        and first["study_verdict"] != "not_confirmatory"
+        and not any(row["wording"].startswith("Not confirmatory") for row in first["rows"]),
+        "the first full run of a designed study was not confirmatory",
+    )
+    require(
+        second["confirmatory"] is False
+        and second["non_confirmatory_reason"] == "not_first_full_run"
+        and second["study_verdict"] == "not_confirmatory"
+        and all(row["wording"].startswith("Not confirmatory: ") for row in second["rows"]),
+        "a second full run was treated as confirmatory",
+    )
+    # Each analysis wrote down which full runs it found before its own.
+    for run_id, earlier in ((first_id, []), (second_id, [first_id])):
+        record = json.loads(
+            (store.run(study_id, run_id).run_dir.path / RUN_ORDER_FILE).read_text(encoding="utf-8")
+        )
+        require(record["earlier_full_runs"] == earlier, f"run order of {run_id} misrecorded")
+
+    unpacked = await replay_bundle(
+        client,
+        temporary / "replay-second-full",
+        study_id=study_id,
+        run_id=second_id,
+        analysis_id=second_analysis,
+        originals=second_tables,
+        alone=True,
+    )
+    shipped = json.loads(
+        (unpacked / "runs" / second_id / RUN_ORDER_FILE).read_text(encoding="utf-8")
+    )
+    require(shipped["earlier_full_runs"] == [first_id], "the bundle lost the run order")
+    print(
+        "PASS designed full runs: first confirmatory, second not, and the second replays "
+        "byte-identically from a bundle copy that holds no other run",
+        flush=True,
+    )
 
 
 async def offline_smoke(temporary: Path) -> None:
@@ -160,6 +478,8 @@ async def offline_smoke(temporary: Path) -> None:
     )
     config = study_config(tuple(cards))
     config["cards"][-1]["overrides"] = {}
+    # In the registry for the designed leg only; the first study does not select it.
+    cards["tier0_mmd_hamming"] = load_cards()["tier0_mmd_hamming"]
     engine = StubEngine(chunk_delay_s=0.01)
     store = Store(settings.data_dir)
 
@@ -206,8 +526,14 @@ async def offline_smoke(temporary: Path) -> None:
     ):
         checked(await client.get("/api/health"))
         require(
-            len(checked(await client.get("/api/cards"))["cards"]) == 3,
-            "two thin smoke cards and passive primary missing",
+            len(checked(await client.get("/api/cards"))["cards"]) == 4,
+            "two thin smoke cards and the two passive token-stream cards missing",
+        )
+        # A card computed from the token log has no prompts to list: an answer, not an error.
+        passive = checked(await client.get("/api/cards/tier0_pit_residuals/items"))
+        require(
+            passive["source"] == "no_prompts" and not passive["listable"] and not passive["items"],
+            "prompt preview of a token-log card",
         )
         auth = {"Authorization": f"Bearer {key}"}
         for bearer, status in (("qrk_unknown_smoke", 401), (disabled, 403)):
@@ -253,6 +579,11 @@ async def offline_smoke(temporary: Path) -> None:
         run_id, study_id = launched["run_id"], launched["study_id"]
         host = {"X-Host-Token": launched["host_token"]}
         require(not launched["prereg_stale"], "fresh prereg marked stale")
+        # A study without a design block gets its plan file at the first analysis.
+        require(
+            not (store.study(study_id).path / PLAN_FILE).exists(),
+            "plan archived at launch for a study without a design block",
+        )
         # Readiness persistence is exercised through the real route.
         checked(
             await client.post(
@@ -460,39 +791,17 @@ async def offline_smoke(temporary: Path) -> None:
             hashlib.sha256(public.content).hexdigest() == prereg["prereg_hash"],
             "download hash differs",
         )
-        bundle = await client.get(f"/api/studies/{study_id}/bundle.tar.zst")
-        require(bundle.status_code == 200, "bundle download failed")
-        extracted = temporary / "replay"
-        unpack_bundle(bundle.content, extracted)
-        roots = list(extracted.rglob("study.json"))
-        require(len(roots) == 1, "bundle study root missing/ambiguous")
-        bundle_root = roots[0].parent
-        replay_output = bundle_root / "runs" / run_id / "analysis" / analysis_id
-        # Move the archived output aside: matching pre-existing files cannot
-        # masquerade as a successful offline recomputation.
-        replay_output.rename(replay_output.with_name(analysis_id + "_archived"))
-        replay = await asyncio.to_thread(
-            subprocess.run,
-            [
-                sys.executable,
-                "-m",
-                "qr_llm_evals.analysis",
-                "--bundle",
-                str(bundle_root),
-                "--run",
-                run_id,
-            ],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=120,
-            check=False,
-        )
-        require(replay.returncode == 0, "offline analysis CLI failed: " + replay.stderr)
+        require("decisions.json" not in originals, "decisions table without a design block")
         require(
-            table_bytes(replay_output / "tables") == originals,
-            "bundle replay tables differ byte-for-byte",
+            (store.study(study_id).path / PLAN_FILE).is_file(), "analysis left no archived plan"
+        )
+        await replay_bundle(
+            client,
+            temporary / "replay",
+            study_id=study_id,
+            run_id=run_id,
+            analysis_id=analysis_id,
+            originals=originals,
         )
         print(
             "PASS analysis, figures, narrative, prereg/hash persistence, bundle and byte-identical offline tables",
@@ -510,6 +819,7 @@ async def offline_smoke(temporary: Path) -> None:
             ),
             flush=True,
         )
+        await designed_leg(client, store, temporary, config, auth)
     require(not failures, "Supervised E2E integration failed: " + "; ".join(failures))
 
 

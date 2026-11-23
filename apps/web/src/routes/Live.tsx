@@ -1,7 +1,9 @@
-import type { SessionControlRequest, SessionView } from "@qr-evals/contracts";
+import type { Halt, SessionControlRequest, SessionView } from "@qr-evals/contracts";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
+import { CheckStopLine } from "../components/run/CheckStopLine";
+import { haltFromEvent, openHalts } from "../components/run/checks";
 import { BreakScreen } from "../components/supervised/BreakScreen";
 import { Briefing } from "../components/supervised/Briefing";
 import { DisplaySettings } from "../components/supervised/DisplaySettings";
@@ -30,7 +32,7 @@ export function Live({ params }: RouteProps) {
   const runId = decodeURIComponent(params.runId);
   const hostToken = useMemo(() => getHostToken(runId), [runId]);
   const identity = useMemo(() => getObserverIdentity(), []);
-  const config = useMemo(() => loadConfig(), []);
+  const config = useMemo(() => loadConfig().config, []);
   const [stage, setStage] = useState<Stage>(() => savedSession(runId) ? "console" : "briefing");
   const [session, setSession] = useState<SessionView | null>(() => savedSession(runId));
   const [mode, setMode] = useState<DisplayMode>(() => savedSession(runId)?.session.display ?? config.supervised?.display ?? "single");
@@ -46,6 +48,13 @@ export function Live({ params }: RouteProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const runQuery = useQuery({ queryKey: ["run", runId], queryFn: () => api.run(runId), enabled: Boolean(hostToken) });
+  // A stop by a check that arrived as an event; `null` once the run is running again. Until either, the run record decides.
+  const [eventStop, setEventStop] = useState<Halt | null | undefined>(undefined);
+  const checkStop = eventStop === undefined ? openHalts(runQuery.data?.run.halts).at(-1) : eventStop ?? undefined;
+  // The run's state: the last `run.state` event, and before one arrives the run record's.
+  const [eventRunState, setEventRunState] = useState<string | undefined>(undefined);
+  const runState = eventRunState ?? runQuery.data?.run.state ?? undefined;
+  const runNeedsKeys = eventRunState === undefined ? Boolean(runQuery.data?.run.needs_keys) : eventRunState === "needs_keys";
 
   useEffect(() => { setSettings(loadDisplaySettings(mode)); }, [mode]);
   useEffect(() => {
@@ -57,6 +66,10 @@ export function Live({ params }: RouteProps) {
       if (event.type === "session.timer" && typeof data.remaining_s === "number") { setRemaining(data.remaining_s); setTimerKind(typeof data.kind === "string" ? data.kind : "session"); }
       if (event.type === "observer.presence") { const present = presenceFromEvent(event.data); setPresence((prior) => present.map((item) => ({ ...item, pre: item.observer_id === identity.observerId ? preSubmitted : prior.find((old) => old.observer_id === item.observer_id)?.pre, post: item.observer_id === identity.observerId ? postSubmitted : prior.find((old) => old.observer_id === item.observer_id)?.post }))); }
       if (event.type.startsWith("sample.")) setStreams((value) => applyStreamEvent(value, event.type, data));
+      if (event.type === "check.stopped") { const halt = haltFromEvent(event.data); if (halt) setEventStop(halt); }
+      // Only a host resume moves a stopped run back to running, and the run that starts then closes the stop.
+      if (event.type === "run.state" && typeof data.state === "string") setEventRunState(data.state);
+      if (event.type === "run.state" && data.state === "running") setEventStop(null);
     }, onResync: () => { setMessage("The event stream skipped history. The run record is being refreshed."); void runQuery.refetch(); }, onError: () => setMessage("Live connection interrupted; reconnecting automatically.") });
     return close;
   }, [hostToken, identity.observerId, postSubmitted, preSubmitted, runId, session]);
@@ -97,6 +110,7 @@ export function Live({ params }: RouteProps) {
     <section className="join-strip" aria-label="Observer invitation"><div><small>Observer code</small><strong>{session.join_code}</strong></div><div><small>Share link</small><code>{joinUrl}</code></div><button className="button button--secondary" type="button" onClick={() => void navigator.clipboard.writeText(joinUrl)}>Copy link</button></section>
     <SessionControls state={sessionState} busy={busy} preComplete={preSubmitted} readyAction={resumeRequired ? "resume" : "start"} onAction={(action) => void control(action)} />
     {sessionState === "boundary_pending" ? <div className="boundary-notice" role="status"><strong>Boundary pending</strong><span>No new generations are being dispatched. In-flight generations are finishing before the break.</span></div> : null}
+    {checkStop ? <CheckStopLine runId={runId} halt={checkStop} state={runState} needsKeys={runNeedsKeys} /> : null}
     {message ? <p className="supervised-message" role="status">{message}</p> : null}
     <div className="console-grid"><main>{!preSubmitted ? <Questionnaire phase="pre" busy={busy} onSubmit={(answers) => answer("pre", answers)} /> : null}{sessionState === "break" ? <BreakScreen remaining={remaining} /> : sessionState === "refocus" ? <RefocusScreen remaining={remaining} intention={intention} /> : mode === "tiled" ? <TiledStreams streams={visibleStreams} count={settings.streams} showThinking={settings.show_thinking} textSize={settings.text_size} /> : <StreamPane stream={visibleStreams.at(-1)} showThinking={settings.show_thinking} textSize={settings.text_size} />}{sessionState === "break" && !postSubmitted ? <Questionnaire phase="post" busy={busy} onSubmit={(answers) => answer("post", answers)} /> : null}</main><aside><DisplaySettings mode={mode} settings={settings} onMode={setMode} onChange={updateSettings} /><PresenceList observers={presence} onMarkLeft={(id) => void markLeft(id)} /><section className="host-blind"><p className="eyebrow">Blinding intact</p><strong>Target hidden from host</strong><p>Target themes and decoys are observer-only and are never inserted into prompts.</p></section></aside></div>
   </div>;

@@ -1,6 +1,48 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "StudyView.json",
+  "$defs": {
+    "RunHealthCounts": {
+      "additionalProperties": false,
+      "description": "The sample counts of one run, read off its health summary (``GET /runs/{id}/health``).",
+      "properties": {
+        "completed_samples": {
+          "description": "Samples that have a completed reply.",
+          "minimum": 0,
+          "title": "Completed Samples",
+          "type": "integer"
+        },
+        "failed_samples": {
+          "description": "Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.",
+          "minimum": 0,
+          "title": "Failed Samples",
+          "type": "integer"
+        },
+        "tainted_samples": {
+          "description": "Samples that carry any taint.",
+          "minimum": 0,
+          "title": "Tainted Samples",
+          "type": "integer"
+        },
+        "taints": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Tainted samples and windows of the run, by kind of taint; `other` counts taints of a kind this harness does not know.",
+          "title": "Taints",
+          "type": "object"
+        }
+      },
+      "required": [
+        "completed_samples",
+        "failed_samples",
+        "tainted_samples",
+        "taints"
+      ],
+      "title": "RunHealthCounts",
+      "type": "object"
+    }
+  },
   "additionalProperties": false,
   "properties": {
     "study_id": {
@@ -20,6 +62,14 @@
       },
       "title": "Runs",
       "type": "array"
+    },
+    "health": {
+      "additionalProperties": {
+        "$ref": "#/$defs/RunHealthCounts"
+      },
+      "description": "Sample counts keyed by run id. A run whose files could not be summarised has no entry.",
+      "title": "Health",
+      "type": "object"
     },
     "analyses": {
       "additionalProperties": {

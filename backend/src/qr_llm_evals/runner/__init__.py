@@ -19,6 +19,7 @@ from qr_llm_evals.runner.events import (
 )
 from qr_llm_evals.runner.judge_phase import JudgePhase, NeedsKeysError, parse_score
 from qr_llm_evals.runner.orchestrator import (
+    CheckStopped,
     EntropyProbe,
     EntropyStatus,
     Orchestrator,
@@ -40,6 +41,7 @@ from qr_llm_evals.runner.tasks import (
 __all__ = [
     "DEFAULT_QUEUE_SIZE",
     "EVENT_TYPES",
+    "CheckStopped",
     "EntropyProbe",
     "EntropyStatus",
     "EventSink",

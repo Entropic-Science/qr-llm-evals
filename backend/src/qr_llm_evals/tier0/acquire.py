@@ -25,6 +25,11 @@ Two acquisition paths, one builder:
 **truncated** entropy (the mass outside the returned top-k is ignored); tables
 must label it as such (:data:`ENTROPY_RAW_TOP20_LABEL`). The field keeps its
 historical name for contract stability; it holds the configured top-k.
+
+Whatever is wrong with a source, :func:`build_records` raises
+:class:`AcquisitionError` and nothing else, and it never returns a record that
+cannot be written (a non-finite number). The runner turns that error into a
+taint on the one sample; an unexpected exception type here used to end the run.
 """
 
 from __future__ import annotations
@@ -35,6 +40,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from pydantic import ValidationError
 
 from qr_llm_evals.tier0.records import entropy_nats, token_id_from_api_token
 from qr_llm_evals.tier0.schema import Tier0Record, TopEntry, Window
@@ -55,6 +62,15 @@ class AcquisitionError(ValueError):
     """The two sources disagree or a source is malformed for this ``sample_ref``."""
 
 
+class MissingLogprobError(AcquisitionError):
+    """The API returned a token without a log-probability.
+
+    Kept apart from the other acquisition errors because nothing is wrong with
+    the sample's randomness: the runner writes no token records and raises a
+    flag, where every other acquisition error is a taint.
+    """
+
+
 @dataclass(frozen=True, slots=True)
 class ApiToken:
     """Normalised view of one API logprob entry."""
@@ -73,15 +89,18 @@ def engine_log_path(log_dir: Path, request_id: str) -> Path:
 def normalise_api_tokens(chunks: Iterable[Any]) -> list[ApiToken]:
     """Accept ``TokenLogprob`` objects or ``as_record()`` dicts (``top_logprobs`` as pairs or dicts)."""
     out: list[ApiToken] = []
-    for item in chunks:
+    for index, item in enumerate(chunks):
         if isinstance(item, Mapping):
             token = str(item["token"])
-            logprob = float(item["logprob"])
+            raw_logprob = item.get("logprob")
             raw_tops = item.get("top_logprobs") or []
         else:
             token = str(item.token)
-            logprob = float(item.logprob)
+            raw_logprob = item.logprob
             raw_tops = list(getattr(item, "top_logprobs", ()) or ())
+        if raw_logprob is None:
+            raise MissingLogprobError(f"token {index} came back without a log-probability")
+        logprob = float(raw_logprob)
         tops: list[tuple[str, float]] = []
         for alt in raw_tops:
             if isinstance(alt, Mapping):
@@ -235,7 +254,65 @@ def _engine_record(
     )
 
 
+def _non_finite(record: Tier0Record) -> list[str]:
+    """Names of the record's fields that hold NaN or an infinity."""
+    bad: list[str] = []
+    for name, value in record.model_dump().items():
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                bad.append(name)
+        elif name == "top_entries" and any(not math.isfinite(p) for _, p in value or ()):
+            bad.append(name)
+    return bad
+
+
 def build_records(
+    sample_ref: str,
+    api_logprobs_chunks: Iterable[Any],
+    engine_log_path: Path | None = None,
+    *,
+    timestamp_ns: int = 0,
+    session_id: str | None = None,
+    window: Window = "unsupervised",
+) -> list[Tier0Record]:
+    """Records for one generation; every failure is an :class:`AcquisitionError`.
+
+    See :func:`_build_records` for the arguments. A value outside what a record
+    allows, a field of the wrong type and a number that is not finite all raise
+    ``AcquisitionError`` here, with a message that names the field and never
+    quotes the value.
+    """
+    try:
+        records = _build_records(
+            sample_ref,
+            api_logprobs_chunks,
+            engine_log_path,
+            timestamp_ns=timestamp_ns,
+            session_id=session_id,
+            window=window,
+        )
+    except AcquisitionError:
+        raise
+    except ValidationError as err:
+        fields = sorted({str(e["loc"][0]) for e in err.errors() if e.get("loc")})
+        raise AcquisitionError(
+            f"{sample_ref}: a token record does not validate ({', '.join(fields) or 'record'})"
+        ) from err
+    except (ValueError, KeyError, TypeError, IndexError, OverflowError) as err:
+        raise AcquisitionError(
+            f"{sample_ref}: token records could not be built ({type(err).__name__})"
+        ) from err
+    for record in records:
+        bad = _non_finite(record)
+        if bad:
+            raise AcquisitionError(
+                f"{sample_ref}[{record.token_index}]: a value that is not finite in "
+                f"{', '.join(bad)}"
+            )
+    return records
+
+
+def _build_records(
     sample_ref: str,
     api_logprobs_chunks: Iterable[Any],
     engine_log_path: Path | None = None,
@@ -294,6 +371,7 @@ __all__ = [
     "ENTROPY_RAW_TOP20_LABEL",
     "AcquisitionError",
     "ApiToken",
+    "MissingLogprobError",
     "build_records",
     "engine_log_path",
     "normalise_api_tokens",

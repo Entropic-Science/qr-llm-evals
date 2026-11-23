@@ -1,0 +1,551 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "HealthSummary.json",
+  "$defs": {
+    "Caution": {
+      "additionalProperties": false,
+      "description": "One thing a reader should know before trusting a comparison. Never a verdict.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "flag_share",
+            "run_not_complete",
+            "open_halt",
+            "reader_versions"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "description": "The caution as one complete sentence.",
+          "title": "Text",
+          "type": "string"
+        },
+        "card_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The card a flag caution is about.",
+          "title": "Card Id"
+        },
+        "flag": {
+          "anyOf": [
+            {
+              "enum": [
+                "empty_output",
+                "truncated",
+                "repetition",
+                "garbled",
+                "reasoning_in_output",
+                "tier0_missing",
+                "u_outside_bracket",
+                "score_error",
+                "unparsed",
+                "judge_failed",
+                "judge_unreadable",
+                "judge_out_of_range",
+                "judge_cut"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The flag kind a flag caution is about.",
+          "title": "Flag"
+        },
+        "arms": {
+          "description": "For a flag: every arm of the card side by side, also those below the line. Empty for any other caution.",
+          "items": {
+            "$ref": "#/$defs/CautionArm"
+          },
+          "title": "Arms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "card_id",
+        "flag",
+        "arms"
+      ],
+      "title": "Caution",
+      "type": "object"
+    },
+    "CautionArm": {
+      "additionalProperties": false,
+      "description": "One arm's numbers in a caution about a flag.",
+      "properties": {
+        "arm_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "count": {
+          "description": "Completed samples that carry the flag.",
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "completed": {
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "count / completed; empty when nothing completed.",
+          "title": "Share"
+        }
+      },
+      "required": [
+        "arm_id",
+        "role",
+        "count",
+        "completed",
+        "share"
+      ],
+      "title": "CautionArm",
+      "type": "object"
+    },
+    "CellHealth": {
+      "additionalProperties": false,
+      "description": "The counts of one arm and card pair.",
+      "properties": {
+        "arm_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "role": {
+          "description": "What kind of arm this is, in words.",
+          "title": "Role",
+          "type": "string"
+        },
+        "planned": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Samples the runner planned for the pair, from the progress it recorded; empty when no plan was recorded.",
+          "title": "Planned"
+        },
+        "completed": {
+          "description": "Samples that have a completed reply.",
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "errored": {
+          "description": "Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.",
+          "minimum": 0,
+          "title": "Errored",
+          "type": "integer"
+        },
+        "taints": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Samples that carry a taint, by kind; `other` counts taints of a kind this harness does not know.",
+          "title": "Taints",
+          "type": "object"
+        },
+        "flags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "propertyNames": {
+                "enum": [
+                  "empty_output",
+                  "truncated",
+                  "repetition",
+                  "garbled",
+                  "reasoning_in_output",
+                  "tier0_missing",
+                  "u_outside_bracket",
+                  "score_error",
+                  "unparsed",
+                  "judge_failed",
+                  "judge_unreadable",
+                  "judge_out_of_range",
+                  "judge_cut"
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Samples that were flagged, by kind; empty for a run made before result checks.",
+          "title": "Flags"
+        },
+        "judgements": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Samples by what became of their judgement; the latest row of a sample counts.",
+          "propertyNames": {
+            "enum": [
+              "ok",
+              "failed",
+              "unreadable",
+              "out_of_range",
+              "no_score"
+            ]
+          },
+          "title": "Judgements",
+          "type": "object"
+        }
+      },
+      "required": [
+        "arm_id",
+        "card_id",
+        "role",
+        "planned",
+        "completed",
+        "errored",
+        "taints",
+        "flags",
+        "judgements"
+      ],
+      "title": "CellHealth",
+      "type": "object"
+    },
+    "FlagLegend": {
+      "additionalProperties": false,
+      "description": "One flag kind as the catalogue describes it, so a page needs no text of its own.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "empty_output",
+            "truncated",
+            "repetition",
+            "garbled",
+            "reasoning_in_output",
+            "tier0_missing",
+            "u_outside_bracket",
+            "score_error",
+            "unparsed",
+            "judge_failed",
+            "judge_unreadable",
+            "judge_out_of_range",
+            "judge_cut"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "generation",
+            "tier0",
+            "score",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "sentence": {
+          "title": "Sentence",
+          "type": "string"
+        },
+        "cautions": {
+          "description": "False for a kind that never raises a caution.",
+          "title": "Cautions",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "phase",
+        "label",
+        "sentence",
+        "cautions"
+      ],
+      "title": "FlagLegend",
+      "type": "object"
+    },
+    "Halt": {
+      "additionalProperties": false,
+      "description": "One stop of a run by a result check, kept in ``Run.halts``.\n\nA stop is a pause with a stored reason: nothing is removed and nothing\nresumes by itself. ``resumed_at`` is empty while the halt is open and is\nstamped by the run that the host resumes.\n\nA halt is written to ``run.json``, sent as an event and served on open\nroutes, so it must never hold a key (AGENTS.md invariant 3). The record\nsees to that itself: its text passes through the log redaction, and a\ncause or count is kept under its own name only when that name has the\nshape of one the harness writes. Free text, such as an upstream error\nmessage, is tallied as :data:`OTHER_CAUSE`.",
+      "properties": {
+        "rule": {
+          "enum": [
+            "generation_errors",
+            "entropy_degraded",
+            "tier0_failed",
+            "scorer_errors",
+            "empty_outputs",
+            "nothing_parsed",
+            "unfinished",
+            "judge_rejected",
+            "judge_unusable",
+            "nothing_judged",
+            "judge_phase_error"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "arm",
+            "card",
+            "phase",
+            "run"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The arm or the card the rule fired for; empty otherwise.",
+          "title": "Scope Id"
+        },
+        "phase": {
+          "enum": [
+            "preflight",
+            "generation",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "sentence": {
+          "description": "What the rule saw, with the real scope and counts.",
+          "title": "Sentence",
+          "type": "string"
+        },
+        "recovery": {
+          "description": "What Resume can and cannot recover after this stop.",
+          "title": "Recovery",
+          "type": "string"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+        },
+        "causes": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "A tally by cause in the harness's own words (an HTTP status, a class name).",
+          "title": "Causes",
+          "type": "object"
+        },
+        "sample_refs": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Sample Refs",
+          "type": "array"
+        },
+        "resumed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resumed At"
+        }
+      },
+      "required": [
+        "rule",
+        "scope",
+        "phase",
+        "at",
+        "sentence",
+        "recovery"
+      ],
+      "title": "Halt",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "``GET /api/runs/{id}/health``: what a run folder holds and what to be careful about.",
+  "properties": {
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "study_id": {
+      "title": "Study Id",
+      "type": "string"
+    },
+    "state": {
+      "anyOf": [
+        {
+          "enum": [
+            "created",
+            "ready",
+            "running",
+            "paused",
+            "needs_keys",
+            "analysing",
+            "complete",
+            "aborted"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "other",
+          "type": "string"
+        }
+      ],
+      "description": "The run's state; `other` when run.json holds a state this harness does not know.",
+      "title": "State"
+    },
+    "checks_version": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Version of the result checks the run started under.",
+      "title": "Checks Version"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Set for a run made before result checks; it has no flag counts.",
+      "title": "Note"
+    },
+    "halts": {
+      "description": "Every stop of the run by a check, oldest first.",
+      "items": {
+        "$ref": "#/$defs/Halt"
+      },
+      "title": "Halts",
+      "type": "array"
+    },
+    "cells": {
+      "description": "One row for each arm and card pair.",
+      "items": {
+        "$ref": "#/$defs/CellHealth"
+      },
+      "title": "Cells",
+      "type": "array"
+    },
+    "taints": {
+      "additionalProperties": {
+        "type": "integer"
+      },
+      "description": "Tainted samples and windows of the whole run, by kind; `other` counts taints of a kind this harness does not know.",
+      "title": "Taints",
+      "type": "object"
+    },
+    "tainted_samples": {
+      "description": "Samples that carry any taint.",
+      "minimum": 0,
+      "title": "Tainted Samples",
+      "type": "integer"
+    },
+    "cautions": {
+      "items": {
+        "$ref": "#/$defs/Caution"
+      },
+      "title": "Cautions",
+      "type": "array"
+    },
+    "flag_kinds": {
+      "description": "Every flag kind, in the catalogue's order.",
+      "items": {
+        "$ref": "#/$defs/FlagLegend"
+      },
+      "title": "Flag Kinds",
+      "type": "array"
+    }
+  },
+  "required": [
+    "run_id",
+    "study_id",
+    "state",
+    "checks_version",
+    "note",
+    "halts",
+    "cells",
+    "taints",
+    "tainted_samples",
+    "cautions",
+    "flag_kinds"
+  ],
+  "title": "HealthSummary",
+  "type": "object"
+}

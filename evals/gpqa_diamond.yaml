@@ -6,13 +6,13 @@ purpose: Pass-rate vector over k on 198 graduate-level questions answered genera
   still moves at the frontier.
 tier: 3
 family: capability
-engine: inspect
-inspect_task: inspect_evals/gpqa_diamond
-task_module: null
+engine: thin
+inspect_task: null
+task_module: evals/gpqa_diamond/task.py
 task_args: {}
 dataset:
   source: hf:Idavidrein/gpqa
-  revision: null
+  revision: sha256:41d1213cd7a4998605a26c2798500652572007161b3a92817ba46b35befcd305
   items: 198
   subsample: null
 generation: free
@@ -38,7 +38,12 @@ endpoints:
 paired_stat: permutation_within_prompt
 sesoi: {}
 exceptions: []
-status: planned
-selectable: false
+status: implemented
+selectable: true
 notes: Registry proposed k=8; raised to the admission floor of 10 (9.9M tokens per arm). Answers are generated
-  with CoT, not letter-only, so the sampler is consulted throughout.
+  with CoT, not letter-only, so the sampler is consulted throughout. Prompt, fixed choice order (seed 42)
+  and answer parser are those of inspect_evals/gpqa_diamond (commit c2d3d5e), run on the thin runner. The
+  questions are read at run start from the public CSV upstream uses; the revision is that file's SHA-256,
+  because the Hugging Face home of the dataset is gated. The questions carry a canary string and are never
+  committed. The analysis reads one value per reply (pass_at_1); answer_entropy and maj_at_k are computed
+  per question by the task module for description.

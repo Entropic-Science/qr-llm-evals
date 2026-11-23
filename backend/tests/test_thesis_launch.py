@@ -126,14 +126,20 @@ def test_a_study_naming_the_derived_cards_can_be_launched(client: TestClient, st
 
 
 def test_a_planned_card_still_cannot_be_launched(client: TestClient) -> None:
+    # The registry has no planned eval any more, so one is made from a copy.
+    cards = client.app.state.qr.cards  # type: ignore[attr-defined]
+    cards["livecodebench"] = cards["livecodebench"].model_copy(
+        update={"status": "planned", "selectable": False}
+    )
     config = yaml.safe_load((REPO_ROOT / "studies/study1.yaml").read_text(encoding="utf-8"))
-    config["cards"] = [{"card_id": "darkbench"}]
+    config["cards"] = [{"card_id": "livecodebench"}]
     refused = client.post(
         "/api/runs",
         json={"config": config, "kind": "pilot", "provider_keys": {"anthropic": JUDGE_KEY}},
         headers=_auth(client),
     )
-    assert refused.status_code == 400 and "darkbench" in refused.json()["error"]["message"]
+    assert refused.status_code == 400
+    assert "livecodebench" in refused.json()["error"]["message"]
 
 
 # ── the launch script ────────────────────────────────────────────────────────

@@ -1,12 +1,19 @@
 """Run lifecycle routes (spec §2.4, §4.7, D-13, D-14).
 
 ``POST /runs`` (session or launch key)
-    Quota check → freeze the study (config + prereg) → create the run record
-    with the host token's hash → put the BYO keys into the run's ``SecretBag``.
-    Returns the host token exactly once.
+    Quota check → freeze the study (config + prereg, and for a designed study
+    its analysis plan) → create the run record with the host token's hash →
+    put the BYO keys into the run's ``SecretBag``. Returns the host token
+    exactly once. A study that is already frozen with the same config is not
+    frozen again: it keeps its pre-registration and plan and gets the new run.
+    A designed study takes runs only from the launcher who registered it.
 ``GET /runs/{id}``
     The stored record (which structurally cannot hold a secret: ``keys_present``
-    booleans only) plus live facts from the registry.
+    booleans only) plus live facts from the registry. The record carries the
+    run's ``halts`` (every stop by a result check) and its ``checks_version``.
+``GET /runs/{id}/health``
+    The health summary of the run (``store.health``): counts per arm and card,
+    the halts and the cautions. Open, like ``GET /runs/{id}``.
 ``POST /runs/{id}/control`` (host token)
     ``start`` / ``pause`` / ``resume`` / ``abort``. ``start`` and ``resume`` are
     the only ways into ``running`` (AGENTS.md invariant 6).
@@ -32,7 +39,9 @@ from qr_llm_evals.api.deps import (
 )
 from qr_llm_evals.api.errors import ApiError
 from qr_llm_evals.api.gates import check_external_models, check_owner_can_generate, has_charged_arms
+from qr_llm_evals.api.routes.analysis import archive_plan, frozen_plan
 from qr_llm_evals.api.routes.estimates import estimate_study
+from qr_llm_evals.api.routes.run_health import run_health
 from qr_llm_evals.api.schema import (
     LaunchRequest,
     LaunchResponse,
@@ -43,10 +52,15 @@ from qr_llm_evals.api.schema import (
     RunView,
 )
 from qr_llm_evals.cards.schema import EvalCard
+from qr_llm_evals.cards.statistical_plan import StatisticalPlan
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.runner.control import RunControlError
 from qr_llm_evals.runner.judge_phase import needs_study_judge
+from qr_llm_evals.store.artifacts import read_json
+from qr_llm_evals.store.bundle import derive_study_id, prereg_sha256
+from qr_llm_evals.store.health import HealthSummary
+from qr_llm_evals.store.paths import StudyDir
 from qr_llm_evals.store.schema import Run
 
 log = logging.getLogger("qr_llm_evals.api.runs")
@@ -119,11 +133,13 @@ def _check_token_quota(state: AppState, launcher: Launcher, body: LaunchRequest)
     """Refuse a full run whose estimate the owner's remaining budget cannot cover.
 
     :func:`check_owner_can_generate` has already refused a spent budget. Only
-    qr-server arms are charged. A pilot is much smaller than the study
-    estimate, so it only needs a budget that is not already spent. A run that
-    outgrows the budget anyway is paused when it reaches zero
-    (:mod:`qr_llm_evals.api.usage`); two launches at once are not reserved
-    against each other, and that pause is what bounds the overshoot.
+    qr-server arms are charged. A pilot is not held to the estimate, so it
+    only needs a budget that is not already spent. That is a choice, not a
+    saving: the run kind does not shorten a run, and a pilot generates the
+    study exactly as it is configured. Any run that outgrows the budget is
+    paused when it reaches zero (:mod:`qr_llm_evals.api.usage`); two launches
+    at once are not reserved against each other, and that pause is what bounds
+    the overshoot.
     """
     if launcher.owner_id is None or body.kind != "full" or not has_charged_arms(body.config):
         return
@@ -157,6 +173,67 @@ def _clean_keys(provider_keys: dict[str, str | None]) -> dict[str, str | None]:
     return cleaned
 
 
+def _frozen_study(state: AppState, config: StudyConfig) -> StudyDir | None:
+    """The study already frozen with exactly this config; ``None`` if there is none."""
+    try:
+        study_dir = state.store.study(derive_study_id(config))
+    except FileNotFoundError:
+        return None
+    recorded = read_json(study_dir.study_json).get("config_hash")
+    return study_dir if recorded == config_hash(config) else None
+
+
+def _launched_by(owner_id: str | None, key_name: str) -> tuple[str, str]:
+    """Who launched: the account, or the launch key of a run launched without one."""
+    return ("account", owner_id) if owner_id is not None else ("key", key_name)
+
+
+def _check_registered_by(state: AppState, study_dir: StudyDir, launcher: Launcher) -> None:
+    """Refuse a new run of a designed study that somebody else registered.
+
+    A study is identified by its config alone, and a frozen config is public.
+    Only the first full run of a designed study is confirmatory, so a run
+    added by anybody else could use up that run, or stand before it. The
+    study therefore takes runs only from the launcher of the runs it has.
+    """
+    ours = _launched_by(launcher.owner_id, launcher.quota_id)
+    for run_id in study_dir.run_ids():
+        try:
+            run = state.store.run(study_dir.study_id, run_id).read_run()
+        except (OSError, ValueError):
+            continue  # an unreadable record names no launcher
+        if _launched_by(run.owner_id, run.key_name) != ours:
+            raise ApiError(
+                409,
+                f"study {study_dir.study_id!r} was registered by another account, and only "
+                "that account can add runs to it. To run this design as your own study, "
+                "change its title or its creation time (created_at) and launch it again; "
+                "it is then registered under your account as a study of its own.",
+                param="config",
+            )
+
+
+def _relaunch_is_stale(state: AppState, body: LaunchRequest, frozen_hash: str) -> bool:
+    """Whether the document the host exported belongs to another study than the frozen one.
+
+    The pre-registration prints the readiness report it was rendered with, so
+    the same study rendered for a later launch has other bytes and another
+    hash. That is not a stale document: the config is the frozen one, and the
+    frozen document is the one the run is recorded under. The flag is raised
+    only when the host's hash is neither the frozen document's nor that of
+    this launch's own rendering, or when the host presented no hash at all.
+    """
+    if body.prereg_hash is None:
+        return True
+    if body.prereg_hash == frozen_hash:
+        return False
+    try:
+        rendered = state.prereg_renderer(body.config, body.readiness)
+    except ValueError:
+        return True  # nothing to compare the host's hash with
+    return body.prereg_hash != prereg_sha256(rendered)
+
+
 @router.post("/runs", response_model=LaunchResponse, status_code=201)
 async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> LaunchResponse:
     _check_cards(state, body.config)
@@ -167,19 +244,52 @@ async def launch_run(body: LaunchRequest, state: State, key: LaunchAuth) -> Laun
     _check_token_quota(state, key, body)
     _check_judge_key(state, body.config, secrets)
 
-    try:
-        prereg_md = state.prereg_renderer(body.config, body.readiness)
-    except ValueError as err:
-        raise ApiError(400, str(err), param="config") from err
-    try:
-        study_dir = state.store.freeze_study(body.config, prereg_md)
-    except FileExistsError as err:
-        raise ApiError(409, str(err), param="config") from err
-    # The hash of the prereg actually frozen with this config (a study frozen
-    # earlier keeps its original document); the host's exported hash must match
-    # it, otherwise the config changed after the prereg was rendered.
-    frozen_hash = study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0]
-    prereg_stale = body.prereg_hash != frozen_hash
+    study_dir = _frozen_study(state, body.config)
+    if study_dir is not None:
+        # A relaunch: a pilot and then the full run, or a run after an aborted
+        # one. The study was registered at its first launch and stays as it is.
+        # Nothing is frozen or compared with the frozen document here, because
+        # a document rendered now carries this launch's readiness report and
+        # would never equal it.
+        if body.config.design is not None:
+            _check_registered_by(state, study_dir, key)
+            try:
+                # The registered plan, checked against the frozen document. A
+                # plan file lost since the first launch is restored only if the
+                # registry still gives the registered plan.
+                frozen_plan(state, study_dir.study_id)
+            except (OSError, ValueError) as err:
+                raise ApiError(
+                    409, f"frozen analysis plan is unavailable: {err}", param="config"
+                ) from err
+        frozen_hash = study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0]
+        prereg_stale = _relaunch_is_stale(state, body, frozen_hash)
+    else:
+        try:
+            prereg_md = state.prereg_renderer(body.config, body.readiness)
+            # A designed study's verdicts are read off its plan. The plan is built
+            # before anything is frozen, so a design the plan refuses leaves no
+            # study behind, and it is archived with the study instead of at the
+            # first analysis, so code deployed in between cannot change it. A
+            # study without a design block keeps the lazy write.
+            plan = (
+                StatisticalPlan.from_config(body.config, state.cards)
+                if body.config.design is not None
+                else None
+            )
+        except ValueError as err:
+            raise ApiError(400, str(err), param="config") from err
+        try:
+            study_dir = state.store.freeze_study(body.config, prereg_md)
+        except FileExistsError as err:
+            raise ApiError(409, str(err), param="config") from err
+        if plan is not None:
+            archive_plan(study_dir.path, plan)
+        # The hash of the prereg frozen with this config; the host's exported
+        # hash must match it, otherwise the config changed after the prereg was
+        # rendered.
+        frozen_hash = study_dir.prereg_sha256.read_text(encoding="utf-8").split()[0]
+        prereg_stale = body.prereg_hash != frozen_hash
 
     host_token = new_host_token()
     run = Run(
@@ -235,6 +345,17 @@ async def get_run(run_id: str, state: State) -> RunView:
         subscribers=live.bus.subscriber_count if live is not None else 0,
         readiness=run_store.read_readiness(),
     )
+
+
+@router.get("/runs/{run_id}/health", response_model=HealthSummary)
+def get_run_health(run_id: str, state: State) -> HealthSummary:
+    """What the run folder holds and what a reader should be careful about.
+
+    As open as ``GET /runs/{id}``: the summary holds counts, the halts and
+    sentences the harness wrote, and nothing about the launching account. It
+    reads every stored row, so the handler runs on a worker thread.
+    """
+    return run_health(state.run_store(run_id))
 
 
 @router.post("/runs/{run_id}/control", response_model=RunControlResponse)

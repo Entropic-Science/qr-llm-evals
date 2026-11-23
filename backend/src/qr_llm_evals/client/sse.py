@@ -12,6 +12,11 @@ extended with:
   surface as :attr:`ChatChunk.delta_thinking` for the supervised viewer;
 * the final usage-only frame (``stream_options.include_usage``) is a chunk
   with empty deltas and :attr:`ChatChunk.usage` set.
+
+Two things the parser never invents: a ``data:`` line that is not valid JSON
+raises :class:`MalformedFrameError` (the caller records a failed stream), and
+a token the server sent without a log-probability keeps ``logprob=None``
+rather than a made-up ``0.0``, which would read as probability 1.
 """
 
 from __future__ import annotations
@@ -24,6 +29,16 @@ SSE_DATA_PREFIX = "data:"
 SSE_DONE = "[DONE]"
 
 
+class MalformedFrameError(Exception):
+    """A ``data:`` line of the stream is not valid JSON.
+
+    The message is written here and never carries the line itself.
+    """
+
+    def __init__(self) -> None:
+        super().__init__("the stream held a data line that is not valid JSON")
+
+
 @dataclass(frozen=True, slots=True)
 class TopLogprob:
     token: str
@@ -32,10 +47,14 @@ class TopLogprob:
 
 @dataclass(frozen=True, slots=True)
 class TokenLogprob:
-    """One sampled token with its logprob and the top-k alternatives the server returned."""
+    """One sampled token with its logprob and the top-k alternatives the server returned.
+
+    ``logprob`` is ``None`` when the server sent the token without one (or with
+    something that is not a number).
+    """
 
     token: str
-    logprob: float
+    logprob: float | None
     top_logprobs: tuple[TopLogprob, ...] = ()
     bytes_: tuple[int, ...] | None = None
 
@@ -77,17 +96,33 @@ class ChatChunk:
 
 
 def parse_sse_line(line: str) -> dict[str, Any] | None:
-    """Parse one SSE ``data:`` line; ``None`` for blanks, comments and ``[DONE]``."""
+    """Parse one SSE ``data:`` line; ``None`` for blanks, comments and ``[DONE]``.
+
+    Raises :class:`MalformedFrameError` for a ``data:`` line that is not JSON.
+    """
     line = line.strip()
     if not line or not line.startswith(SSE_DATA_PREFIX):
         return None
     payload = line[len(SSE_DATA_PREFIX) :].strip()
     if not payload or payload == SSE_DONE:
         return None
-    parsed = json.loads(payload)
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError:
+        raise MalformedFrameError from None
     if not isinstance(parsed, dict):
         return None
     return parsed
+
+
+def _logprob(value: Any) -> float | None:
+    """A log-probability as the server sent it, or ``None`` when it sent none."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_logprobs(obj: Any) -> list[TokenLogprob]:
@@ -100,17 +135,15 @@ def _parse_logprobs(obj: Any) -> list[TokenLogprob]:
     for item in content:
         if not isinstance(item, dict) or "token" not in item:
             continue
-        try:
-            logprob = float(item.get("logprob", 0.0))
-        except (TypeError, ValueError):
-            continue
+        # The token stays in the sequence without a number: dropping it would
+        # shift every later token, and 0.0 would claim probability 1.
+        logprob = _logprob(item.get("logprob"))
         tops: list[TopLogprob] = []
         for alt in item.get("top_logprobs") or []:
             if isinstance(alt, dict) and "token" in alt:
-                try:
-                    tops.append(TopLogprob(str(alt["token"]), float(alt.get("logprob", 0.0))))
-                except (TypeError, ValueError):
-                    continue
+                alt_logprob = _logprob(alt.get("logprob"))
+                if alt_logprob is not None:  # an alternative without a number says nothing
+                    tops.append(TopLogprob(str(alt["token"]), alt_logprob))
         raw_bytes = item.get("bytes")
         bytes_ = (
             tuple(int(b) for b in raw_bytes)
@@ -171,6 +204,7 @@ __all__ = [
     "SSE_DATA_PREFIX",
     "SSE_DONE",
     "ChatChunk",
+    "MalformedFrameError",
     "TokenLogprob",
     "TopLogprob",
     "chunk_from_obj",

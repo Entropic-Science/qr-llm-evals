@@ -122,6 +122,124 @@
       "title": "EntropyHealth",
       "type": "object"
     },
+    "Halt": {
+      "additionalProperties": false,
+      "description": "One stop of a run by a result check, kept in ``Run.halts``.\n\nA stop is a pause with a stored reason: nothing is removed and nothing\nresumes by itself. ``resumed_at`` is empty while the halt is open and is\nstamped by the run that the host resumes.\n\nA halt is written to ``run.json``, sent as an event and served on open\nroutes, so it must never hold a key (AGENTS.md invariant 3). The record\nsees to that itself: its text passes through the log redaction, and a\ncause or count is kept under its own name only when that name has the\nshape of one the harness writes. Free text, such as an upstream error\nmessage, is tallied as :data:`OTHER_CAUSE`.",
+      "properties": {
+        "rule": {
+          "enum": [
+            "generation_errors",
+            "entropy_degraded",
+            "tier0_failed",
+            "scorer_errors",
+            "empty_outputs",
+            "nothing_parsed",
+            "unfinished",
+            "judge_rejected",
+            "judge_unusable",
+            "nothing_judged",
+            "judge_phase_error"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "arm",
+            "card",
+            "phase",
+            "run"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The arm or the card the rule fired for; empty otherwise.",
+          "title": "Scope Id"
+        },
+        "phase": {
+          "enum": [
+            "preflight",
+            "generation",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "sentence": {
+          "description": "What the rule saw, with the real scope and counts.",
+          "title": "Sentence",
+          "type": "string"
+        },
+        "recovery": {
+          "description": "What Resume can and cannot recover after this stop.",
+          "title": "Recovery",
+          "type": "string"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+        },
+        "causes": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "A tally by cause in the harness's own words (an HTTP status, a class name).",
+          "title": "Causes",
+          "type": "object"
+        },
+        "sample_refs": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Sample Refs",
+          "type": "array"
+        },
+        "resumed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resumed At"
+        }
+      },
+      "required": [
+        "rule",
+        "scope",
+        "phase",
+        "at",
+        "sentence",
+        "recovery"
+      ],
+      "title": "Halt",
+      "type": "object"
+    },
     "Progress": {
       "additionalProperties": false,
       "properties": {
@@ -374,6 +492,28 @@
           "description": "e.g. {'judge': true, 'openai': false}.",
           "title": "Keys Present",
           "type": "object"
+        },
+        "halts": {
+          "description": "Every stop of the run by a result check, oldest first; never shortened.",
+          "items": {
+            "$ref": "#/$defs/Halt"
+          },
+          "title": "Halts",
+          "type": "array"
+        },
+        "checks_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version of the result checks the run started under; empty for a run made before result checks.",
+          "title": "Checks Version"
         }
       },
       "required": [

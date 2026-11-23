@@ -521,6 +521,32 @@ def test_clean_view_matches_a_clean_load_and_shares_records(tmp_path: Path) -> N
     assert report["as_assigned"]["claim_replies_set_aside"][QUANTUM] == 1
 
 
+def test_clean_view_of_a_fully_tainted_arm_is_empty_in_both_loads(tmp_path: Path) -> None:
+    """Every quantum reply is tainted: neither way of loading the clean data keeps one.
+
+    The direct load used to keep all of them when the arm had no clean reply
+    left, so the two loads disagreed exactly when the taint mattered most.
+    """
+    from qr_llm_evals.analysis.endpoints import exclude_tainted
+
+    run_dir = _synthetic_run(tmp_path, told_effect=0.3, with_tier0=True)
+    card = "self_referential_probe"
+    everything = load_data(run_dir, include_tainted=True)
+    refs = [row["sample_ref"] for row in everything.scores[card][QUANTUM]]
+    assert len(refs) == 900
+    _write_jsonl(
+        run_dir / "taints.jsonl", [{"sample_ref": ref, "kind": "qrng_degraded"} for ref in refs]
+    )
+    clean = exclude_tainted(everything)
+    direct = load_data(run_dir)
+    assert clean.scores[card][QUANTUM] == direct.scores[card][QUANTUM] == []
+    assert clean.tier0[card][QUANTUM] == [] and not direct.tier0[card].get(QUANTUM)
+    for arm in SEEDS:
+        assert direct.scores[card][arm] == clean.scores[card][arm]
+        assert len(direct.scores[card][arm]) == 900
+        assert len(direct.tier0[card][arm]) == len(clean.tier0[card][arm]) > 0
+
+
 # ── guards added at integration ──────────────────────────────────────────────
 
 
