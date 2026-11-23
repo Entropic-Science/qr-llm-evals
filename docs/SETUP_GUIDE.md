@@ -894,7 +894,8 @@ record is in `run.json` under `halts` and at
    for a reply that was received.
 5. If the backend was restarted after the stop, the run is `needs_keys` and
    the stop is still open. Supply the keys on the run page, then press
-   Resume.
+   Resume. A run that was launched without any provider key is `paused`
+   after a restart and needs only Resume.
 
 Abort only when the run is not worth finishing. An aborted run cannot be
 resumed, and the server analyses only a complete run. What is stored is
@@ -1078,7 +1079,8 @@ sessions automatically.
 4. At day end, pause at a completed-generation boundary. Keep the same frozen
    study and run across days; verify persisted progress before continuing.
    Browser disconnect does not stop the server-side run. Following a backend
-   restart, re-enter BYO keys when `needs_keys` is shown and explicitly resume;
+   restart, re-enter BYO keys when `needs_keys` is shown and explicitly resume
+   (a run launched without keys is shown as `paused` and is resumed directly);
    inspect incomplete/tainted records instead of rerunning paid samples blindly.
    A result check that stops the run ends the sitting at its boundary, as a
    host pause does; see "When a check stops a run" in section 6.

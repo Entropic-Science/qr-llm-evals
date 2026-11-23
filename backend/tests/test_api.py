@@ -1053,7 +1053,7 @@ async def test_restart_orphans_runs_into_needs_keys(settings: Settings) -> None:
 
 
 def test_mark_orphans_only_touches_unfinished_runs() -> None:
-    def run(run_id: str, state: str) -> Run:
+    def run(run_id: str, state: str, *, key: bool = True) -> Run:
         return Run(
             run_id=run_id,
             study_id="s",
@@ -1063,6 +1063,7 @@ def test_mark_orphans_only_touches_unfinished_runs() -> None:
             key_name="alice",
             host_token_hash="a" * 64,
             config_hash="b" * 64,
+            keys_present={"openai": False, "anthropic": key, "custom": False},
         )
 
     written: list[Run] = []
@@ -1072,6 +1073,27 @@ def test_mark_orphans_only_touches_unfinished_runs() -> None:
     )
     assert flipped == ["a", "c"]
     assert all(r.state == "needs_keys" and r.needs_keys for r in written)
+
+
+def test_mark_orphans_pauses_a_run_that_held_no_key() -> None:
+    """Such a run has no key to supply again, and the keys route refuses an empty request."""
+    run = Run(
+        run_id="a",
+        study_id="s",
+        kind="pilot",
+        state="running",
+        created_at=NOW,
+        key_name="alice",
+        host_token_hash="a" * 64,
+        config_hash="b" * 64,
+        keys_present={"openai": False, "anthropic": False, "custom": False},
+    )
+    written: list[Run] = []
+    assert mark_orphans([run, run.model_copy(update={"keys_present": {}})], written.append) == [
+        "a",
+        "a",
+    ]
+    assert [(r.state, r.needs_keys) for r in written] == [("paused", False), ("paused", False)]
 
 
 # ── readiness route ───────────────────────────────────────────────────────────
