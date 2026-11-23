@@ -71,6 +71,9 @@ describe("Run page: stopped by a check", () => {
     expect(notice.compareDocumentPosition(controlBar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     fireEvent.click(within(controlBar).getByRole("button", { name: "Resume" }));
     await waitFor(() => expect(controls).toEqual([{ action: "resume" }]));
+    // The answer names the state the record had when the request was taken, so the page does not repeat it as the state now.
+    await waitFor(() => expect(controlBar).toHaveTextContent("Resume accepted. The run state above changes to running when the run has taken up its work again."));
+    expect(controlBar).not.toHaveTextContent("Run is paused.");
   });
 
   it("follows the open stop, not the run's state", async () => {

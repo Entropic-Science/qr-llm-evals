@@ -532,6 +532,9 @@ export interface Run {
   tier0_source?: ("engine_log" | "api_logprobs") | null;
   determinism_tier?: "none" | "sampling_deterministic" | "serialized_replay" | "load_invariant";
   progress?: Progress;
+  /**
+   * Never written: always an empty list. The taints of a run are the lines of taints.jsonl; their counts are on GET /runs/{id}/health and in StudyView.health.
+   */
   taints?: Taint[];
   withdrawn?: boolean;
   needs_keys?: boolean;
@@ -657,11 +660,20 @@ export interface Taint {
  * stamped by the run that the host resumes.
  *
  * A halt is written to ``run.json``, sent as an event and served on open
- * routes, so it must never hold a key (AGENTS.md invariant 3). The record
- * sees to that itself: its text passes through the log redaction, and a
- * cause or count is kept under its own name only when that name has the
- * shape of one the harness writes. Free text, such as an upstream error
- * message, is tallied as :data:`OTHER_CAUSE`.
+ * routes, so it must never hold a key (AGENTS.md invariant 3). The Breaker
+ * writes fixed sentences and the harness's own names, and the record guards
+ * what it is given all the same. A cause or count is kept under its own name
+ * only when that name has the shape of one the harness writes
+ * (``_HALT_NAME``) or is one of the catalogue's phrases; anything else, such
+ * as an upstream error message, is tallied as :data:`OTHER_CAUSE`. The
+ * sentence, the recovery text, ``scope_id`` and the sample refs pass through
+ * the log redaction, which takes out a key a running run holds and a key of
+ * a known provider shape.
+ *
+ * The limit of that guard: a key that no run holds any more and that has no
+ * known shape is not recognised in those four text fields, nor as a cause
+ * written like an arm and eval pair (``x/y``). Only a hand-edited
+ * ``run.json`` or a caller that passes free text can put one there.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "Halt".

@@ -500,6 +500,57 @@ def test_a_halt_keeps_harness_names_and_tallies_everything_else_as_other() -> No
     assert Halt.model_validate(halt.model_dump(mode="json")) == halt
 
 
+@pytest.mark.parametrize(
+    "key",
+    [
+        "AIzaSyD4x8Qk2mN7pR1tV5wY9zB3cF6hJ0lM2nO",  # a key with letters and digits
+        "hf_AbCdEfGhIjKlMnOpQrStUvWxYz012345",
+        "ghp_16C7e42F292c6912E7710c838347Ae178B4a",
+        "d41d8cd98f00b204e9800998ecf8427e",  # 32 hex digits
+        "abcdefabcdefabcdefabcdefabcdefab",  # 32 hex digits that are all letters
+        "Xy7Kq2Lm9Pz4Rt6Vb8Nc1Df3Gh5Jw0Qs",
+        "api_key_9f8e7d6c5b4a",
+        "token.9f8e7d6c5b4a3f2e1d0c",
+        # A sentence from outside the harness is not a name, even one of plain words.
+        "Unauthorized invalid key",
+        "your credit balance is too low",
+    ],
+)
+def test_a_cause_that_looks_like_a_key_or_a_sentence_is_tallied_as_other(key: str) -> None:
+    """No run holds these keys and none has a provider shape: the shape of a name decides."""
+    halt = _halt(causes={key: 2, "HTTP 401": 1}, counts={key: 1, "in_a_row": 8})
+    assert key not in halt.model_dump_json()
+    assert halt.causes == {OTHER_CAUSE: 2, "HTTP 401": 1}
+    assert halt.counts == {OTHER_CAUSE: 1, "in_a_row": 8}
+
+
+def test_every_cause_the_harness_writes_is_kept_under_its_own_name() -> None:
+    names = [
+        *sorted(rc.CAUSE_PHRASES),
+        *sorted(rc.FLAG_KINDS),
+        "engine_fallback",
+        "qrng_degraded",
+        "stateless_row",
+        "stream_error",
+        "HTTP 529",
+        "ReadTimeout",
+        "ConnectError",
+        "RemoteProtocolError",
+        "JSONDecodeError",
+        "KeyError",
+        "FileNotFoundError",
+        "httpx.ConnectError",
+        "qrng/eval_awareness",
+        "prng_seed_7/stub_free",
+    ]
+    counts = ["in_a_row", "failed", "of_last", "status", "missing", "planned", "cells"]
+    counts += ["arms", "per_arm", "prompts"]
+    halt = _halt(causes=dict.fromkeys(names, 1), counts=dict.fromkeys(counts, 1))
+    assert halt.causes == dict.fromkeys(names, 1)
+    assert halt.counts == dict.fromkeys(counts, 1)
+    assert "non-finite score" in rc.CAUSE_PHRASES and "no finish reason" in rc.CAUSE_PHRASES
+
+
 def test_no_field_of_a_halt_can_hold_a_key() -> None:
     bag = SecretBag({"anthropic": SECRET, "custom": ODD_SECRET})
     try:

@@ -1089,12 +1089,21 @@ class Orchestrator:
                 )
         except NeedsKeysError as err:
             self._needs_keys = err
-            self._emit("error", sample_ref=job.sample_ref, message=str(err), code="needs_keys")
+            self._emit(
+                "error",
+                sample_ref=job.sample_ref,
+                message=self.secrets.redact(str(err)),
+                code="needs_keys",
+            )
         except Exception as err:  # noqa: BLE001 - recorded, run stops submitting
             logger.exception("sample %s failed", job.sample_ref)
             if self._first_error is None:
                 self._first_error = err
-            self._emit("error", sample_ref=job.sample_ref, message=f"{type(err).__name__}: {err}")
+            self._emit(
+                "error",
+                sample_ref=job.sample_ref,
+                message=self.secrets.redact(f"{type(err).__name__}: {err}"),
+            )
         finally:
             arm_slots.release()
             self._job_done(job, outcome)
@@ -1197,7 +1206,7 @@ class Orchestrator:
             except MalformedFrameError as err:
                 completion = Completion(finish_reason="error")
                 error_text = str(err)
-                cause = "malformed stream frame"
+                cause = rc.CAUSE_MALFORMED_FRAME
         coalescer.flush()
         finished = self.clock()
         elapsed = self.perf() - t0
@@ -1208,12 +1217,16 @@ class Orchestrator:
             # The engine never said why it stopped, so what arrived cannot be
             # told from a reply that was cut off. Not a completed sample.
             error_text = "the stream ended without a finish reason"
-            cause = "no finish reason"
+            cause = rc.CAUSE_NO_FINISH_REASON
         finish_reason = self._finish_reason(completion, cancel, error_text)
         completed = finish_reason in ("stop", "length")
         if finish_reason == "error" and cause is None:
-            cause = "finish reason not mapped"
+            cause = rc.CAUSE_UNMAPPED_FINISH
         if error_text is not None:
+            # The text may quote an upstream error body, and a body may repeat
+            # the key it was sent. It is stored and sent as an event, so the
+            # run's keys are taken out first (AGENTS.md invariant 3).
+            error_text = self.secrets.redact(error_text)
             taints.append(
                 Taint(sample_ref=sample_ref, kind="stream_error", detail=error_text, at=finished)
             )
@@ -1283,7 +1296,7 @@ class Orchestrator:
                 phase=finding.phase,
                 card_id=card.id,
                 arm_id=arm.id,
-                detail=finding.detail[:FLAG_DETAIL_MAX],
+                detail=self.secrets.redact(finding.detail)[:FLAG_DETAIL_MAX],
                 count=finding.count,
                 at=finished,
             )
@@ -1528,7 +1541,12 @@ class Orchestrator:
             return []
         except AcquisitionError as err:
             taints.append(
-                Taint(sample_ref=job.sample_ref, kind="stateless_row", detail=str(err), at=finished)
+                Taint(
+                    sample_ref=job.sample_ref,
+                    kind="stateless_row",
+                    detail=self.secrets.redact(str(err)),
+                    at=finished,
+                )
             )
             return []
         outside = rc.u_outside_bracket((r.u, r.cdf_lo, r.cdf_hi) for r in records)
@@ -1564,21 +1582,27 @@ class Orchestrator:
             logger.warning("score() failed for %s: %s", ref, err)
             name = type(err).__name__
             findings.append(rc.Finding("score_error", name))
-            return {"sample_ref": ref, "error": f"{name}: {err}"}, name
+            return {"sample_ref": ref, "error": self.secrets.redact(f"{name}: {err}")}, name
         row: dict[str, Any] = {"sample_ref": ref, **scores}
         bad = rc.non_finite_fields(row)
         if bad:
             names = ", ".join(bad)
             logger.warning("score() gave a value that is not finite for %s: %s", ref, names)
             findings.append(rc.Finding("score_error", f"a value that is not finite in {names}"))
-            return {"sample_ref": ref, "error": f"NonFiniteScore: {names}"}, "non-finite score"
+            return {
+                "sample_ref": ref,
+                "error": f"NonFiniteScore: {names}",
+            }, rc.CAUSE_NON_FINITE_SCORE
         try:
             encode_line(row)
         except (TypeError, ValueError) as err:
             name = type(err).__name__
             logger.warning("score() gave a row that cannot be written for %s: %s", ref, name)
             findings.append(rc.Finding("score_error", "a value that cannot be written as JSON"))
-            return {"sample_ref": ref, "error": f"UnwritableScore: {name}"}, "unwritable score"
+            return {
+                "sample_ref": ref,
+                "error": f"UnwritableScore: {name}",
+            }, rc.CAUSE_UNWRITABLE_SCORE
         unparsed = rc.unparsed(job.card.id, row)
         if unparsed is not None:
             findings.append(unparsed)

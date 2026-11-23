@@ -43,8 +43,10 @@ export function fixedRules(recs: readonly Rec[]): Rec[] {
 export function FixedRules({ recs, families }: FixedRulesProps) {
   const rules = fixedRules(recs);
   if (rules.length === 0) return null;
+  // The rows below: the rules, the Holm families when the study has hypotheses, and the result checks.
+  const rows = rules.length + (families ? 1 : 0) + 1;
   return <details className="fixed-rules">
-    <summary>Fixed by the harness <small>{rules.length} rules that are not choices</small></summary>
+    <summary>Fixed by the harness <small>{rows} rules that are not choices</small></summary>
     <p className="field-note">These follow from the choices above or are the same for every study. None of them can be edited here or in a study file.</p>
     <dl className="fixed-rules__list">
       {rules.map((rec) => <div key={rec.path} data-path={rec.path}>

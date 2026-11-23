@@ -102,9 +102,12 @@ evals) is made together with `docs/ANALYSIS_PLAN.md` and, for a stop rule,
 both with the catalogue. Such a change also moves the designed
 pre-registration, so regenerate the fixtures (invariant 7), and raises
 `CHECKS_VERSION` when it could flag or stop differently. A key of
-`Halt.causes` or `Halt.counts` that is not a harness name (`HTTP nnn`, an
-identifier, `arm/eval`, or two to six plain words) is stored as `other`:
-widen `_HALT_NAME` in `store/schema.py` with a new kind of name. The
+`Halt.causes` or `Halt.counts` that is not a harness name (`HTTP nnn`, a
+class name, a lower-case name such as `in_a_row`, `arm/eval`, or one of the
+phrases in `CAUSE_PHRASES` of the catalogue) is stored as `other`: add a new
+phrase to `CAUSE_PHRASES`, or widen `_HALT_NAME` in `store/schema.py` for a
+new kind of name. The other text of a halt is only passed through the log
+redaction (registered keys and known key shapes). The
 orchestrator writes the `Run` record it holds, so code that changes
 `run.json` from elsewhere starts from a fresh `read_run()`.
 
@@ -144,7 +147,11 @@ package must be side-effect free (no network, no writes, no downloads).
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge
    keys live in the run's in-memory `SecretBag`, are redacted from every log and
-   error path, and never enter `run.json`. `keys_present` booleans only. An
+   error path, and never enter `run.json`. `keys_present` booleans only.
+   Text from outside the harness (an upstream error body, an exception
+   message) passes through `SecretBag.redact` before it is stored in the run
+   folder or sent as an event; `backend/tests/test_run_secrets.py` reads
+   every file and event of such runs. An
    account's linked api.entropic.science key is verified once and dropped:
    `accounts.sqlite` keeps its SHA-256, name and fingerprint, and session
    tokens as SHA-256 only. Passwords are scrypt hashes. No plaintext secret is

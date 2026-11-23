@@ -50,10 +50,16 @@ warning) as refusal, not permission to launch studies. Health is polled at most
 
 The runtime lock is for Linux/Python 3.11, not a Windows dependency lock.
 Optional committed `.\requirements-analysis.lock`, `.\requirements-inspect.lock`,
-and `.\requirements-metrics.lock` are consumed if present, with hashes and
-runtime constraints. `requirements-analysis.lock` is supplied (matplotlib and
-statsmodels), so a release can draw the analysis figures. The other two are
-**not currently supplied**: do not claim a core release can execute every
+`.\requirements-metrics.lock` and `.\requirements-mask.lock` are consumed if
+present, with hashes and runtime constraints. `requirements-analysis.lock` is
+supplied (matplotlib and statsmodels), so a release can draw the analysis
+figures. `requirements-mask.lock` is supplied (pyarrow), so a release can read
+the Parquet files of the `mask_beliefs` and `mask` evals. The inspect and
+metrics locks are **not currently supplied**, and the `ifbench` extra has no
+lock, because its verifier is installed from a git commit, which pip cannot
+check against a hash. Install it by hand after a deploy
+(`docs/SETUP_GUIDE.md`), and again after the next one, because every deploy
+builds a new environment. Do not claim a core release can execute every
 selected card. Package build
 is an editable install with `--no-deps`; build isolation may download build
 requirements from `.\pyproject.toml`. Pin build tooling too before claiming a

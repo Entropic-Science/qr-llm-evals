@@ -6,6 +6,42 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- No key of a run is stored in the run folder or sent in an event when an
+  upstream answer repeats it. The text of a failed generation (the `detail`
+  of a taint in `taints.jsonl` and in the `taint` event), the `raw` field of
+  a judge row whose call failed, a scorer's error text, the detail of a flag
+  and the message of an `error` event now pass through the redaction of the
+  run's keys (`SecretBag.redact`) before they are written. A text without a
+  key is stored as before.
+- The log filter keeps scrubbing a key until every run that holds it has
+  ended. Before, the first of two runs with the same key to end switched the
+  scrubbing off for the other one's log lines.
+- The Run page no longer prints "Run is paused." right after Resume: it says
+  the request was accepted and that the run state at the top of the page is
+  the one to read. The notice of a stop says that the server refuses Resume
+  while the launching account is disabled or out of token quota. The heading
+  of "Fixed by the harness" counts the rows it lists.
+- `requirements-mask.lock` pins `pyarrow` for the box and `scripts/deploy.sh`
+  installs it, so a release can read the Parquet files of the `mask_beliefs`
+  and `mask` evals without a step by hand. The `ifbench` verifier still has
+  to be installed by hand after every deploy (`infra/README.md`).
+- The narrative's number check now reads a number at the end of a sentence.
+  Before, a number directly followed by a full stop was skipped, so an
+  invented number there passed the publication gate. The marker of a
+  numbered list (one or two digits and a full stop at the start of a line,
+  followed by text) is still not read as a number.
+- A cause or count of a stop is kept under its own name only when it is an
+  HTTP status, a class name, a lower-case name of the harness, an arm and
+  eval pair, or one of the harness's five phrases (`CAUSE_PHRASES`). Any
+  other text of several words, and anything shaped like a key, is tallied as
+  `other`. The causes `non-finite score` and `unwritable score` are now kept
+  under their names; before, they were tallied as `other`.
+- Documented three limits: a run that completed with fewer failed samples
+  than the `unfinished` rule needs cannot be resumed to try them again
+  (`docs/ANALYSIS_PLAN.md`); a release from before the result checks refuses
+  to load a run made with them, so do not roll back past that release while
+  such runs must stay readable (`docs/SETUP_GUIDE.md`); and `Run.taints` is
+  never written (the field's description in the contracts).
 - Result checks. The harness now looks at every reply, token record, score
   and judgement while a run stores it. The rules are fixed by the harness
   and are the same for every arm and every study: no setting of a study, no
