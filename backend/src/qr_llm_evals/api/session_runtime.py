@@ -74,6 +74,15 @@ class SessionDispatch:
                 dispatch_next=False,
             )
 
+    def stopped(self) -> None:
+        """A result check stopped the run: end every sitting at its boundary.
+
+        The same thing the control route does on a host pause. Without it a
+        sitting's clock would go on with nothing being generated.
+        """
+        for controller in self.sessions.for_run(self.run_id):
+            controller.stop()
+
 
 def restore_sessions(
     sessions: SessionRegistry,

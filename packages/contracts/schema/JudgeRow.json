@@ -36,7 +36,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "One line of ``judge/<judge_id>.jsonl``.",
+  "description": "One line of ``judge/<judge_id>.jsonl``.\n\nA row whose ``status`` says a reply was received (``ok``, ``unreadable``,\n``out_of_range``) is final: the judge is not asked again for that sample.\nOnly a ``failed`` row, and a row from before rows had a status that has no\nscore, is asked again when the run is resumed.",
   "properties": {
     "sample_ref": {
       "maxLength": 512,
@@ -71,6 +71,21 @@
       "default": null,
       "title": "Score"
     },
+    "fields": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "description": "Further named values the card's judge_fields() read from the judge's reply; the analysis joins them to the sample's score row.",
+      "title": "Fields",
+      "type": "object"
+    },
     "raw": {
       "default": "",
       "title": "Raw",
@@ -83,6 +98,53 @@
       "format": "date-time",
       "title": "At",
       "type": "string"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "enum": [
+            "ok",
+            "failed",
+            "unreadable",
+            "out_of_range"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "ok: a score was read. failed: no reply came. unreadable: a reply came and no score could be read from it. out_of_range: the value read is not one the rubric allows. Empty on rows written before result checks.",
+      "title": "Status"
+    },
+    "stop_reason": {
+      "anyOf": [
+        {
+          "maxLength": 64,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The judge's own stop reason, when it gave one.",
+      "title": "Stop Reason"
+    },
+    "reader_version": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Version of the reader that read this reply.",
+      "title": "Reader Version"
     }
   },
   "required": [

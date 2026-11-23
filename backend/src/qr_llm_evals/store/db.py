@@ -25,6 +25,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from qr_llm_evals.store.artifacts import dump_row
+
 Row = dict[str, Any]
 
 #: Forward-only migrations ``(version, sql)``; each applied inside one transaction.
@@ -135,7 +137,8 @@ def _now() -> str:
 
 
 def _dump(obj: BaseModel | Mapping[str, Any]) -> Row:
-    return obj.model_dump(mode="json") if isinstance(obj, BaseModel) else dict(obj)
+    # The same form as the file, so the index and ``run.json`` hold one record.
+    return dump_row(obj)
 
 
 def _json(data: Mapping[str, Any]) -> str:

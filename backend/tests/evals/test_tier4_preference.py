@@ -13,7 +13,7 @@ from qr_llm_evals.models.schema import Arm, StudyConfig, config_hash
 from qr_llm_evals.runner import Orchestrator, RunControl, RunnerConfig
 from qr_llm_evals.runner.tasks import load_task_module
 from qr_llm_evals.store import Run, Store
-from stub_engine import StubEngine
+from stub_engine import Reply, StubEngine
 
 ROOT = Path(__file__).resolve().parents[3]
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
@@ -130,7 +130,9 @@ def test_moralchoice_runs_end_to_end_with_stub_engine(tmp_path: Path) -> None:
         RunnerConfig(vllm_origin="http://stub", max_inflight=1, repo_root=ROOT),
         secrets=SecretBag(),
         control=control,
-        transport=StubEngine().transport,
+        # The stub's own words answer no A-or-B question. A model does, so the
+        # stub is told to: ten replies with no answer in any of them stop a run.
+        transport=StubEngine(script=lambda body: Reply(text="A")).transport,
         clock=lambda: NOW,
         perf=lambda: 0.0,
     ).run()

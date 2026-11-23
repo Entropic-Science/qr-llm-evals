@@ -16,7 +16,9 @@ from pathlib import Path
 
 import pytest
 import zstandard
+from pydantic import ValidationError
 
+from qr_llm_evals.cards.result_checks import STOP_RULES
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.store import (
     SCHEMA_VERSION,
@@ -41,7 +43,7 @@ from qr_llm_evals.store import (
 from qr_llm_evals.store import bundle as bundle_module
 from qr_llm_evals.store.bundle import derive_study_id, load_frozen_study
 from qr_llm_evals.store.paths import STUDIES_DIR
-from qr_llm_evals.store.schema import Provenance, Timing
+from qr_llm_evals.store.schema import Halt, Provenance, ResultFlag, Timing
 
 STORE_SRC = Path(__file__).resolve().parents[1] / "src" / "qr_llm_evals" / "store"
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
@@ -263,6 +265,50 @@ def test_refreeze_same_config_is_idempotent_but_different_config_refused(
         store.freeze_study(_study(), "# Different prereg\n")
 
 
+def test_readme_names_the_run_order_file_for_a_designed_study_only(
+    store: Store, frozen: str
+) -> None:
+    """Only a study with a design block has a first-full-run rule and a run-order.json."""
+    legacy = store.study(frozen).readme_md.read_text(encoding="utf-8")
+    assert "run-order.json" not in legacy and "design block" not in legacy
+
+    fixture = Path(__file__).resolve().parents[2] / "packages" / "contracts" / "fixtures"
+    designed = StudyConfig.model_validate(
+        json.loads((fixture / "study1.designed.json").read_text(encoding="utf-8"))
+    )
+    assert designed.design is not None
+    readme = store.freeze_study(designed, "# Prereg\n").readme_md.read_text(encoding="utf-8")
+    assert "`runs/<run_id>/run-order.json`" in readme
+    assert "Only a study's first\nfull run is confirmatory" in readme
+    # The two paragraphs for designed studies are the only difference between the two.
+    paragraph = bundle_module._RUN_ORDER_NOTE
+    assert paragraph in readme
+    checks = bundle_module._RESULT_CHECKS_NOTE
+    assert checks in readme
+
+    def without_ids(text: str) -> list[str]:
+        return [line for line in text.splitlines() if "`s_" not in line and "(`" not in line]
+
+    assert without_ids(readme.replace(paragraph, "").replace(checks, "")) == without_ids(legacy)
+
+
+def test_readme_names_the_result_check_records_where_its_text_is_not_pinned(
+    store: Store, frozen: str
+) -> None:
+    """The README of a study without a design block is frozen text, so only the other names them."""
+    legacy = store.study(frozen).readme_md.read_text(encoding="utf-8")
+    assert "flags.jsonl" not in legacy and "halts" not in legacy
+
+    fixture = Path(__file__).resolve().parents[2] / "packages" / "contracts" / "fixtures"
+    designed = StudyConfig.model_validate(
+        json.loads((fixture / "study1.designed.json").read_text(encoding="utf-8"))
+    )
+    readme = store.freeze_study(designed, "# Prereg\n").readme_md.read_text(encoding="utf-8")
+    assert "`runs/<run_id>/flags.jsonl`" in readme
+    assert "A flag never excludes a sample" in readme
+    assert "`run.json` lists the stop under `halts`" in readme
+
+
 # -- runs ----------------------------------------------------------------------
 
 
@@ -372,6 +418,234 @@ def test_taints_and_sessions_are_written_and_indexed_then_reindexed(
     assert snapshot() == before
 
 
+# -- result checks -------------------------------------------------------------
+
+#: The keys of ``run.json`` before result checks. A run that was not stopped by
+#: a check and has no checks version must write exactly these.
+RUN_JSON_KEYS = {
+    "run_id",
+    "study_id",
+    "kind",
+    "state",
+    "created_at",
+    "key_name",
+    "owner_id",
+    "host_token_hash",
+    "prereg_hash",
+    "config_hash",
+    "prereg_stale",
+    "readiness",
+    "tier0_source",
+    "determinism_tier",
+    "progress",
+    "taints",
+    "withdrawn",
+    "needs_keys",
+    "keys_present",
+}
+JUDGE_ROW_KEYS = {
+    "sample_ref",
+    "judge_id",
+    "model",
+    "rubric_hash",
+    "score",
+    "fields",
+    "raw",
+    "usage",
+    "at",
+}
+REF = "qrng/creative_diversity/p1/0"
+
+
+def _halt(rule: str = "generation_errors", **extra: object) -> Halt:
+    fields: dict[str, object] = {
+        "rule": rule,
+        "scope": "arm",
+        "scope_id": "qrng",
+        "phase": "generation",
+        "at": NOW,
+        "sentence": "8 generations in a row on arm qrng ended in an error.",
+        "recovery": STOP_RULES.get(rule, STOP_RULES["generation_errors"]).recovery,
+        "counts": {"in_a_row": 8},
+        "causes": {"HTTP 500": 8},
+        "sample_refs": [REF],
+    }
+    return Halt.model_validate({**fields, **extra})
+
+
+def _judge_row(prompt: str, **extra: object) -> JudgeRow:
+    return JudgeRow.model_validate(
+        {
+            "sample_ref": f"qrng/creative_diversity/{prompt}/0",
+            "judge_id": "j",
+            "model": "m",
+            "rubric_hash": H,
+            "at": NOW,
+            **extra,
+        }
+    )
+
+
+def test_records_that_do_not_use_the_new_fields_keep_the_keys_they_always_had(
+    store: Store, frozen: str
+) -> None:
+    """A run no check stopped, and a judge row without a status, write no new key."""
+    rs = store.create_run(_run(frozen))
+    on_disk = json.loads(rs.run_dir.run_json.read_text(encoding="utf-8"))
+    assert set(on_disk) == RUN_JSON_KEYS
+    assert set(store.index.get_run("run1")) == RUN_JSON_KEYS  # type: ignore[arg-type]
+    # A file written by the harness before result checks loads, and is written back the same.
+    before = rs.run_dir.run_json.read_bytes()
+    loaded = rs.read_run()
+    assert loaded.halts == [] and loaded.checks_version is None and loaded.open_halts() == []
+    rs.write_run(loaded)
+    assert rs.run_dir.run_json.read_bytes() == before
+
+    rs.append_judge("qrng", "creative_diversity", _judge_row("p1", score=0.5))
+    rs.append_judge(
+        "qrng",
+        "creative_diversity",
+        _judge_row("p2", status="unreadable", stop_reason="max_tokens", reader_version=1),
+    )
+    path = rs.arm_card("qrng", "creative_diversity").judge_jsonl("j")
+    old_style, new_style = list(iter_jsonl(path))
+    assert set(old_style) == JUDGE_ROW_KEYS
+    assert set(new_style) == JUDGE_ROW_KEYS | {"status", "stop_reason", "reader_version"}
+    rows = rs.judge_rows("qrng", "creative_diversity", "j")
+    assert (rows[0].status, rows[0].stop_reason, rows[0].reader_version) == (None, None, None)
+    assert (rows[1].status, rows[1].stop_reason, rows[1].reader_version) == (
+        "unreadable",
+        "max_tokens",
+        1,
+    )
+
+    # A run that started under the checks carries its version, and still no empty halt list.
+    rs.write_run(loaded.model_copy(update={"checks_version": 1}))
+    on_disk = json.loads(rs.run_dir.run_json.read_text(encoding="utf-8"))
+    assert set(on_disk) == RUN_JSON_KEYS | {"checks_version"} and on_disk["checks_version"] == 1
+
+
+def test_a_judge_row_says_whether_a_reply_came_and_cannot_contradict_itself() -> None:
+    assert _judge_row("p1", score=1.0, status="ok").status == "ok"
+    with pytest.raises(ValidationError, match="needs a score"):
+        _judge_row("p1", status="ok")
+    for status in ("failed", "unreadable", "out_of_range"):
+        assert _judge_row("p1", status=status).score is None
+        with pytest.raises(ValidationError, match="has no score"):
+            _judge_row("p1", score=1.0, status=status)
+    with pytest.raises(ValidationError):
+        _judge_row("p1", status="maybe")
+
+
+def test_a_judge_reply_that_was_received_is_not_asked_again(store: Store, frozen: str) -> None:
+    """Only a call without a reply, and an old row without a score, is asked again on resume."""
+    rs = store.create_run(_run(frozen))
+    for row in (
+        _judge_row("scored", score=0.0),  # a row from before rows had a status
+        _judge_row("old_null"),  # same, without a score: asked again, as it always was
+        _judge_row("ok", score=1.0, status="ok"),
+        _judge_row("unreadable", status="unreadable", raw="I cannot say."),
+        _judge_row("out_of_range", status="out_of_range", raw="SCORE: 7"),
+        _judge_row("failed", status="failed"),
+        _judge_row("retried", status="failed"),
+        _judge_row("retried", score=1.0, status="ok"),
+    ):
+        rs.append_judge("qrng", "creative_diversity", row)
+    done = rs.completed_judge_refs("qrng", "creative_diversity", "j")
+    assert {ref.split("/")[2] for ref in done} == {
+        "scored",
+        "ok",
+        "unreadable",
+        "out_of_range",
+        "retried",
+    }
+
+
+def test_flags_are_written_beside_the_taints_and_are_not_taints(store: Store, frozen: str) -> None:
+    rs = store.create_run(_run(frozen))
+    assert rs.flags() == [] and rs.append_flags([]) == 0
+    assert not rs.run_dir.flags_jsonl.exists()  # nothing flagged, no file
+    flag = ResultFlag(
+        sample_ref=REF,
+        kind="repetition",
+        phase="generation",
+        card_id="creative_diversity",
+        arm_id="qrng",
+        detail="a unit of 4 characters repeated 300 times",
+        count=300,
+        at=NOW,
+    )
+    truncated = flag.model_copy(update={"kind": "truncated", "detail": "", "count": None})
+    assert rs.append_flags([flag, truncated]) == 2
+    rs.append_flag(flag.model_copy(update={"kind": "judge_cut", "phase": "judge", "count": None}))
+
+    assert rs.run_dir.flags_jsonl == rs.run_dir.taints_jsonl.with_name("flags.jsonl")
+    assert [f.kind for f in rs.flags()] == ["repetition", "truncated", "judge_cut"]
+    assert rs.flags()[0] == flag
+    rows = list(rs.iter_flag_rows())
+    assert rows[0]["count"] == 300 and "count" not in rows[1]
+    assert set(rows[1]) == {"sample_ref", "kind", "phase", "card_id", "arm_id", "detail", "at"}
+    # A flag is not an exclusion: no taint was written, in the file or in the index.
+    assert rs.taints() == [] and not rs.run_dir.taints_jsonl.exists()
+    assert store.index.list_taints("run1") == []
+    # Flags are appended only: a second write adds lines.
+    rs.append_flag(flag)
+    assert len(rs.flags()) == 4
+
+    with pytest.raises(ValidationError, match="belongs to phase 'generation'"):
+        ResultFlag.model_validate({**flag.model_dump(), "phase": "judge"})
+    with pytest.raises(ValidationError):
+        ResultFlag.model_validate({**flag.model_dump(), "kind": "weird"})
+    with pytest.raises(ValidationError):  # room for harness text, not for an upstream error body
+        ResultFlag.model_validate({**flag.model_dump(), "detail": "x" * 301})
+
+
+def test_halts_are_kept_in_run_json_and_stamped_when_the_run_is_resumed(
+    store: Store, frozen: str
+) -> None:
+    rs = store.create_run(_run(frozen))
+    later = datetime(2026, 9, 14, 13, 0, tzinfo=UTC)
+    before = rs.run_dir.run_json.read_bytes()
+    assert rs.stamp_resumed(later).halts == []  # nothing open: nothing to stamp, nothing written
+    assert rs.run_dir.run_json.read_bytes() == before
+
+    first = rs.append_halt(_halt())
+    assert [h.rule for h in first.halts] == ["generation_errors"]
+    assert rs.read_run().open_halts() == first.halts
+    on_disk = json.loads(rs.run_dir.run_json.read_text(encoding="utf-8"))
+    assert on_disk["halts"][0]["resumed_at"] is None
+    assert on_disk["halts"][0]["sample_refs"] == [REF]
+    assert store.list_runs()[0].halts == first.halts  # the index holds the same record
+
+    resumed = rs.stamp_resumed(later)
+    assert resumed.open_halts() == [] and resumed.halts[0].resumed_at == later
+    second = rs.append_halt(_halt("empty_outputs", scope="card", scope_id="creative_diversity"))
+    assert [h.rule for h in second.halts] == ["generation_errors", "empty_outputs"]
+    assert [h.rule for h in second.open_halts()] == ["empty_outputs"]
+    # Stamping never touches a halt that was resumed before.
+    much_later = datetime(2026, 9, 15, 9, 0, tzinfo=UTC)
+    final = rs.stamp_resumed(much_later)
+    assert [h.resumed_at for h in final.halts] == [later, much_later]
+    assert rs.read_run() == final
+    # The pure forms the runner uses on the record it holds give the same result.
+    held = _run(frozen).with_halt(_halt())
+    assert held.with_halts_resumed(later).halts[0].resumed_at == later
+    assert held.halts[0].resumed_at is None  # the record it was made from is not changed
+
+
+def test_a_halt_names_its_arm_or_card_and_at_most_three_samples() -> None:
+    assert _halt(scope="run", scope_id=None).scope_id is None
+    assert _halt("unfinished", scope="phase", scope_id=None).phase == "generation"
+    with pytest.raises(ValidationError, match="scope_id"):
+        _halt(scope="arm", scope_id=None)
+    with pytest.raises(ValidationError, match="scope_id"):
+        _halt(scope="run", scope_id="qrng")
+    with pytest.raises(ValidationError):
+        _halt(sample_refs=[REF, REF, REF, REF])
+    with pytest.raises(ValidationError):
+        _halt(rule="made_up_rule")
+
+
 # -- bundle --------------------------------------------------------------------
 
 
@@ -418,6 +692,27 @@ def test_bundle_round_trip_strips_provider_metadata(
     assert read_bundle(dest) == members
     with pytest.raises(FileNotFoundError):
         list(store.export_bundle("s_nope"))
+
+
+def test_bundle_carries_the_flags_and_the_halts(store: Store, frozen: str) -> None:
+    rs = store.create_run(_run(frozen))
+    rs.append_flag(
+        ResultFlag(
+            sample_ref=REF,
+            kind="empty_output",
+            phase="generation",
+            card_id="creative_diversity",
+            arm_id="qrng",
+            detail="a reply of 0 characters with no visible text",
+            at=NOW,
+        )
+    )
+    rs.append_halt(_halt())
+    members = read_bundle(store.export_bundle(frozen))
+    assert members[f"{frozen}/runs/run1/flags.jsonl"] == rs.run_dir.flags_jsonl.read_bytes()
+    exported = json.loads(members[f"{frozen}/runs/run1/run.json"])
+    assert exported["halts"][0]["rule"] == "generation_errors"
+    assert exported["halts"][0]["causes"] == {"HTTP 500": 8}
 
 
 def test_bundle_exports_the_rows_the_tolerant_reader_sees(

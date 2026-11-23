@@ -66,24 +66,9 @@ V1_IDS: frozenset[str] = frozenset(
         "self_reported_coincidence",
     }
 )
-#: PRD §7.2 — registry cards documented but not implemented in v1.
-PLANNED_ONLY_IDS: frozenset[str] = frozenset(
-    {
-        "psychobench",
-        "sage_consistency",
-        "eval_awareness",
-        "mask",
-        "darkbench",
-        "xstest",
-        "strong_reject",
-        "deception_bench",
-        "sycophancy_ays",
-        "aime2026",
-        "gpqa_diamond",
-        "livecodebench",
-        "ifbench",
-    }
-)
+#: PRD §7.2 — registry cards documented but not implemented. Every one of them is
+#: implemented now; a new planned card is added here with its card.
+PLANNED_ONLY_IDS: frozenset[str] = frozenset()
 #: PRD §7.1 primaries must be registry cards.
 PRIMARY_CARD_IDS = ("tier0_pit_residuals", "tier0_mmd_hamming", "unpredictabench", "novelty_bench")
 

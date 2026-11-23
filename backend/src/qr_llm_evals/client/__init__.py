@@ -17,7 +17,7 @@ from qr_llm_evals.client.anthropic_judge import (
 from qr_llm_evals.client.cancel import CancelToken, GenerationCancelled
 from qr_llm_evals.client.openai_client import Completion, OnDelta, OpenAIClient, UpstreamError
 from qr_llm_evals.client.profiles import ProviderTarget, qr_server_target, target_for
-from qr_llm_evals.client.sse import ChatChunk, TokenLogprob, TopLogprob
+from qr_llm_evals.client.sse import ChatChunk, MalformedFrameError, TokenLogprob, TopLogprob
 
 __all__ = [
     "DEFAULT_JUDGE_MODEL",
@@ -29,6 +29,7 @@ __all__ = [
     "JudgeError",
     "JudgeRequest",
     "JudgeResponse",
+    "MalformedFrameError",
     "OnDelta",
     "OpenAIClient",
     "ProviderTarget",

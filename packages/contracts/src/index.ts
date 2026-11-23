@@ -8,11 +8,15 @@
  * - `types.ts`  — TypeScript types compiled from `schema/_bundle.json`.
  * - `zod.ts`    — `<Name>Schema` zod validators built from `schema/<Name>.json`.
  * - `cards.json` — the eval registry (`evals/*.yaml`) as the SPA consumes it.
+ * - `endpoint-meta.json` — what each headline endpoint is (`cards/endpoint_meta.py`).
  */
 
+import { z } from "zod";
+
 import cardsJson from "./generated/cards.json";
-import type { EvalCard } from "./generated/types";
-import { EvalCardSchema } from "./generated/zod";
+import endpointMetaJson from "./generated/endpoint-meta.json";
+import type { EndpointMeta, EvalCard } from "./generated/types";
+import { EndpointMetaSchema, EvalCardSchema } from "./generated/zod";
 
 export const CONTRACTS_VERSION = "0.1.0";
 
@@ -30,3 +34,12 @@ export const selectableCards: readonly EvalCard[] = cards.filter(
 export function cardById(id: string): EvalCard | undefined {
   return cards.find((c) => c.id === id);
 }
+
+/**
+ * Label, scale, unit of analysis and range of every headline endpoint, keyed
+ * `card/endpoint`. `executable` is false where the harness cannot compute the
+ * endpoint yet, so it cannot decide a study.
+ */
+export const endpointMeta: Readonly<Record<string, EndpointMeta>> = z
+  .record(z.string(), EndpointMetaSchema)
+  .parse(endpointMetaJson);

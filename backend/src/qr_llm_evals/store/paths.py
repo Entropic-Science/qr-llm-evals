@@ -9,6 +9,8 @@
         ├── study.json · prereg.md · prereg.sha256 · expectations.md · LICENSE-data · README.md
         └── runs/<run_id>/
             ├── run.json · readiness.json · taints.jsonl
+            ├── flags.jsonl                    what the result checks flagged; never an exclusion
+            ├── run-order.json                 designed studies: the full runs before this one
             ├── arms/<arm_id>/cards/<card_id>/{generations.jsonl, tier0.jsonl, judge/, scores/, inspect/}
             ├── sessions/<session_id>.json · questionnaires.jsonl · observers.jsonl
             └── analysis/<analysis_id>/{plan.json, tables/, figures/, narrative.md, manifest.json}
@@ -95,6 +97,11 @@ class RunDir:
     @property
     def taints_jsonl(self) -> Path:
         return self.path / "taints.jsonl"
+
+    @property
+    def flags_jsonl(self) -> Path:
+        """Result-check flags, one line per flag, beside ``taints.jsonl``."""
+        return self.path / "flags.jsonl"
 
     @property
     def withdrawn_md(self) -> Path:

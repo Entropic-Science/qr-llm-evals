@@ -510,3 +510,63 @@ def test_a_half_written_last_row_is_ignored_but_a_broken_row_is_not(tmp_path: Pa
     broken.write_text("".join(lines[:3]) + "not json\n" + "".join(lines[3:]), encoding="utf-8")
     with pytest.raises(acquire.AcquisitionError, match="invalid JSON"):
         acquire.parse_engine_log(broken)
+
+
+# ── every failure of build_records is an AcquisitionError ────────────────────
+
+
+def test_an_api_token_without_a_log_probability_is_its_own_error() -> None:
+    tokens = [{"token": "a", "logprob": -0.5}, {"token": "b", "logprob": None}]
+    with pytest.raises(acquire.MissingLogprobError, match="token 1 came back without") as err:
+        acquire.build_records("arm/card/p1/0", tokens)
+    assert isinstance(err.value, acquire.AcquisitionError)
+
+
+@pytest.mark.parametrize(
+    ("bad", "names"),
+    [
+        ({"u_value": "abc"}, "ValueError"),
+        ({"u_value": 1.5}, "(u)"),
+        ({"u_value": float("inf")}, "(u)"),
+        ({"cdf_lo": 0.9, "cdf_hi": 0.1}, "(record)"),
+        ({"token_prob": 1.2}, "(p_post)"),
+        ({"num_candidates": 0}, "(n_candidates)"),
+        ({"token_id": -1}, "(token_id)"),
+        ({"top_entries": [[1]]}, "ValueError"),
+        ({"logprob": float("-inf")}, "logprob"),
+        ({"shannon_entropy": float("inf")}, "entropy_post"),
+        ({"top_entries": [[1, float("inf")]]}, "top_entries"),
+    ],
+    ids=lambda value: value if isinstance(value, str) else None,
+)
+def test_a_log_row_a_record_cannot_hold_is_an_acquisition_error(
+    tmp_path: Path, bad: dict[str, object], names: str
+) -> None:
+    """A schema error, a type error and a number that is not finite used to leave
+    ``build_records`` as other exception types, which ended the whole run."""
+    row = {
+        "token_index": 0,
+        "token_id": 5,
+        "timestamp_ns": 1,
+        "logprob": -0.5,
+        "token_rank": 0,
+        "u_value": 0.25,
+        "cdf_lo": 0.0,
+        "cdf_hi": 0.5,
+        **bad,
+    }
+    path = tmp_path / "log.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    with pytest.raises(acquire.AcquisitionError) as err:
+        acquire.build_records("arm/card/p1/0", [], path)
+    message = str(err.value)
+    assert names in message and "abc" not in message
+    assert not isinstance(err.value, acquire.MissingLogprobError)
+
+
+def test_a_healthy_log_row_still_builds_a_record(tmp_path: Path) -> None:
+    row = {"token_index": 0, "token_id": 5, "timestamp_ns": 1, "logprob": -0.5, "token_rank": 0}
+    path = tmp_path / "log.jsonl"
+    path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    (record,) = acquire.build_records("arm/card/p1/0", [], path)
+    assert record.logprob == -0.5 and record.u is None

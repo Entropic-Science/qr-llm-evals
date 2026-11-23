@@ -8,6 +8,7 @@ import "@fontsource-variable/inter/wght.css";
 import "@fontsource/space-mono/400.css";
 import "@fontsource/space-mono/700.css";
 import "./styles/tokens.css";
+import "./styles/study-map.css";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000, refetchOnWindowFocus: false } } });
 const rootElement = document.getElementById("root");

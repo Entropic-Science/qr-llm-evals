@@ -18,6 +18,10 @@ beats an outside observer. This module answers both from archived rows:
   accuracy on the same completions, with a paired bootstrap interval.
 
 Everything is seeded and pure numpy/scipy; nothing reads files or the registry.
+
+Every interval is at 95% unless the caller passes ``ci``. A designed study
+passes the level it registered, and the result then names it (``ci_level``);
+without ``ci`` the tables are those every earlier study was analysed with.
 """
 
 from __future__ import annotations
@@ -50,6 +54,13 @@ OBSERVER_FEATURES: tuple[str, ...] = (
 )
 DEFAULT_FOLDS = 10
 DEFAULT_L2 = 1.0
+#: The level of every interval when the caller registers none.
+DEFAULT_CI = 0.95
+
+
+def _level_key(ci: float | None) -> dict[str, float]:
+    """``ci_level`` beside the intervals of a caller that chose their level."""
+    return {} if ci is None else {"ci_level": ci}
 
 
 def _mc_pvalue(count_extreme: int, n_resamples: int) -> float:
@@ -105,8 +116,14 @@ def _d_prime(rows: Sequence[Mapping[str, Any]], positive: str = "qrng") -> float
 
 
 def _summary(
-    rows: Sequence[Mapping[str, Any]], *, n_permutations: int, seed: int, positive: str = "qrng"
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    n_permutations: int,
+    seed: int,
+    positive: str = "qrng",
+    ci: float | None = None,
 ) -> dict[str, Any]:
+    level = DEFAULT_CI if ci is None else ci
     by_completion: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for row in rows:
         by_completion[str(row["completion"])].append(row)
@@ -130,8 +147,9 @@ def _summary(
         "says_qrng_rate": float(np.mean([r["guess"] == positive for r in rows])) if rows else None,
         "positive_label": positive,
         "raw_accuracy": hits / len(rows) if rows else None,
-        "raw_accuracy_ci": list(binomial_ci(hits, len(rows))) if rows else None,
+        "raw_accuracy_ci": list(binomial_ci(hits, len(rows), level)) if rows else None,
         "d_prime": _d_prime(rows, positive),
+        **_level_key(ci),
     }
     if n_q == 0 or n_p == 0:
         return {
@@ -149,7 +167,9 @@ def _summary(
     for _ in range(n_permutations):
         if abs(balanced(rng.permutation(labels)) - 0.5) >= abs(observed - 0.5) - 1e-12:
             extreme += 1
-    completion_ci = list(bootstrap_ci(accuracy_c, seed=seed)) if accuracy_c.size > 1 else None
+    completion_ci = (
+        list(bootstrap_ci(accuracy_c, ci=level, seed=seed)) if accuracy_c.size > 1 else None
+    )
     return {
         "available": True,
         "balanced_accuracy": observed,
@@ -169,8 +189,12 @@ def chance_test(
     n_permutations: int = 2000,
     seed: int = 42,
     labels: tuple[str, str] = SOURCES,
+    ci: float | None = None,
 ) -> dict[str, Any]:
-    """Balanced guess accuracy vs 0.5 with a completion-level label-permutation null."""
+    """Balanced guess accuracy vs 0.5 with a completion-level label-permutation null.
+
+    ``ci`` sets the level of the accuracy intervals, in every split alike.
+    """
     rows = guess_rows(rows_by_arm, labels)
     if not rows:
         return {
@@ -178,7 +202,7 @@ def chance_test(
             "reason": "no parsed guesses with known labels (score rows need guess and source)",
         }
     positive = labels[0]
-    overall = _summary(rows, n_permutations=n_permutations, seed=seed, positive=positive)
+    overall = _summary(rows, n_permutations=n_permutations, seed=seed, positive=positive, ci=ci)
     variants = sorted({str(r["variant"]) for r in rows})
     by_variant = {
         variant: _summary(
@@ -186,6 +210,7 @@ def chance_test(
             n_permutations=n_permutations,
             seed=seed,
             positive=positive,
+            ci=ci,
         )
         for variant in variants
     }
@@ -195,7 +220,7 @@ def chance_test(
             subset = [r for r in rows if _guesser_source(r["sample_ref"], quantum_arms) == label]
             if subset:
                 by_guesser[f"guesses_sampled_by_{label}"] = _summary(
-                    subset, n_permutations=n_permutations, seed=seed, positive=positive
+                    subset, n_permutations=n_permutations, seed=seed, positive=positive, ci=ci
                 )
     return {
         **overall,
@@ -324,11 +349,13 @@ def outside_observer(
     l2: float = DEFAULT_L2,
     n_permutations: int = 1000,
     seed: int = 42,
+    ci: float | None = None,
 ) -> tuple[dict[str, Any], dict[str, int]]:
     """Cross-validated logistic-regression source classifier on Tier-0 features.
 
     Returns the summary table and, separately, per-completion out-of-fold
-    correctness (0/1) for :func:`privileged_access`.
+    correctness (0/1) for :func:`privileged_access`. ``ci`` sets the level of
+    the accuracy interval.
     """
     completions = sorted(c for c, s in labels_by_completion.items() if s in SOURCES)
     kept, names, x = observer_features(records_by_completion, completions)
@@ -365,7 +392,10 @@ def outside_observer(
     table = {
         "available": True,
         "accuracy": float(correct.mean()),
-        "accuracy_ci": list(binomial_ci(int(correct.sum()), int(correct.size))),
+        "accuracy_ci": list(
+            binomial_ci(int(correct.sum()), int(correct.size), DEFAULT_CI if ci is None else ci)
+        ),
+        **_level_key(ci),
         "balanced_accuracy": observed,
         "effect": observed - 0.5,
         "auc": _auc(scores, labels),
@@ -383,12 +413,14 @@ def privileged_access(
     variant: str = "in_context",
     n_resamples: int = 10_000,
     seed: int = 42,
+    ci: float | None = None,
 ) -> dict[str, Any]:
     """In-context minus observer **balanced** accuracy on the same completions.
 
     Balanced accuracy (mean of the per-source accuracies) keeps a majority-class
     observer from looking better than chance when the judged set is unbalanced.
-    The interval is a paired bootstrap that resamples completions within source.
+    The interval is a paired bootstrap that resamples completions within source,
+    at 95% unless ``ci`` says otherwise.
     """
     per_completion: dict[str, list[bool]] = defaultdict(list)
     sources: dict[str, str] = {}
@@ -422,7 +454,10 @@ def privileged_access(
             [rng.choice(q_idx, size=q_idx.size), rng.choice(p_idx, size=p_idx.size)]
         )
         boot[b] = balanced(guessed[idx], labels[idx]) - balanced(observed[idx], labels[idx])
-    lower, upper = np.percentile(boot, [2.5, 97.5])
+    # The 95% bounds stay the literals they always were: computed from the
+    # level they would differ in the last digit, and so would archived tables.
+    bounds = [2.5, 97.5] if ci is None else [100 * (1 - ci) / 2, 100 * (1 + ci) / 2]
+    lower, upper = np.percentile(boot, bounds)
     if effect > 0:
         p_value = min(1.0, 2.0 * _mc_pvalue(int(np.sum(boot <= 0)), n_resamples))
     elif effect < 0:
@@ -441,7 +476,7 @@ def privileged_access(
         "observer_balanced_accuracy": balanced(observed, labels),
         "ci_lower": float(lower),
         "ci_upper": float(upper),
-        "ci_level": 0.95,
+        "ci_level": DEFAULT_CI if ci is None else ci,
         "p_value": float(p_value),
         "n_completions": len(common),
         "n_resamples": int(n_resamples),

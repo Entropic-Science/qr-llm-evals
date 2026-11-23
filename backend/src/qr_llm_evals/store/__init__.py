@@ -7,6 +7,7 @@ Entry points:
 * ``store.paths`` - the bundle layout as typed path helpers.
 * ``store.artifacts`` - append-only JSONL writers and ``completed_refs()``.
 * ``store.bundle`` - ``write_frozen_study()`` and the ``tar.zst`` exporter.
+* ``store.health`` - ``summarise()``: what a run folder holds, per arm and card.
 * ``store.quarantine`` - ``quarantine()`` / ``withdraw()``; nothing is ever deleted.
 
 Layer 1: may import ``cards`` / ``models`` (layer 0).
@@ -33,14 +34,17 @@ from qr_llm_evals.store.bundle import (
     write_frozen_study,
 )
 from qr_llm_evals.store.db import SCHEMA_VERSION, Index
+from qr_llm_evals.store.health import HealthSummary, summarise
 from qr_llm_evals.store.paths import ArmCardDir, DataRoot, RunDir, StudyDir, safe_segment
 from qr_llm_evals.store.quarantine import quarantine, withdraw
 from qr_llm_evals.store.schema import (
     GenerationRow,
+    Halt,
     JudgeRow,
     Progress,
     Provenance,
     ReadinessReport,
+    ResultFlag,
     Run,
     RunState,
     Taint,
@@ -52,12 +56,15 @@ __all__ = [
     "ArmCardDir",
     "DataRoot",
     "GenerationRow",
+    "Halt",
+    "HealthSummary",
     "Index",
     "JsonlWriter",
     "JudgeRow",
     "Progress",
     "Provenance",
     "ReadinessReport",
+    "ResultFlag",
     "Run",
     "RunDir",
     "RunState",
@@ -78,6 +85,7 @@ __all__ = [
     "read_jsonl",
     "safe_segment",
     "strip_provider_metadata",
+    "summarise",
     "withdraw",
     "write_bundle",
     "write_frozen_study",

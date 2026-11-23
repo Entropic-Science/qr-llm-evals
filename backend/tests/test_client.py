@@ -24,6 +24,7 @@ from qr_llm_evals.client.profiles import (
 )
 from qr_llm_evals.client.sse import (
     ChatChunk,
+    MalformedFrameError,
     chunk_from_obj,
     message_from_response,
     parse_sse_line,
@@ -442,3 +443,42 @@ async def test_async_precancelled_generation_never_dispatches() -> None:
     result = await recorder.client().agenerate(BODY, cancel=token)
     assert result.cancelled and result.cancel_reason == "host abort"
     assert not recorder.requests
+
+
+# ── what the parser never invents ────────────────────────────────────────────
+
+
+def test_a_data_line_that_is_not_json_raises_a_typed_error_without_the_line() -> None:
+    with pytest.raises(MalformedFrameError) as err:
+        parse_sse_line('data: {"id": "x", "choices": [{"delta": {"content": "sec')
+    assert "not valid JSON" in str(err.value) and "sec" not in str(err.value)
+    assert not isinstance(err.value, json.JSONDecodeError)
+
+
+def test_a_malformed_frame_ends_generate_with_the_typed_error() -> None:
+    frames = [SSE_FRAMES[3], 'data: {"choices": [{"delta": {"cont\n\n', SSE_FRAMES[6]]
+    client = OpenAIClient(
+        "http://stub",
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content="".join(frames).encode())
+        ),
+    )
+    with pytest.raises(MalformedFrameError):
+        client.generate(BODY)
+
+
+def test_a_token_without_a_log_probability_keeps_none_not_zero() -> None:
+    """0.0 would be stored as probability 1 and pass every range check."""
+    content = [
+        {"token": "a", "top_logprobs": [{"token": "a"}, {"token": "b", "logprob": -1.5}]},
+        {"token": "b", "logprob": None},
+        {"token": "c", "logprob": "n/a"},
+        {"token": "d", "logprob": -0.25},
+    ]
+    chunk = chunk_from_obj(
+        {"choices": [{"delta": {"content": "abcd"}, "logprobs": {"content": content}}]}
+    )
+    assert [t.token for t in chunk.logprobs] == ["a", "b", "c", "d"], "no token is dropped"
+    assert [t.logprob for t in chunk.logprobs] == [None, None, None, -0.25]
+    # An alternative without a number says nothing and is left out.
+    assert [(t.token, t.logprob) for t in chunk.logprobs[0].top_logprobs] == [("b", -1.5)]

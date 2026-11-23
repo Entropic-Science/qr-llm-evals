@@ -169,6 +169,24 @@
     },
     "StorageResponse": {
       "$ref": "#/$defs/StorageResponse"
+    },
+    "EndpointMeta": {
+      "$ref": "#/$defs/EndpointMeta"
+    },
+    "CardItemsResponse": {
+      "$ref": "#/$defs/CardItemsResponse"
+    },
+    "DecisionsTable": {
+      "$ref": "#/$defs/DecisionsTable"
+    },
+    "ResultFlag": {
+      "$ref": "#/$defs/ResultFlag"
+    },
+    "Halt": {
+      "$ref": "#/$defs/Halt"
+    },
+    "HealthSummary": {
+      "$ref": "#/$defs/HealthSummary"
     }
   },
   "required": [
@@ -226,7 +244,13 @@
     "AdminUsersResponse",
     "AdminUserUpdate",
     "SettleRequest",
-    "StorageResponse"
+    "StorageResponse",
+    "EndpointMeta",
+    "CardItemsResponse",
+    "DecisionsTable",
+    "ResultFlag",
+    "Halt",
+    "HealthSummary"
   ],
   "additionalProperties": false,
   "$defs": {
@@ -709,6 +733,137 @@
       "title": "CardEstimateSummary",
       "type": "object"
     },
+    "CardItem": {
+      "additionalProperties": false,
+      "description": "One prompt as the target model receives it.",
+      "properties": {
+        "index": {
+          "description": "Position in the card's own order; the runner takes the first N.",
+          "minimum": 0,
+          "title": "Index",
+          "type": "integer"
+        },
+        "prompt_id": {
+          "title": "Prompt Id",
+          "type": "string"
+        },
+        "messages": {
+          "description": "``{role, content}`` turns; each content is cut at 6000 characters, which no prompt of the registry reaches.",
+          "items": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "title": "Messages",
+          "type": "array"
+        },
+        "truncated": {
+          "description": "True when some content was cut.",
+          "title": "Truncated",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index",
+        "prompt_id",
+        "messages",
+        "truncated"
+      ],
+      "title": "CardItem",
+      "type": "object"
+    },
+    "CardItemsResponse": {
+      "additionalProperties": false,
+      "description": "A page of a card's prompts, or why they cannot be listed before a run.",
+      "properties": {
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "listable": {
+          "description": "True only for ``source == 'task_module'``.",
+          "title": "Listable",
+          "type": "boolean"
+        },
+        "source": {
+          "enum": [
+            "task_module",
+            "derived_at_run",
+            "remote_dataset",
+            "inspect_task",
+            "no_prompts",
+            "error"
+          ],
+          "title": "Source",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Why the prompts are not listed; null when they are.",
+          "title": "Reason"
+        },
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "offset": {
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "limit": {
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "told": {
+          "anyOf": [
+            {
+              "enum": [
+                "told_qrng",
+                "told_prng",
+                "told_nothing"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The told cell the messages were built for; null on a card without the factor.",
+          "title": "Told"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CardItem"
+          },
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "card_id",
+        "listable",
+        "source",
+        "reason",
+        "total",
+        "offset",
+        "limit",
+        "told",
+        "items"
+      ],
+      "title": "CardItemsResponse",
+      "type": "object"
+    },
     "CardOverrides": {
       "additionalProperties": false,
       "description": "Frozen per-card overrides, applied within the card's declared bounds.",
@@ -835,6 +990,257 @@
       "title": "CardsResponse",
       "type": "object"
     },
+    "Caution": {
+      "additionalProperties": false,
+      "description": "One thing a reader should know before trusting a comparison. Never a verdict.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "flag_share",
+            "run_not_complete",
+            "open_halt",
+            "reader_versions"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "text": {
+          "description": "The caution as one complete sentence.",
+          "title": "Text",
+          "type": "string"
+        },
+        "card_id": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 1,
+              "pattern": "^[a-z0-9_]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The card a flag caution is about.",
+          "title": "Card Id"
+        },
+        "flag": {
+          "anyOf": [
+            {
+              "enum": [
+                "empty_output",
+                "truncated",
+                "repetition",
+                "garbled",
+                "reasoning_in_output",
+                "tier0_missing",
+                "u_outside_bracket",
+                "score_error",
+                "unparsed",
+                "judge_failed",
+                "judge_unreadable",
+                "judge_out_of_range",
+                "judge_cut"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The flag kind a flag caution is about.",
+          "title": "Flag"
+        },
+        "arms": {
+          "description": "For a flag: every arm of the card side by side, also those below the line. Empty for any other caution.",
+          "items": {
+            "$ref": "#/$defs/CautionArm"
+          },
+          "title": "Arms",
+          "type": "array"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "card_id",
+        "flag",
+        "arms"
+      ],
+      "title": "Caution",
+      "type": "object"
+    },
+    "CautionArm": {
+      "additionalProperties": false,
+      "description": "One arm's numbers in a caution about a flag.",
+      "properties": {
+        "arm_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "role": {
+          "title": "Role",
+          "type": "string"
+        },
+        "count": {
+          "description": "Completed samples that carry the flag.",
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        },
+        "completed": {
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "share": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "count / completed; empty when nothing completed.",
+          "title": "Share"
+        }
+      },
+      "required": [
+        "arm_id",
+        "role",
+        "count",
+        "completed",
+        "share"
+      ],
+      "title": "CautionArm",
+      "type": "object"
+    },
+    "CellHealth": {
+      "additionalProperties": false,
+      "description": "The counts of one arm and card pair.",
+      "properties": {
+        "arm_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "role": {
+          "description": "What kind of arm this is, in words.",
+          "title": "Role",
+          "type": "string"
+        },
+        "planned": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Samples the runner planned for the pair, from the progress it recorded; empty when no plan was recorded.",
+          "title": "Planned"
+        },
+        "completed": {
+          "description": "Samples that have a completed reply.",
+          "minimum": 0,
+          "title": "Completed",
+          "type": "integer"
+        },
+        "errored": {
+          "description": "Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.",
+          "minimum": 0,
+          "title": "Errored",
+          "type": "integer"
+        },
+        "taints": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Samples that carry a taint, by kind; `other` counts taints of a kind this harness does not know.",
+          "title": "Taints",
+          "type": "object"
+        },
+        "flags": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "propertyNames": {
+                "enum": [
+                  "empty_output",
+                  "truncated",
+                  "repetition",
+                  "garbled",
+                  "reasoning_in_output",
+                  "tier0_missing",
+                  "u_outside_bracket",
+                  "score_error",
+                  "unparsed",
+                  "judge_failed",
+                  "judge_unreadable",
+                  "judge_out_of_range",
+                  "judge_cut"
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Samples that were flagged, by kind; empty for a run made before result checks.",
+          "title": "Flags"
+        },
+        "judgements": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Samples by what became of their judgement; the latest row of a sample counts.",
+          "propertyNames": {
+            "enum": [
+              "ok",
+              "failed",
+              "unreadable",
+              "out_of_range",
+              "no_score"
+            ]
+          },
+          "title": "Judgements",
+          "type": "object"
+        }
+      },
+      "required": [
+        "arm_id",
+        "card_id",
+        "role",
+        "planned",
+        "completed",
+        "errored",
+        "taints",
+        "flags",
+        "judgements"
+      ],
+      "title": "CellHealth",
+      "type": "object"
+    },
     "ConfigParseRequest": {
       "additionalProperties": false,
       "properties": {
@@ -869,6 +1275,14 @@
             "type": "string"
           },
           "title": "Unknown Cards",
+          "type": "array"
+        },
+        "problems": {
+          "description": "Rules spanning several fields that the study breaks (references between models, arms, seeds and evals; the design block). Empty for a valid study. A study with problems is a draft and is refused at launch.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Problems",
           "type": "array"
         }
       },
@@ -1024,6 +1438,359 @@
       "title": "Dataset",
       "type": "object"
     },
+    "DecisionRow": {
+      "additionalProperties": false,
+      "description": "One hypothesis after the analysis: the numbers, the gates and the verdict.",
+      "properties": {
+        "hypothesis_id": {
+          "title": "Hypothesis Id",
+          "type": "string"
+        },
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "title": "Sampling",
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "paired_permutation",
+            "ks_two_sample",
+            "mmd_hamming_permutation"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Estimate"
+        },
+        "ci_lower": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ci Lower"
+        },
+        "ci_upper": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Ci Upper"
+        },
+        "ci_level": {
+          "title": "Ci Level",
+          "type": "number"
+        },
+        "p_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Value"
+        },
+        "p_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Adjusted"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Margin"
+        },
+        "p_equivalence": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Equivalence"
+        },
+        "p_equivalence_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Equivalence Adjusted"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Completeness"
+        },
+        "negative_control": {
+          "$ref": "#/$defs/NegativeControl"
+        },
+        "positive_control": {
+          "$ref": "#/$defs/PositiveControl"
+        },
+        "above_seed_noise": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Above Seed Noise"
+        },
+        "planned_mde_raw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Mde Raw"
+        },
+        "planned_mde_standardized": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Planned Mde Standardized"
+        },
+        "verdict": {
+          "enum": [
+            "unavailable",
+            "invalid",
+            "effect",
+            "effect_within_margin",
+            "equivalent",
+            "inconclusive"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "not_produced",
+                "incomplete",
+                "negative_control",
+                "negative_control_cannot_fail",
+                "equivalence_not_claimed",
+                "equivalence_not_testable",
+                "no_margin",
+                "interval_exceeds_margin",
+                "positive_control_absent",
+                "positive_control_failed"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reason"
+        },
+        "wording": {
+          "title": "Wording",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hypothesis_id",
+        "card_id",
+        "endpoint",
+        "label",
+        "model",
+        "sampling",
+        "test",
+        "estimate",
+        "ci_lower",
+        "ci_upper",
+        "ci_level",
+        "p_value",
+        "p_adjusted",
+        "margin",
+        "p_equivalence",
+        "p_equivalence_adjusted",
+        "completeness",
+        "negative_control",
+        "positive_control",
+        "above_seed_noise",
+        "planned_mde_raw",
+        "planned_mde_standardized",
+        "verdict",
+        "reason",
+        "wording"
+      ],
+      "title": "DecisionRow",
+      "type": "object"
+    },
+    "DecisionsTable": {
+      "additionalProperties": false,
+      "description": "``tables/decisions.json``: every hypothesis resolved, and the study rolled up.",
+      "properties": {
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "precision": {
+          "title": "Precision",
+          "type": "integer"
+        },
+        "matrix_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Matrix Version",
+          "type": "integer"
+        },
+        "confirmatory": {
+          "title": "Confirmatory",
+          "type": "boolean"
+        },
+        "non_confirmatory_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "pilot_run",
+                "not_first_full_run"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Non Confirmatory Reason"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "power": {
+          "title": "Power",
+          "type": "number"
+        },
+        "min_completeness": {
+          "title": "Min Completeness",
+          "type": "number"
+        },
+        "sensitivity_epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sensitivity Epsilon"
+        },
+        "families": {
+          "$ref": "#/$defs/FamilySizes"
+        },
+        "study_verdict": {
+          "enum": [
+            "not_confirmatory",
+            "invalid",
+            "effect",
+            "no_effect_within_margins",
+            "mixed_or_inconclusive"
+          ],
+          "title": "Study Verdict",
+          "type": "string"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/DecisionRow"
+          },
+          "title": "Rows",
+          "type": "array"
+        }
+      },
+      "required": [
+        "precision",
+        "confirmatory",
+        "non_confirmatory_reason",
+        "claim",
+        "alpha",
+        "power",
+        "min_completeness",
+        "sensitivity_epsilon",
+        "families",
+        "study_verdict",
+        "rows"
+      ],
+      "title": "DecisionsTable",
+      "type": "object"
+    },
     "DisplaySettings": {
       "additionalProperties": false,
       "description": "Per-display supervised settings (FR-5.5).",
@@ -1065,6 +1832,74 @@
         "show_thinking"
       ],
       "title": "DisplaySettings",
+      "type": "object"
+    },
+    "EndpointMeta": {
+      "additionalProperties": false,
+      "description": "The registered facts about one (card, endpoint) pair.",
+      "properties": {
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "scale": {
+          "enum": [
+            "proportion",
+            "count",
+            "score",
+            "statistic"
+          ],
+          "title": "Scale",
+          "type": "string"
+        },
+        "level": {
+          "enum": [
+            "sample",
+            "prompt_group",
+            "token_stream"
+          ],
+          "title": "Level",
+          "type": "string"
+        },
+        "range": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Range"
+        },
+        "executable": {
+          "title": "Executable",
+          "type": "boolean"
+        },
+        "k_locked": {
+          "default": false,
+          "title": "K Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "label",
+        "scale",
+        "level",
+        "range",
+        "executable"
+      ],
+      "title": "EndpointMeta",
       "type": "object"
     },
     "EndpointPlan": {
@@ -1169,6 +2004,30 @@
         "items"
       ],
       "title": "EndpointPlan",
+      "type": "object"
+    },
+    "EndpointRef": {
+      "additionalProperties": false,
+      "description": "One endpoint of one selected card, named as the card names it.",
+      "properties": {
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "card_id",
+        "endpoint"
+      ],
+      "title": "EndpointRef",
       "type": "object"
     },
     "Endpoints": {
@@ -1645,6 +2504,88 @@
       "title": "EvalCard",
       "type": "object"
     },
+    "FamilySizes": {
+      "additionalProperties": false,
+      "description": "How many tests each Holm family corrects for, unavailable members included.",
+      "properties": {
+        "difference": {
+          "title": "Difference",
+          "type": "integer"
+        },
+        "equivalence": {
+          "title": "Equivalence",
+          "type": "integer"
+        },
+        "negative_control": {
+          "title": "Negative Control",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "difference",
+        "equivalence",
+        "negative_control"
+      ],
+      "title": "FamilySizes",
+      "type": "object"
+    },
+    "FlagLegend": {
+      "additionalProperties": false,
+      "description": "One flag kind as the catalogue describes it, so a page needs no text of its own.",
+      "properties": {
+        "kind": {
+          "enum": [
+            "empty_output",
+            "truncated",
+            "repetition",
+            "garbled",
+            "reasoning_in_output",
+            "tier0_missing",
+            "u_outside_bracket",
+            "score_error",
+            "unparsed",
+            "judge_failed",
+            "judge_unreadable",
+            "judge_out_of_range",
+            "judge_cut"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "generation",
+            "tier0",
+            "score",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "sentence": {
+          "title": "Sentence",
+          "type": "string"
+        },
+        "cautions": {
+          "description": "False for a kind that never raises a caution.",
+          "title": "Cautions",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "phase",
+        "label",
+        "sentence",
+        "cautions"
+      ],
+      "title": "FlagLegend",
+      "type": "object"
+    },
     "GenerationRow": {
       "additionalProperties": false,
       "description": "One line of ``generations.jsonl``.",
@@ -1796,6 +2737,124 @@
       "title": "GenerationRow",
       "type": "object"
     },
+    "Halt": {
+      "additionalProperties": false,
+      "description": "One stop of a run by a result check, kept in ``Run.halts``.\n\nA stop is a pause with a stored reason: nothing is removed and nothing\nresumes by itself. ``resumed_at`` is empty while the halt is open and is\nstamped by the run that the host resumes.\n\nA halt is written to ``run.json``, sent as an event and served on open\nroutes, so it must never hold a key (AGENTS.md invariant 3). The record\nsees to that itself: its text passes through the log redaction, and a\ncause or count is kept under its own name only when that name has the\nshape of one the harness writes. Free text, such as an upstream error\nmessage, is tallied as :data:`OTHER_CAUSE`.",
+      "properties": {
+        "rule": {
+          "enum": [
+            "generation_errors",
+            "entropy_degraded",
+            "tier0_failed",
+            "scorer_errors",
+            "empty_outputs",
+            "nothing_parsed",
+            "unfinished",
+            "judge_rejected",
+            "judge_unusable",
+            "nothing_judged",
+            "judge_phase_error"
+          ],
+          "title": "Rule",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "arm",
+            "card",
+            "phase",
+            "run"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The arm or the card the rule fired for; empty otherwise.",
+          "title": "Scope Id"
+        },
+        "phase": {
+          "enum": [
+            "preflight",
+            "generation",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "sentence": {
+          "description": "What the rule saw, with the real scope and counts.",
+          "title": "Sentence",
+          "type": "string"
+        },
+        "recovery": {
+          "description": "What Resume can and cannot recover after this stop.",
+          "title": "Recovery",
+          "type": "string"
+        },
+        "counts": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Counts",
+          "type": "object"
+        },
+        "causes": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "A tally by cause in the harness's own words (an HTTP status, a class name).",
+          "title": "Causes",
+          "type": "object"
+        },
+        "sample_refs": {
+          "items": {
+            "maxLength": 512,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "title": "Sample Refs",
+          "type": "array"
+        },
+        "resumed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resumed At"
+        }
+      },
+      "required": [
+        "rule",
+        "scope",
+        "phase",
+        "at",
+        "sentence",
+        "recovery"
+      ],
+      "title": "Halt",
+      "type": "object"
+    },
     "HealthResponse": {
       "additionalProperties": false,
       "properties": {
@@ -1853,6 +2912,252 @@
         "active_runs"
       ],
       "title": "HealthResponse",
+      "type": "object"
+    },
+    "HealthSummary": {
+      "additionalProperties": false,
+      "description": "``GET /api/runs/{id}/health``: what a run folder holds and what to be careful about.",
+      "properties": {
+        "run_id": {
+          "title": "Run Id",
+          "type": "string"
+        },
+        "study_id": {
+          "title": "Study Id",
+          "type": "string"
+        },
+        "state": {
+          "anyOf": [
+            {
+              "enum": [
+                "created",
+                "ready",
+                "running",
+                "paused",
+                "needs_keys",
+                "analysing",
+                "complete",
+                "aborted"
+              ],
+              "type": "string"
+            },
+            {
+              "const": "other",
+              "type": "string"
+            }
+          ],
+          "description": "The run's state; `other` when run.json holds a state this harness does not know.",
+          "title": "State"
+        },
+        "checks_version": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Version of the result checks the run started under.",
+          "title": "Checks Version"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Set for a run made before result checks; it has no flag counts.",
+          "title": "Note"
+        },
+        "halts": {
+          "description": "Every stop of the run by a check, oldest first.",
+          "items": {
+            "$ref": "#/$defs/Halt"
+          },
+          "title": "Halts",
+          "type": "array"
+        },
+        "cells": {
+          "description": "One row for each arm and card pair.",
+          "items": {
+            "$ref": "#/$defs/CellHealth"
+          },
+          "title": "Cells",
+          "type": "array"
+        },
+        "taints": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Tainted samples and windows of the whole run, by kind; `other` counts taints of a kind this harness does not know.",
+          "title": "Taints",
+          "type": "object"
+        },
+        "tainted_samples": {
+          "description": "Samples that carry any taint.",
+          "minimum": 0,
+          "title": "Tainted Samples",
+          "type": "integer"
+        },
+        "cautions": {
+          "items": {
+            "$ref": "#/$defs/Caution"
+          },
+          "title": "Cautions",
+          "type": "array"
+        },
+        "flag_kinds": {
+          "description": "Every flag kind, in the catalogue's order.",
+          "items": {
+            "$ref": "#/$defs/FlagLegend"
+          },
+          "title": "Flag Kinds",
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_id",
+        "study_id",
+        "state",
+        "checks_version",
+        "note",
+        "halts",
+        "cells",
+        "taints",
+        "tainted_samples",
+        "cautions",
+        "flag_kinds"
+      ],
+      "title": "HealthSummary",
+      "type": "object"
+    },
+    "HypothesisPlan": {
+      "additionalProperties": false,
+      "description": "One registered hypothesis: an endpoint in one (model, sampling) cell.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "card_id": {
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        },
+        "sampling": {
+          "title": "Sampling",
+          "type": "string"
+        },
+        "test": {
+          "enum": [
+            "paired_permutation",
+            "ks_two_sample",
+            "mmd_hamming_permutation"
+          ],
+          "title": "Test",
+          "type": "string"
+        },
+        "sided": {
+          "enum": [
+            "two_sided",
+            "one_sided_upper"
+          ],
+          "title": "Sided",
+          "type": "string"
+        },
+        "contrast": {
+          "title": "Contrast",
+          "type": "integer"
+        },
+        "negative_controls": {
+          "items": {
+            "type": "integer"
+          },
+          "title": "Negative Controls",
+          "type": "array"
+        },
+        "positive_control": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Positive Control"
+        },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Margin"
+        },
+        "margin_source": {
+          "enum": [
+            "card_sesoi",
+            "declared",
+            "none"
+          ],
+          "title": "Margin Source",
+          "type": "string"
+        },
+        "planned_units": {
+          "title": "Planned Units",
+          "type": "integer"
+        },
+        "planned_pairs": {
+          "title": "Planned Pairs",
+          "type": "integer"
+        },
+        "sample_size": {
+          "$ref": "#/$defs/SampleSize"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "card_id",
+        "endpoint",
+        "label",
+        "model",
+        "sampling",
+        "test",
+        "sided",
+        "contrast",
+        "negative_controls",
+        "positive_control",
+        "margin",
+        "margin_source",
+        "planned_units",
+        "planned_pairs",
+        "sample_size",
+        "statement"
+      ],
+      "title": "HypothesisPlan",
       "type": "object"
     },
     "Intention": {
@@ -2019,7 +3324,7 @@
     },
     "JudgeRow": {
       "additionalProperties": false,
-      "description": "One line of ``judge/<judge_id>.jsonl``.",
+      "description": "One line of ``judge/<judge_id>.jsonl``.\n\nA row whose ``status`` says a reply was received (``ok``, ``unreadable``,\n``out_of_range``) is final: the judge is not asked again for that sample.\nOnly a ``failed`` row, and a row from before rows had a status that has no\nscore, is asked again when the run is resumed.",
       "properties": {
         "sample_ref": {
           "maxLength": 512,
@@ -2054,6 +3359,21 @@
           "default": null,
           "title": "Score"
         },
+        "fields": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": "Further named values the card's judge_fields() read from the judge's reply; the analysis joins them to the sample's score row.",
+          "title": "Fields",
+          "type": "object"
+        },
         "raw": {
           "default": "",
           "title": "Raw",
@@ -2066,6 +3386,53 @@
           "format": "date-time",
           "title": "At",
           "type": "string"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "enum": [
+                "ok",
+                "failed",
+                "unreadable",
+                "out_of_range"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ok: a score was read. failed: no reply came. unreadable: a reply came and no score could be read from it. out_of_range: the value read is not one the rubric allows. Empty on rows written before result checks.",
+          "title": "Status"
+        },
+        "stop_reason": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The judge's own stop reason, when it gave one.",
+          "title": "Stop Reason"
+        },
+        "reader_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version of the reader that read this reply.",
+          "title": "Reader Version"
         }
       },
       "required": [
@@ -2287,6 +3654,36 @@
       "title": "LoginRequest",
       "type": "object"
     },
+    "MarginDecl": {
+      "additionalProperties": false,
+      "description": "An equivalence margin declared for an endpoint whose card states no SESOI.",
+      "properties": {
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "margin": {
+          "exclusiveMinimum": 0,
+          "title": "Margin",
+          "type": "number"
+        }
+      },
+      "required": [
+        "card_id",
+        "endpoint",
+        "margin"
+      ],
+      "title": "MarginDecl",
+      "type": "object"
+    },
     "ModelEntryView": {
       "additionalProperties": false,
       "properties": {
@@ -2452,6 +3849,43 @@
       "title": "ModelsResponse",
       "type": "object"
     },
+    "NegativeControl": {
+      "additionalProperties": false,
+      "description": "Seed against seed: two runs of the same generator must not differ.",
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "n_pairs": {
+          "title": "N Pairs",
+          "type": "integer"
+        },
+        "min_p_adjusted": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Min P Adjusted"
+        },
+        "can_fail": {
+          "default": true,
+          "title": "Can Fail",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "passed",
+        "n_pairs",
+        "min_p_adjusted"
+      ],
+      "title": "NegativeControl",
+      "type": "object"
+    },
     "Observer": {
       "additionalProperties": false,
       "description": "One line of ``observers.jsonl`` (pseudonymous, spec D-13).",
@@ -2541,6 +3975,121 @@
         }
       },
       "title": "PilotConfig",
+      "type": "object"
+    },
+    "PlanDesign": {
+      "additionalProperties": false,
+      "description": "The designed part of a statistical plan.",
+      "properties": {
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "matrix_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Matrix Version",
+          "type": "integer"
+        },
+        "claim": {
+          "title": "Claim",
+          "type": "string"
+        },
+        "alpha": {
+          "title": "Alpha",
+          "type": "number"
+        },
+        "power": {
+          "default": 0.8,
+          "title": "Power",
+          "type": "number"
+        },
+        "min_completeness": {
+          "default": 0.9,
+          "title": "Min Completeness",
+          "type": "number"
+        },
+        "reference_effect": {
+          "default": 0.3,
+          "title": "Reference Effect",
+          "type": "number"
+        },
+        "sensitivity_epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sensitivity Epsilon"
+        },
+        "families": {
+          "$ref": "#/$defs/FamilySizes"
+        },
+        "hypotheses": {
+          "items": {
+            "$ref": "#/$defs/HypothesisPlan"
+          },
+          "title": "Hypotheses",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim",
+        "alpha",
+        "sensitivity_epsilon",
+        "families",
+        "hypotheses"
+      ],
+      "title": "PlanDesign",
+      "type": "object"
+    },
+    "PositiveControl": {
+      "additionalProperties": false,
+      "description": "The biased arm: a known sampler bias the assay has to detect.",
+      "properties": {
+        "epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Epsilon"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "failed",
+            "absent"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "p_value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "P Value"
+        }
+      },
+      "required": [
+        "epsilon",
+        "status",
+        "p_value"
+      ],
+      "title": "PositiveControl",
       "type": "object"
     },
     "PreregRenderRequest": {
@@ -3113,6 +4662,97 @@
       "title": "ReadinessRequest",
       "type": "object"
     },
+    "ResultFlag": {
+      "additionalProperties": false,
+      "description": "One line of ``flags.jsonl``: a result check found something about a sample.\n\nA flag is not an exclusion. The sample stays in every analysis exactly as\nbefore; nothing in ``analysis/`` reads this file. It is joined to the other\nrecords by ``sample_ref``.",
+      "properties": {
+        "sample_ref": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Sample Ref",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "empty_output",
+            "truncated",
+            "repetition",
+            "garbled",
+            "reasoning_in_output",
+            "tier0_missing",
+            "u_outside_bracket",
+            "score_error",
+            "unparsed",
+            "judge_failed",
+            "judge_unreadable",
+            "judge_out_of_range",
+            "judge_cut"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "generation",
+            "tier0",
+            "score",
+            "judge"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "arm_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Arm Id",
+          "type": "string"
+        },
+        "detail": {
+          "default": "",
+          "description": "Written by the harness only: lengths, counts, a stop reason, an HTTP status, an exception class name. Never a key and never an upstream error message.",
+          "maxLength": 300,
+          "title": "Detail",
+          "type": "string"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How many times the thing was seen in the sample.",
+          "title": "Count"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sample_ref",
+        "kind",
+        "phase",
+        "card_id",
+        "arm_id",
+        "at"
+      ],
+      "title": "ResultFlag",
+      "type": "object"
+    },
     "Run": {
       "additionalProperties": false,
       "description": "``runs/<run_id>/run.json``. Secrets never appear here: ``keys_present`` only.",
@@ -3268,6 +4908,28 @@
           "description": "e.g. {'judge': true, 'openai': false}.",
           "title": "Keys Present",
           "type": "object"
+        },
+        "halts": {
+          "description": "Every stop of the run by a result check, oldest first; never shortened.",
+          "items": {
+            "$ref": "#/$defs/Halt"
+          },
+          "title": "Halts",
+          "type": "array"
+        },
+        "checks_version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Version of the result checks the run started under; empty for a run made before result checks.",
+          "title": "Checks Version"
         }
       },
       "required": [
@@ -3330,6 +4992,46 @@
         "state"
       ],
       "title": "RunControlResponse",
+      "type": "object"
+    },
+    "RunHealthCounts": {
+      "additionalProperties": false,
+      "description": "The sample counts of one run, read off its health summary (``GET /runs/{id}/health``).",
+      "properties": {
+        "completed_samples": {
+          "description": "Samples that have a completed reply.",
+          "minimum": 0,
+          "title": "Completed Samples",
+          "type": "integer"
+        },
+        "failed_samples": {
+          "description": "Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.",
+          "minimum": 0,
+          "title": "Failed Samples",
+          "type": "integer"
+        },
+        "tainted_samples": {
+          "description": "Samples that carry any taint.",
+          "minimum": 0,
+          "title": "Tainted Samples",
+          "type": "integer"
+        },
+        "taints": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "description": "Tainted samples and windows of the run, by kind of taint; `other` counts taints of a kind this harness does not know.",
+          "title": "Taints",
+          "type": "object"
+        }
+      },
+      "required": [
+        "completed_samples",
+        "failed_samples",
+        "tainted_samples",
+        "taints"
+      ],
+      "title": "RunHealthCounts",
       "type": "object"
     },
     "RunKeysRequest": {
@@ -3441,6 +5143,155 @@
         "live"
       ],
       "title": "RunView",
+      "type": "object"
+    },
+    "SampleSize": {
+      "additionalProperties": false,
+      "description": "Whether the planned number of prompts can carry one hypothesis.\n\nThe numbers are worst-case bounds computed before any data exist. A field\nis ``None`` when no closed form applies to the test.",
+      "properties": {
+        "n": {
+          "title": "N",
+          "type": "integer"
+        },
+        "n_floor": {
+          "title": "N Floor",
+          "type": "integer"
+        },
+        "control_floor": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Control Floor"
+        },
+        "mde_standardized": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mde Standardized"
+        },
+        "sd_bound": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Sd Bound"
+        },
+        "mde_raw": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Mde Raw"
+        },
+        "power_at_margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Power At Margin"
+        },
+        "equivalence_floor": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Equivalence Floor"
+        },
+        "n_recommended": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "N Recommended"
+        },
+        "reachable": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Reachable"
+        },
+        "k_recommended": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "K Recommended"
+        },
+        "rating": {
+          "enum": [
+            "sufficient",
+            "marginal",
+            "insufficient",
+            "unknown"
+          ],
+          "title": "Rating",
+          "type": "string"
+        },
+        "basis": {
+          "enum": [
+            "margin_worst_case",
+            "standardized_reference",
+            "no_closed_form"
+          ],
+          "title": "Basis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "n",
+        "n_floor",
+        "mde_standardized",
+        "sd_bound",
+        "mde_raw",
+        "power_at_margin",
+        "equivalence_floor",
+        "n_recommended",
+        "reachable",
+        "rating",
+        "basis"
+      ],
+      "title": "SampleSize",
       "type": "object"
     },
     "SelectionEstimate": {
@@ -3983,10 +5834,22 @@
           "title": "Contrasts",
           "type": "array"
         },
+        "design": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanDesign"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set for a study with a design block; absent on a legacy plan."
+        },
         "alpha": {
           "default": 0.05,
           "maximum": 0.05,
-          "minimum": 0.05,
+          "minimum": 0.005,
           "title": "Alpha",
           "type": "number"
         },
@@ -4010,17 +5873,25 @@
         },
         "ci_level": {
           "default": 0.9,
-          "maximum": 0.9,
+          "exclusiveMaximum": 1,
           "minimum": 0.9,
           "title": "Ci Level",
           "type": "number"
         },
         "pilot_quantile": {
+          "anyOf": [
+            {
+              "maximum": 0.95,
+              "minimum": 0.95,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": 0.95,
-          "maximum": 0.95,
-          "minimum": 0.95,
-          "title": "Pilot Quantile",
-          "type": "number"
+          "description": "Legacy pilot-derived margins only; a designed plan fixes its margins.",
+          "title": "Pilot Quantile"
         },
         "margin_rule": {
           "default": "max(card SESOI, pilot 95th percentile of absolute seed-vs-seed paired differences)",
@@ -4248,6 +6119,18 @@
           "title": "Cards",
           "type": "array"
         },
+        "design": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDesign"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent on studies from before the design block; never serialized as null."
+        },
         "judge": {
           "$ref": "#/$defs/JudgeSpec"
         },
@@ -4306,6 +6189,78 @@
       "title": "StudyConfig",
       "type": "object"
     },
+    "StudyDesign": {
+      "additionalProperties": false,
+      "description": "What the study claims and tests, declared by the researcher before launch.\n\nWithout this block the analysis plan is the built-in Study 1 plan. With it,\nthe plan is projected from these declarations: the confirmatory endpoints,\nthe significance level, whether the absence of an effect may be claimed, and\nthe biased-sampler level that has to be detected for that claim to stand.\nWhether an endpoint can carry a confirmatory test is a property of its card\nand is checked where the plan is built; this layer cannot see the cards.",
+      "properties": {
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "claim": {
+          "enum": [
+            "difference",
+            "difference_or_equivalence"
+          ],
+          "title": "Claim",
+          "type": "string"
+        },
+        "confirmatory": {
+          "items": {
+            "$ref": "#/$defs/EndpointRef"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Confirmatory",
+          "type": "array"
+        },
+        "alpha": {
+          "default": 0.05,
+          "enum": [
+            0.05,
+            0.01,
+            0.005
+          ],
+          "title": "Alpha",
+          "type": "number"
+        },
+        "sensitivity_epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The ε of the biased arm that serves as the positive control.",
+          "enum": [
+            0.01,
+            0.03,
+            0.1,
+            0.5,
+            null
+          ],
+          "title": "Sensitivity Epsilon"
+        },
+        "margins": {
+          "items": {
+            "$ref": "#/$defs/MarginDecl"
+          },
+          "title": "Margins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim",
+        "confirmatory"
+      ],
+      "title": "StudyDesign",
+      "type": "object"
+    },
     "StudyView": {
       "additionalProperties": false,
       "properties": {
@@ -4326,6 +6281,14 @@
           },
           "title": "Runs",
           "type": "array"
+        },
+        "health": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RunHealthCounts"
+          },
+          "description": "Sample counts keyed by run id. A run whose files could not be summarised has no entry.",
+          "title": "Health",
+          "type": "object"
         },
         "analyses": {
           "additionalProperties": {

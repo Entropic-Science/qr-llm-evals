@@ -60,6 +60,12 @@ import AdminUsersResponseJson from "../../schema/AdminUsersResponse.json";
 import AdminUserUpdateJson from "../../schema/AdminUserUpdate.json";
 import SettleRequestJson from "../../schema/SettleRequest.json";
 import StorageResponseJson from "../../schema/StorageResponse.json";
+import EndpointMetaJson from "../../schema/EndpointMeta.json";
+import CardItemsResponseJson from "../../schema/CardItemsResponse.json";
+import DecisionsTableJson from "../../schema/DecisionsTable.json";
+import ResultFlagJson from "../../schema/ResultFlag.json";
+import HaltJson from "../../schema/Halt.json";
+import HealthSummaryJson from "../../schema/HealthSummary.json";
 
 type Schema = z.core.JSONSchema.BaseSchema;
 
@@ -118,6 +124,12 @@ export const AdminUsersResponseSchema = z.fromJSONSchema(AdminUsersResponseJson 
 export const AdminUserUpdateSchema = z.fromJSONSchema(AdminUserUpdateJson as unknown as Schema) as unknown as z.ZodType<T.AdminUserUpdate>;
 export const SettleRequestSchema = z.fromJSONSchema(SettleRequestJson as unknown as Schema) as unknown as z.ZodType<T.SettleRequest>;
 export const StorageResponseSchema = z.fromJSONSchema(StorageResponseJson as unknown as Schema) as unknown as z.ZodType<T.StorageResponse>;
+export const EndpointMetaSchema = z.fromJSONSchema(EndpointMetaJson as unknown as Schema) as unknown as z.ZodType<T.EndpointMeta>;
+export const CardItemsResponseSchema = z.fromJSONSchema(CardItemsResponseJson as unknown as Schema) as unknown as z.ZodType<T.CardItemsResponse>;
+export const DecisionsTableSchema = z.fromJSONSchema(DecisionsTableJson as unknown as Schema) as unknown as z.ZodType<T.DecisionsTable>;
+export const ResultFlagSchema = z.fromJSONSchema(ResultFlagJson as unknown as Schema) as unknown as z.ZodType<T.ResultFlag>;
+export const HaltSchema = z.fromJSONSchema(HaltJson as unknown as Schema) as unknown as z.ZodType<T.Halt>;
+export const HealthSummarySchema = z.fromJSONSchema(HealthSummaryJson as unknown as Schema) as unknown as z.ZodType<T.HealthSummary>;
 
 /** Every contract name → its zod validator, in registration order. */
 export const schemas = {
@@ -176,6 +188,12 @@ export const schemas = {
   AdminUserUpdate: AdminUserUpdateSchema,
   SettleRequest: SettleRequestSchema,
   StorageResponse: StorageResponseSchema,
+  EndpointMeta: EndpointMetaSchema,
+  CardItemsResponse: CardItemsResponseSchema,
+  DecisionsTable: DecisionsTableSchema,
+  ResultFlag: ResultFlagSchema,
+  Halt: HaltSchema,
+  HealthSummary: HealthSummarySchema,
 } as const;
 
 export type ContractName = keyof typeof schemas;

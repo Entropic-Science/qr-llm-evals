@@ -75,6 +75,11 @@ def test_no_credential_shaped_strings() -> None:
     for rel in _tracked():
         if rel.suffix not in TEXT_SUFFIXES:
             continue
-        text = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace")
+        path = REPO_ROOT / rel
+        if not path.is_file():
+            # Tracked, but deleted in the working tree and not committed yet:
+            # there is nothing left in it to scan.
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
         hits.extend(f"{rel}: matches /{rx.pattern}/" for rx in SECRET_PATTERNS if rx.search(text))
     assert not hits, "credential-shaped strings in tracked files:\n" + "\n".join(hits)

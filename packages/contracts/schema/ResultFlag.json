@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ResultFlag.json",
+  "additionalProperties": false,
+  "description": "One line of ``flags.jsonl``: a result check found something about a sample.\n\nA flag is not an exclusion. The sample stays in every analysis exactly as\nbefore; nothing in ``analysis/`` reads this file. It is joined to the other\nrecords by ``sample_ref``.",
+  "properties": {
+    "sample_ref": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Sample Ref",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "empty_output",
+        "truncated",
+        "repetition",
+        "garbled",
+        "reasoning_in_output",
+        "tier0_missing",
+        "u_outside_bracket",
+        "score_error",
+        "unparsed",
+        "judge_failed",
+        "judge_unreadable",
+        "judge_out_of_range",
+        "judge_cut"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "generation",
+        "tier0",
+        "score",
+        "judge"
+      ],
+      "title": "Phase",
+      "type": "string"
+    },
+    "card_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+$",
+      "title": "Card Id",
+      "type": "string"
+    },
+    "arm_id": {
+      "maxLength": 64,
+      "minLength": 1,
+      "pattern": "^[a-z0-9_]+$",
+      "title": "Arm Id",
+      "type": "string"
+    },
+    "detail": {
+      "default": "",
+      "description": "Written by the harness only: lengths, counts, a stop reason, an HTTP status, an exception class name. Never a key and never an upstream error message.",
+      "maxLength": 300,
+      "title": "Detail",
+      "type": "string"
+    },
+    "count": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "How many times the thing was seen in the sample.",
+      "title": "Count"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "sample_ref",
+    "kind",
+    "phase",
+    "card_id",
+    "arm_id",
+    "at"
+  ],
+  "title": "ResultFlag",
+  "type": "object"
+}

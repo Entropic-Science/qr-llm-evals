@@ -1,16 +1,8 @@
+import { mulberry32 } from "../lib/prng";
+
 // A hand-drawn underline, after entropic.science's <InkLine>: a seeded pen stroke through a few anchors, joined as a
 // Catmull-Rom curve so it bends like a pen instead of zigzagging. Same seed, same line. The draw-in is a CSS
 // animation (tokens.css, `.ink-line`), so reduced motion gets the finished stroke with no script involved.
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    let t = (a += 0x6d2b79f5);
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 export function inkLinePath(seed: number, anchors: number): string {
   const count = Math.max(3, Math.round(anchors));
   const random = mulberry32(seed);

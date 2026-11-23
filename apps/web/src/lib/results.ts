@@ -34,6 +34,17 @@ export interface ResultsTableData {
   caption?: string;
   [key: string]: unknown;
 }
+/**
+ * A table the analysis writes that is not an endpoint table: it describes the run and tests nothing, so it
+ * has no role, tier, test, correction or comparison rows (`tier0_topk_coverage` is one).
+ */
+export type DescriptiveTableData = Record<string, unknown>;
+/** Whether a loaded table has what the endpoint views read: comparison rows and a tier. */
+export function isEndpointTable(table: unknown): table is ResultsTableData {
+  if (typeof table !== "object" || table === null) return false;
+  const fields = table as Record<string, unknown>;
+  return Array.isArray(fields.comparisons) && typeof fields.tier === "number";
+}
 export interface FrozenPlan {
   claim_rule: string;
   epsilon_rule?: string;
@@ -57,6 +68,9 @@ export interface ProvenanceArm {
   quantum?: boolean;
   samples: number;
   tainted_samples: number;
+  /** Samples the clean analysis leaves out for a taint. An index written before this count has none. */
+  excluded_samples?: number;
+  failed_samples?: number;
 }
 export interface PublicRun {
   run_id: string;
@@ -144,10 +158,30 @@ export async function loadAnalysis(
   }
   return { ...index, loadedTables: Object.fromEntries(tables), narrative };
 }
+/**
+ * How many samples the clean analysis leaves out, summed over the arm ledger; nothing when the ledger is
+ * empty or any row lacks the count, so a missing count is never read as zero.
+ */
+export function excludedSamples(
+  arms: readonly ProvenanceArm[] | undefined,
+): number | undefined {
+  if (!arms?.length) return undefined;
+  let total = 0;
+  for (const arm of arms) {
+    if (typeof arm.excluded_samples !== "number") return undefined;
+    total += arm.excluded_samples;
+  }
+  return total;
+}
 export function numberText(value: unknown) {
   return typeof value === "number" && Number.isFinite(value)
     ? String(value)
     : "Unavailable";
+}
+/** The caption of a figure drawn from a table that tests nothing: its own label, or its name. */
+function descriptiveCaption(table: DescriptiveTableData, name: string | undefined): string {
+  const label = typeof table.label === "string" ? table.label : typeof table.endpoint === "string" ? table.endpoint : (name ?? "table");
+  return `${label}. Descriptive: script-generated counts, no test.`;
 }
 export function figureCaption(
   name: string,
@@ -159,6 +193,7 @@ export function figureCaption(
   const table = match ? tables[match] : undefined;
   return (
     table?.caption ??
+    (table && !isEndpointTable(table) ? descriptiveCaption(table, match) : undefined) ??
     (table
       ? `${table.card_id} | ${table.endpoint} | ${table.test} | ${table.role}, tier ${table.tier}. ${table.available ? "Script-generated estimates; unavailable contrasts are hatched, not measured zeros." : "Endpoint unavailable; no effect can be inferred."}`
       : "Script-generated figure; table caption unavailable.")

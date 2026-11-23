@@ -6,8 +6,9 @@ import type {
   RunControlRequest, RunControlResponse, RunKeysRequest, RunKeysResponse, RunView,
   SessionControlRequest, SessionControlResponse, SessionJoinRequest, SessionJoinResponse,
   Questionnaire, SessionPresenceRequest, SessionPresenceResponse, SessionQuestionnaireRequest, SessionView,
-  StudyConfig,
+  StudyConfig, CardItemsResponse, HealthSummary,
 } from "@qr-evals/contracts";
+import { CardItemsResponseSchema, HealthSummarySchema } from "@qr-evals/contracts";
 
 export const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined)?.replace(/\/$/, "") ?? "https://evals-api.entropic.science";
 export class ApiError extends Error {
@@ -42,14 +43,29 @@ export const api = {
   adminUsers: (bearer: string) => apiFetch<AdminUsersResponse>("/api/admin/users", { auth: { bearer } }),
   adminUpdateUser: (userId: string, body: AdminUserUpdate, bearer: string) => apiFetch<AdminUserView, AdminUserUpdate>(`/api/admin/users/${encodeURIComponent(userId)}`, { body, auth: { bearer } }),
   judgeCheck: (body: JudgeCheckRequest, bearer: string) => apiFetch<JudgeCheckResponse, JudgeCheckRequest>("/api/judge/check", { body, auth: { bearer } }),
-  parseConfig: (body: ConfigParseRequest) => apiFetch<ConfigParseResponse, ConfigParseRequest>("/api/config/parse", { body }),
+  parseConfig: (body: ConfigParseRequest, signal?: AbortSignal) => apiFetch<ConfigParseResponse, ConfigParseRequest>("/api/config/parse", signal ? { body, signal } : { body }),
   cards: () => apiFetch<CardsResponse>("/api/cards"),
+  /** One page of an eval's prompts as the target model receives them, or why they cannot be listed. The answer is checked against its contract. */
+  cardItems: async (cardId: string, page: { offset?: number; limit?: number; told?: CardItemsResponse["told"] } = {}, signal?: AbortSignal): Promise<CardItemsResponse> => {
+    const query = new URLSearchParams({ offset: String(page.offset ?? 0), limit: String(page.limit ?? 50) });
+    if (page.told) query.set("told", page.told);
+    const options = signal ? { signal } : {};
+    const parsed = CardItemsResponseSchema.safeParse(await apiFetch<unknown>(`/api/cards/${encodeURIComponent(cardId)}/items?${query.toString()}`, options));
+    if (!parsed.success) throw new ApiError("The run service answered with a prompt list this page cannot read.", 502, "contract_mismatch");
+    return parsed.data;
+  },
   models: () => apiFetch<ModelsResponse>("/api/models"),
   estimates: (body: StudyConfig) => apiFetch<EstimatesResponse, StudyConfig>("/api/estimates", { body }),
   prereg: (body: PreregRenderRequest) => apiFetch<PreregRenderResponse, PreregRenderRequest>("/api/prereg/render", { body }),
   readiness: (body: ReadinessRequest, bearer: string) => apiFetch<ReadinessReport, ReadinessRequest>("/api/readiness", { body, auth: { bearer } }),
   launch: (body: LaunchRequest, bearer: string) => apiFetch<LaunchResponse, LaunchRequest>("/api/runs", { body, auth: { bearer } }),
   run: (runId: string) => apiFetch<RunView>(`/api/runs/${encodeURIComponent(runId)}`),
+  /** What a run folder holds per arm and eval, its stops by a check and the cautions. The answer is checked against its contract. */
+  health: async (runId: string, signal?: AbortSignal): Promise<HealthSummary> => {
+    const parsed = HealthSummarySchema.safeParse(await apiFetch<unknown>(`/api/runs/${encodeURIComponent(runId)}/health`, signal ? { signal } : {}));
+    if (!parsed.success) throw new ApiError("The run service answered with a health summary this page cannot read.", 502, "contract_mismatch");
+    return parsed.data;
+  },
   controlRun: (runId: string, body: RunControlRequest, hostToken: string) => apiFetch<RunControlResponse, RunControlRequest>(`/api/runs/${encodeURIComponent(runId)}/control`, { body, auth: { hostToken } }),
   supplyKeys: (runId: string, body: RunKeysRequest, hostToken: string) => apiFetch<RunKeysResponse, RunKeysRequest>(`/api/runs/${encodeURIComponent(runId)}/keys`, { body, auth: { hostToken } }),
   createSession: (runId: string, body: CreateSessionRequest, hostToken: string) => apiFetch<SessionView, CreateSessionRequest>(`/api/runs/${encodeURIComponent(runId)}/sessions`, { body, auth: { hostToken } }),
@@ -59,7 +75,7 @@ export const api = {
   questionnaire: (sessionId: string, body: SessionQuestionnaireRequest, observerId: string) => apiFetch<Questionnaire, SessionQuestionnaireRequest>(`/api/sessions/${encodeURIComponent(sessionId)}/questionnaire`, { body, auth: { observerId } }),
 };
 
-export const RUN_EVENT_TYPES = ["run.state", "run.progress", "sample.started", "sample.delta", "sample.finished", "taint", "session.state", "session.timer", "observer.presence", "analysis.progress", "quota.exhausted", "error", "resync"] as const;
+export const RUN_EVENT_TYPES = ["run.state", "run.progress", "sample.started", "sample.delta", "sample.finished", "taint", "session.state", "session.timer", "observer.presence", "analysis.progress", "quota.exhausted", "check.stopped", "error", "resync"] as const;
 export type RunEventType = typeof RUN_EVENT_TYPES[number];
 export interface RunEvent<T = unknown> { id?: string; type: RunEventType; data: T }
 export interface ResyncData { reason?: string; dropped?: number }

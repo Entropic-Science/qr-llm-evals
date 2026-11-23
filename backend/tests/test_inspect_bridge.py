@@ -27,6 +27,7 @@ from qr_llm_evals.inspect_bridge.provider import (
 )
 from qr_llm_evals.inspect_bridge.subprocess_runner import InspectProcessError, run_inspect_card
 from qr_llm_evals.models.envelope import SampleContext as EnvelopeContext
+from qr_llm_evals.runner import CheckStopped
 from stub_engine import StubEngine
 from test_runner import _orchestrator, _run_store
 
@@ -254,3 +255,27 @@ async def test_grader_is_fixed_temperature_zero(tmp_path: Path) -> None:
                 [ChatMessageUser(content="grade this")], [], "none", GenerateConfig(temperature=1)
             )
         assert len(calls) == 1
+
+
+def test_a_stop_raised_by_the_harness_dispatch_closes_the_child_and_is_not_swallowed(
+    tmp_path: Path,
+) -> None:
+    """The orchestrator tells a stop from a failed child by this exception: the
+    bridge must let it through, and it must not leave the child process behind."""
+    calls = []
+
+    def dispatch(ctx, messages):
+        calls.append(ctx.prompt_id)
+        raise CheckStopped("an Inspect sample did not complete")
+
+    with pytest.raises(CheckStopped, match="did not complete"):
+        run_inspect_card(
+            _card(),
+            _orchestrator(_run_store(tmp_path / "data"), StubEngine()).study.arms[1],
+            tmp_path / "logs",
+            dispatch,
+            judge_model="fixed",
+            samples=[{"id": "p1", "input": "Write something unusual."}],
+            timeout_s=120,
+        )
+    assert calls == ["p1"], "the first sample that did not complete ended the card"

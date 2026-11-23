@@ -1,0 +1,1243 @@
+{
+  "_written_by": "scripts/gen_checks_fixture.py; do not edit by hand",
+  "checks_version": 1,
+  "rules": [
+    "generation_errors",
+    "entropy_degraded",
+    "tier0_failed",
+    "scorer_errors",
+    "empty_outputs",
+    "nothing_parsed",
+    "unfinished",
+    "judge_rejected",
+    "judge_unusable",
+    "nothing_judged",
+    "judge_phase_error"
+  ],
+  "halts": {
+    "generation_errors/arm": {
+      "rule": "generation_errors",
+      "scope": "arm",
+      "scope_id": "qrng",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "8 generations in a row on arm qrng ended in an error before a reply was complete.",
+      "recovery": "Nothing that was generated is lost. Resume tries every sample that has no completed reply again, with the keys the run holds at that time. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 8
+      },
+      "causes": {
+        "HTTP 502": 6,
+        "ReadTimeout": 2
+      },
+      "sample_refs": [
+        "qrng/psychobench/p0/1",
+        "qrng/psychobench/p1/1",
+        "qrng/psychobench/p2/1"
+      ],
+      "resumed_at": null
+    },
+    "generation_errors/run": {
+      "rule": "generation_errors",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "16 of the last 20 generations of the run ended in an error before a reply was complete.",
+      "recovery": "Nothing that was generated is lost. Resume tries every sample that has no completed reply again, with the keys the run holds at that time. This check then counts again from zero.",
+      "counts": {
+        "failed": 16,
+        "of_last": 20
+      },
+      "causes": {
+        "HTTP 502": 16
+      },
+      "sample_refs": [
+        "prng7/psychobench/p3/1",
+        "qrng/psychobench/p4/1",
+        "prng7/psychobench/p4/1"
+      ],
+      "resumed_at": null
+    },
+    "entropy_degraded/tainted": {
+      "rule": "entropy_degraded",
+      "scope": "arm",
+      "scope_id": "qrng",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "10 samples in a row on the quantum arm qrng were tainted for an engine fallback or a degraded quantum source.",
+      "recovery": "The tainted samples are complete. They stay in the run, they are excluded from the analysis under the registered rule, and Resume does not generate them again. Resume goes on with the samples that are left. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 10
+      },
+      "causes": {
+        "engine_fallback": 5,
+        "qrng_degraded": 5
+      },
+      "sample_refs": [
+        "qrng/psychobench/p2/1",
+        "qrng/psychobench/p3/1",
+        "qrng/psychobench/p4/1"
+      ],
+      "resumed_at": null
+    },
+    "entropy_degraded/probe": {
+      "rule": "entropy_degraded",
+      "scope": "arm",
+      "scope_id": "qrng",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "3 samples in a row on the quantum arm qrng started while the engine's entropy check reported the quantum source degraded or could not be reached.",
+      "recovery": "The tainted samples are complete. They stay in the run, they are excluded from the analysis under the registered rule, and Resume does not generate them again. Resume goes on with the samples that are left. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 3
+      },
+      "causes": {},
+      "sample_refs": [
+        "qrng/psychobench/p0/0",
+        "qrng/psychobench/p1/0",
+        "qrng/psychobench/p2/0"
+      ],
+      "resumed_at": null
+    },
+    "tier0_failed/arm": {
+      "rule": "tier0_failed",
+      "scope": "arm",
+      "scope_id": "prng7",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "10 samples in a row on arm prng7 have no usable token records.",
+      "recovery": "Those samples are complete and Resume does not generate them again. A sample tainted for its token records is excluded from the analysis under the registered rule. A sample flagged for a missing token log keeps its reply, score and judgement and has no token records. Resume goes on with the samples that are left. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 10
+      },
+      "causes": {
+        "stateless_row": 4,
+        "tier0_missing": 6
+      },
+      "sample_refs": [
+        "prng7/psychobench/p2/1",
+        "prng7/psychobench/p3/1",
+        "prng7/psychobench/p4/1"
+      ],
+      "resumed_at": null
+    },
+    "scorer_errors/card": {
+      "rule": "scorer_errors",
+      "scope": "card",
+      "scope_id": "psychobench",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "The scorer of card psychobench failed on 10 samples in a row.",
+      "recovery": "The samples whose scorer failed are complete and have no score. The harness does not score a stored reply again, so Resume cannot recover them. Resume goes on with the samples that are left. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 10
+      },
+      "causes": {
+        "KeyError": 10
+      },
+      "sample_refs": [
+        "qrng/psychobench/p2/1",
+        "qrng/psychobench/p3/1",
+        "qrng/psychobench/p4/1"
+      ],
+      "resumed_at": null
+    },
+    "empty_outputs/card": {
+      "rule": "empty_outputs",
+      "scope": "card",
+      "scope_id": "eval_awareness",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "The last 20 replies stored for card eval_awareness were all empty. They came from 5 prompts, and 3 arms each gave at least 5 of them.",
+      "recovery": "An empty reply is a complete sample: it stays in the run and in the analysis and Resume does not generate it again. Resume goes on with the samples that are left. This check is not applied to the card again in this run.",
+      "counts": {
+        "in_a_row": 20,
+        "arms": 3,
+        "per_arm": 5,
+        "prompts": 5
+      },
+      "causes": {},
+      "sample_refs": [
+        "bent/eval_awareness/p2/3",
+        "qrng/eval_awareness/p3/3",
+        "prng7/eval_awareness/p4/3"
+      ],
+      "resumed_at": null
+    },
+    "nothing_parsed/first": {
+      "rule": "nothing_parsed",
+      "scope": "card",
+      "scope_id": "psychobench",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "None of the first 30 scored samples of card psychobench gave an answer the card's scorer could extract. They cover 5 prompts.",
+      "recovery": "Those samples are complete: they stay in the run as they are, and Resume neither generates nor scores them again. Resume goes on with the samples that are left. This check is not applied to the card again in this run.",
+      "counts": {
+        "scored": 30,
+        "prompts": 5
+      },
+      "causes": {},
+      "sample_refs": [
+        "qrng/psychobench/p2/5",
+        "prng7/psychobench/p3/5",
+        "bent/psychobench/p4/5"
+      ],
+      "resumed_at": null
+    },
+    "nothing_parsed/queue_end": {
+      "rule": "nothing_parsed",
+      "scope": "card",
+      "scope_id": "psychobench",
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "Card psychobench came to the end of its queue with 12 scored samples and none of them gave an answer the card's scorer could extract.",
+      "recovery": "Those samples are complete: they stay in the run as they are, and Resume neither generates nor scores them again. Resume goes on with the samples that are left. This check is not applied to the card again in this run.",
+      "counts": {
+        "scored": 12,
+        "prompts": 5
+      },
+      "causes": {},
+      "sample_refs": [
+        "qrng/psychobench/p4/1",
+        "prng7/psychobench/p0/2",
+        "bent/psychobench/p1/2"
+      ],
+      "resumed_at": null
+    },
+    "unfinished/generation": {
+      "rule": "unfinished",
+      "scope": "phase",
+      "scope_id": null,
+      "phase": "generation",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "Generation reached the end of its queue with 49 of 80 planned samples without a completed reply, in 2 arm and card pairs.",
+      "recovery": "Resume tries every sample that has no completed reply, and every judgement that has no reply, again. This check stops a run once for generation and once for judging: if samples are still missing when that part ends again, the run goes on without them.",
+      "counts": {
+        "missing": 49,
+        "planned": 80,
+        "cells": 2
+      },
+      "causes": {
+        "bent/psychobench": 40,
+        "qrng/eval_awareness": 9
+      },
+      "sample_refs": [
+        "qrng/eval_awareness/p31/0",
+        "qrng/eval_awareness/p32/0",
+        "bent/psychobench/p0/0"
+      ],
+      "resumed_at": null
+    },
+    "unfinished/judge": {
+      "rule": "unfinished",
+      "scope": "phase",
+      "scope_id": null,
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "Judging reached the end of its queue with 12 of 40 judgements without a reply from the judge, in 1 arm and card pairs.",
+      "recovery": "Resume tries every sample that has no completed reply, and every judgement that has no reply, again. This check stops a run once for generation and once for judging: if samples are still missing when that part ends again, the run goes on without them.",
+      "counts": {
+        "missing": 12,
+        "planned": 40,
+        "cells": 1
+      },
+      "causes": {
+        "qrng/eval_awareness": 12
+      },
+      "sample_refs": [
+        "qrng/eval_awareness/p3/0",
+        "qrng/eval_awareness/p9/0"
+      ],
+      "resumed_at": null
+    },
+    "judge_rejected/preflight": {
+      "rule": "judge_rejected",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "preflight",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "The judge answered the request made before the first generation with HTTP status 400: it did not accept the key, the model or the settings.",
+      "recovery": "Nothing that was generated or judged is lost. Supply a judge key that works and Resume: every judgement that has no reply is asked again. The judge model and its settings are frozen in the study, so Resume cannot fix a model or a setting the provider refuses. This check is made again after Resume.",
+      "counts": {
+        "status": 400
+      },
+      "causes": {
+        "HTTP 400": 1
+      },
+      "sample_refs": [],
+      "resumed_at": null
+    },
+    "judge_rejected/judge": {
+      "rule": "judge_rejected",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "The judge answered a request with HTTP status 401: it did not accept the key, the model or the address.",
+      "recovery": "Nothing that was generated or judged is lost. Supply a judge key that works and Resume: every judgement that has no reply is asked again. The judge model and its settings are frozen in the study, so Resume cannot fix a model or a setting the provider refuses. This check is made again after Resume.",
+      "counts": {
+        "status": 401
+      },
+      "causes": {
+        "HTTP 401": 1
+      },
+      "sample_refs": [
+        "qrng/eval_awareness/p0/0"
+      ],
+      "resumed_at": null
+    },
+    "judge_unusable/streak": {
+      "rule": "judge_unusable",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "10 judge calls in a row got no reply.",
+      "recovery": "Judgements that got a reply are kept. Resume asks every judgement that has no reply again. This check then counts again from zero.",
+      "counts": {
+        "in_a_row": 10
+      },
+      "causes": {
+        "HTTP 529": 7,
+        "ReadTimeout": 3
+      },
+      "sample_refs": [
+        "qrng/eval_awareness/p7/0",
+        "qrng/eval_awareness/p8/0",
+        "qrng/eval_awareness/p9/0"
+      ],
+      "resumed_at": null
+    },
+    "judge_unusable/share": {
+      "rule": "judge_unusable",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "14 of the last 20 judge calls got no reply.",
+      "recovery": "Judgements that got a reply are kept. Resume asks every judgement that has no reply again. This check then counts again from zero.",
+      "counts": {
+        "failed": 14,
+        "of_last": 20
+      },
+      "causes": {
+        "HTTP 500": 14
+      },
+      "sample_refs": [
+        "qrng/eval_awareness/p16/0",
+        "qrng/eval_awareness/p18/0",
+        "qrng/eval_awareness/p19/0"
+      ],
+      "resumed_at": null
+    },
+    "nothing_judged/card": {
+      "rule": "nothing_judged",
+      "scope": "card",
+      "scope_id": "eval_awareness",
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "No score could be read from any of the first 30 judge replies for card eval_awareness.",
+      "recovery": "A reply that was received is final: those replies are kept without a score and the judge is not asked again for them. Resume goes on with the judgements that are left. This check is not applied to the card again in this run.",
+      "counts": {
+        "replies": 30
+      },
+      "causes": {},
+      "sample_refs": [
+        "qrng/eval_awareness/p27/0",
+        "prng7/eval_awareness/p28/0",
+        "bent/eval_awareness/p29/0"
+      ],
+      "resumed_at": null
+    },
+    "judge_phase_error/run": {
+      "rule": "judge_phase_error",
+      "scope": "run",
+      "scope_id": null,
+      "phase": "judge",
+      "at": "2026-11-22T12:05:00Z",
+      "sentence": "The judge phase ended on an error the harness did not expect.",
+      "recovery": "Every row already written is kept. Resume starts the judge phase again and asks every judgement that has no reply. If the same error comes back the run stops again: this check is never switched off.",
+      "counts": {},
+      "causes": {
+        "KeyError": 1
+      },
+      "sample_refs": [],
+      "resumed_at": null
+    }
+  },
+  "summaries": {
+    "complete": {
+      "run_id": "run-checked",
+      "study_id": "s_1f1fefa8f29b",
+      "state": "complete",
+      "checks_version": 1,
+      "note": null,
+      "halts": [
+        {
+          "rule": "generation_errors",
+          "scope": "arm",
+          "scope_id": "qrng",
+          "phase": "generation",
+          "at": "2026-11-22T12:05:00Z",
+          "sentence": "8 generations in a row on arm qrng ended in an error before a reply was complete.",
+          "recovery": "Nothing that was generated is lost. Resume tries every sample that has no completed reply again, with the keys the run holds at that time. This check then counts again from zero.",
+          "counts": {
+            "in_a_row": 8
+          },
+          "causes": {
+            "HTTP 502": 6,
+            "ReadTimeout": 2
+          },
+          "sample_refs": [
+            "qrng/psychobench/p0/1",
+            "qrng/psychobench/p1/1",
+            "qrng/psychobench/p2/1"
+          ],
+          "resumed_at": "2026-11-22T12:20:00Z"
+        },
+        {
+          "rule": "unfinished",
+          "scope": "phase",
+          "scope_id": null,
+          "phase": "generation",
+          "at": "2026-11-22T14:00:00Z",
+          "sentence": "Generation reached the end of its queue with 49 of 80 planned samples without a completed reply, in 2 arm and card pairs.",
+          "recovery": "Resume tries every sample that has no completed reply, and every judgement that has no reply, again. This check stops a run once for generation and once for judging: if samples are still missing when that part ends again, the run goes on without them.",
+          "counts": {
+            "cells": 2,
+            "missing": 49,
+            "planned": 80
+          },
+          "causes": {
+            "bent/psychobench": 40,
+            "qrng/eval_awareness": 9
+          },
+          "sample_refs": [
+            "qrng/eval_awareness/p31/0",
+            "qrng/eval_awareness/p32/0",
+            "bent/psychobench/p0/0"
+          ],
+          "resumed_at": "2026-11-22T15:00:00Z"
+        }
+      ],
+      "cells": [
+        {
+          "arm_id": "qrng",
+          "card_id": "eval_awareness",
+          "role": "quantum arm",
+          "planned": 40,
+          "completed": 38,
+          "errored": 2,
+          "taints": {
+            "engine_fallback": 1,
+            "stream_error": 2
+          },
+          "flags": {
+            "empty_output": 1,
+            "truncated": 30,
+            "repetition": 3,
+            "judge_failed": 1,
+            "judge_unreadable": 2,
+            "judge_out_of_range": 1
+          },
+          "judgements": {
+            "failed": 1,
+            "ok": 34,
+            "out_of_range": 1,
+            "unreadable": 2
+          }
+        },
+        {
+          "arm_id": "qrng",
+          "card_id": "psychobench",
+          "role": "quantum arm",
+          "planned": 40,
+          "completed": 40,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "truncated": 40
+          },
+          "judgements": {}
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "eval_awareness",
+          "role": "seeded pseudo-random arm",
+          "planned": 40,
+          "completed": 40,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "truncated": 31,
+            "repetition": 1
+          },
+          "judgements": {
+            "ok": 40
+          }
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "psychobench",
+          "role": "seeded pseudo-random arm",
+          "planned": 40,
+          "completed": 40,
+          "errored": 0,
+          "taints": {
+            "stateless_row": 1
+          },
+          "flags": {
+            "truncated": 40
+          },
+          "judgements": {}
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "eval_awareness",
+          "role": "biased pseudo-random control arm",
+          "planned": 40,
+          "completed": 40,
+          "errored": 0,
+          "taints": {},
+          "flags": {},
+          "judgements": {
+            "ok": 40
+          }
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "psychobench",
+          "role": "biased pseudo-random control arm",
+          "planned": 40,
+          "completed": 40,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "truncated": 40,
+            "unparsed": 1
+          },
+          "judgements": {}
+        }
+      ],
+      "taints": {
+        "engine_fallback": 1,
+        "stateless_row": 1,
+        "stream_error": 2
+      },
+      "tainted_samples": 4,
+      "cautions": [
+        {
+          "kind": "flag_share",
+          "text": "On card eval_awareness, the flag \"ends in a loop\" is on at least 5.0% of an arm's completed samples: arm qrng (quantum arm) 3 of 38 (7.9%); arm prng7 (seeded pseudo-random arm) 1 of 40 (2.5%); arm bent (biased pseudo-random control arm) 0 of 40 (0.0%).",
+          "card_id": "eval_awareness",
+          "flag": "repetition",
+          "arms": [
+            {
+              "arm_id": "qrng",
+              "role": "quantum arm",
+              "count": 3,
+              "completed": 38,
+              "share": 0.07894736842105263
+            },
+            {
+              "arm_id": "prng7",
+              "role": "seeded pseudo-random arm",
+              "count": 1,
+              "completed": 40,
+              "share": 0.025
+            },
+            {
+              "arm_id": "bent",
+              "role": "biased pseudo-random control arm",
+              "count": 0,
+              "completed": 40,
+              "share": 0.0
+            }
+          ]
+        },
+        {
+          "kind": "flag_share",
+          "text": "On card eval_awareness, the flag \"judge reply without a score\" is on at least 5.0% of an arm's completed samples: arm qrng (quantum arm) 2 of 38 (5.3%); arm prng7 (seeded pseudo-random arm) 0 of 40 (0.0%); arm bent (biased pseudo-random control arm) 0 of 40 (0.0%).",
+          "card_id": "eval_awareness",
+          "flag": "judge_unreadable",
+          "arms": [
+            {
+              "arm_id": "qrng",
+              "role": "quantum arm",
+              "count": 2,
+              "completed": 38,
+              "share": 0.05263157894736842
+            },
+            {
+              "arm_id": "prng7",
+              "role": "seeded pseudo-random arm",
+              "count": 0,
+              "completed": 40,
+              "share": 0.0
+            },
+            {
+              "arm_id": "bent",
+              "role": "biased pseudo-random control arm",
+              "count": 0,
+              "completed": 40,
+              "share": 0.0
+            }
+          ]
+        }
+      ],
+      "flag_kinds": [
+        {
+          "kind": "empty_output",
+          "phase": "generation",
+          "label": "empty reply",
+          "sentence": "The reply has no visible text: once one reasoning block at its start is set aside, nothing is left but whitespace and invisible characters.",
+          "cautions": true
+        },
+        {
+          "kind": "truncated",
+          "phase": "generation",
+          "label": "ended at the token limit",
+          "sentence": "The reply ended because it reached the token limit.",
+          "cautions": false
+        },
+        {
+          "kind": "repetition",
+          "phase": "generation",
+          "label": "ends in a loop",
+          "sentence": "The reply ends in a loop: the same text of 1 to 200 characters repeated at least 8 times in a row over at least 240 characters. A last copy that is cut short counts as one of the 8, and whitespace at the end of the reply is ignored.",
+          "cautions": true
+        },
+        {
+          "kind": "garbled",
+          "phase": "generation",
+          "label": "damaged characters",
+          "sentence": "The reply has at least 20 characters, and at least 5% of them, and at least 3, are replacement characters or control characters other than tab, newline and carriage return, which is what broken text decoding leaves behind.",
+          "cautions": true
+        },
+        {
+          "kind": "reasoning_in_output",
+          "phase": "generation",
+          "label": "reasoning in the reply",
+          "sentence": "The reply starts with a <think> tag, or has a </think> tag with no <think> before it, so reasoning text sits where the answer should be.",
+          "cautions": true
+        },
+        {
+          "kind": "tier0_missing",
+          "phase": "tier0",
+          "label": "no token log",
+          "sentence": "In a run whose token records come from the engine's token log, the request asked the engine for a token log and none arrived; or, in any run, a token came back without a log-probability. No token records were written for the sample. Its reply, score and judgement stand.",
+          "cautions": true
+        },
+        {
+          "kind": "u_outside_bracket",
+          "phase": "tier0",
+          "label": "draw outside its bracket",
+          "sentence": "For at least one token the random draw lies outside the probability bracket of the token that was sampled. A healthy engine cannot produce this.",
+          "cautions": true
+        },
+        {
+          "kind": "score_error",
+          "phase": "score",
+          "label": "scorer failed",
+          "sentence": "The card's scorer raised an error or returned a value that cannot be stored, so the sample has no score.",
+          "cautions": true
+        },
+        {
+          "kind": "unparsed",
+          "phase": "score",
+          "label": "answer not extracted",
+          "sentence": "The card's scorer reports that it could not extract an answer from the reply.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_failed",
+          "phase": "judge",
+          "label": "no judge reply",
+          "sentence": "The judge gave no reply for the sample: the request failed, or the harness could not build the judge prompt or read the reply's fields. The judgement is asked again when the run is resumed.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_unreadable",
+          "phase": "judge",
+          "label": "judge reply without a score",
+          "sentence": "The judge replied and no score could be read from the reply. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_out_of_range",
+          "phase": "judge",
+          "label": "judge score not allowed",
+          "sentence": "The score read from the judge's reply is not one of the values the rubric allows. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_cut",
+          "phase": "judge",
+          "label": "judge reply cut short",
+          "sentence": "The judge's reply did not end normally, so it may be incomplete.",
+          "cautions": true
+        }
+      ]
+    },
+    "stopped": {
+      "run_id": "run-stopped",
+      "study_id": "s_1f1fefa8f29b",
+      "state": "paused",
+      "checks_version": 1,
+      "note": null,
+      "halts": [
+        {
+          "rule": "generation_errors",
+          "scope": "arm",
+          "scope_id": "qrng",
+          "phase": "generation",
+          "at": "2026-11-22T12:05:00Z",
+          "sentence": "8 generations in a row on arm qrng ended in an error before a reply was complete.",
+          "recovery": "Nothing that was generated is lost. Resume tries every sample that has no completed reply again, with the keys the run holds at that time. This check then counts again from zero.",
+          "counts": {
+            "in_a_row": 8
+          },
+          "causes": {
+            "HTTP 502": 6,
+            "ReadTimeout": 2
+          },
+          "sample_refs": [
+            "qrng/psychobench/p0/1",
+            "qrng/psychobench/p1/1",
+            "qrng/psychobench/p2/1"
+          ],
+          "resumed_at": "2026-11-22T12:20:00Z"
+        },
+        {
+          "rule": "empty_outputs",
+          "scope": "card",
+          "scope_id": "eval_awareness",
+          "phase": "generation",
+          "at": "2026-11-22T12:50:00Z",
+          "sentence": "The last 20 replies stored for card eval_awareness were all empty. They came from 5 prompts, and 3 arms each gave at least 5 of them.",
+          "recovery": "An empty reply is a complete sample: it stays in the run and in the analysis and Resume does not generate it again. Resume goes on with the samples that are left. This check is not applied to the card again in this run.",
+          "counts": {
+            "arms": 3,
+            "in_a_row": 20,
+            "per_arm": 5,
+            "prompts": 5
+          },
+          "causes": {},
+          "sample_refs": [
+            "bent/eval_awareness/p2/3",
+            "qrng/eval_awareness/p3/3",
+            "prng7/eval_awareness/p4/3"
+          ],
+          "resumed_at": null
+        }
+      ],
+      "cells": [
+        {
+          "arm_id": "qrng",
+          "card_id": "eval_awareness",
+          "role": "quantum arm",
+          "planned": 40,
+          "completed": 12,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "empty_output": 7
+          },
+          "judgements": {}
+        },
+        {
+          "arm_id": "qrng",
+          "card_id": "psychobench",
+          "role": "quantum arm",
+          "planned": 40,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": {},
+          "judgements": {}
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "eval_awareness",
+          "role": "seeded pseudo-random arm",
+          "planned": 40,
+          "completed": 12,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "empty_output": 7
+          },
+          "judgements": {}
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "psychobench",
+          "role": "seeded pseudo-random arm",
+          "planned": 40,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": {},
+          "judgements": {}
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "eval_awareness",
+          "role": "biased pseudo-random control arm",
+          "planned": 40,
+          "completed": 12,
+          "errored": 0,
+          "taints": {},
+          "flags": {
+            "empty_output": 7
+          },
+          "judgements": {}
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "psychobench",
+          "role": "biased pseudo-random control arm",
+          "planned": 40,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": {},
+          "judgements": {}
+        }
+      ],
+      "taints": {},
+      "tainted_samples": 0,
+      "cautions": [
+        {
+          "kind": "run_not_complete",
+          "text": "The run is in the state paused, not complete: the counts describe what is stored so far.",
+          "card_id": null,
+          "flag": null,
+          "arms": []
+        },
+        {
+          "kind": "open_halt",
+          "text": "A check stopped the run and the run has not been resumed. The last 20 replies stored for card eval_awareness were all empty. They came from 5 prompts, and 3 arms each gave at least 5 of them.",
+          "card_id": null,
+          "flag": null,
+          "arms": []
+        },
+        {
+          "kind": "flag_share",
+          "text": "On card eval_awareness, the flag \"empty reply\" is on at least 5.0% of an arm's completed samples: arm qrng (quantum arm) 7 of 12 (58.3%); arm prng7 (seeded pseudo-random arm) 7 of 12 (58.3%); arm bent (biased pseudo-random control arm) 7 of 12 (58.3%).",
+          "card_id": "eval_awareness",
+          "flag": "empty_output",
+          "arms": [
+            {
+              "arm_id": "qrng",
+              "role": "quantum arm",
+              "count": 7,
+              "completed": 12,
+              "share": 0.5833333333333334
+            },
+            {
+              "arm_id": "prng7",
+              "role": "seeded pseudo-random arm",
+              "count": 7,
+              "completed": 12,
+              "share": 0.5833333333333334
+            },
+            {
+              "arm_id": "bent",
+              "role": "biased pseudo-random control arm",
+              "count": 7,
+              "completed": 12,
+              "share": 0.5833333333333334
+            }
+          ]
+        }
+      ],
+      "flag_kinds": [
+        {
+          "kind": "empty_output",
+          "phase": "generation",
+          "label": "empty reply",
+          "sentence": "The reply has no visible text: once one reasoning block at its start is set aside, nothing is left but whitespace and invisible characters.",
+          "cautions": true
+        },
+        {
+          "kind": "truncated",
+          "phase": "generation",
+          "label": "ended at the token limit",
+          "sentence": "The reply ended because it reached the token limit.",
+          "cautions": false
+        },
+        {
+          "kind": "repetition",
+          "phase": "generation",
+          "label": "ends in a loop",
+          "sentence": "The reply ends in a loop: the same text of 1 to 200 characters repeated at least 8 times in a row over at least 240 characters. A last copy that is cut short counts as one of the 8, and whitespace at the end of the reply is ignored.",
+          "cautions": true
+        },
+        {
+          "kind": "garbled",
+          "phase": "generation",
+          "label": "damaged characters",
+          "sentence": "The reply has at least 20 characters, and at least 5% of them, and at least 3, are replacement characters or control characters other than tab, newline and carriage return, which is what broken text decoding leaves behind.",
+          "cautions": true
+        },
+        {
+          "kind": "reasoning_in_output",
+          "phase": "generation",
+          "label": "reasoning in the reply",
+          "sentence": "The reply starts with a <think> tag, or has a </think> tag with no <think> before it, so reasoning text sits where the answer should be.",
+          "cautions": true
+        },
+        {
+          "kind": "tier0_missing",
+          "phase": "tier0",
+          "label": "no token log",
+          "sentence": "In a run whose token records come from the engine's token log, the request asked the engine for a token log and none arrived; or, in any run, a token came back without a log-probability. No token records were written for the sample. Its reply, score and judgement stand.",
+          "cautions": true
+        },
+        {
+          "kind": "u_outside_bracket",
+          "phase": "tier0",
+          "label": "draw outside its bracket",
+          "sentence": "For at least one token the random draw lies outside the probability bracket of the token that was sampled. A healthy engine cannot produce this.",
+          "cautions": true
+        },
+        {
+          "kind": "score_error",
+          "phase": "score",
+          "label": "scorer failed",
+          "sentence": "The card's scorer raised an error or returned a value that cannot be stored, so the sample has no score.",
+          "cautions": true
+        },
+        {
+          "kind": "unparsed",
+          "phase": "score",
+          "label": "answer not extracted",
+          "sentence": "The card's scorer reports that it could not extract an answer from the reply.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_failed",
+          "phase": "judge",
+          "label": "no judge reply",
+          "sentence": "The judge gave no reply for the sample: the request failed, or the harness could not build the judge prompt or read the reply's fields. The judgement is asked again when the run is resumed.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_unreadable",
+          "phase": "judge",
+          "label": "judge reply without a score",
+          "sentence": "The judge replied and no score could be read from the reply. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_out_of_range",
+          "phase": "judge",
+          "label": "judge score not allowed",
+          "sentence": "The score read from the judge's reply is not one of the values the rubric allows. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_cut",
+          "phase": "judge",
+          "label": "judge reply cut short",
+          "sentence": "The judge's reply did not end normally, so it may be incomplete.",
+          "cautions": true
+        }
+      ]
+    },
+    "legacy": {
+      "run_id": "run-legacy",
+      "study_id": "s_1f1fefa8f29b",
+      "state": "complete",
+      "checks_version": null,
+      "note": "This run was made before result checks, so no flags were recorded for it.",
+      "halts": [],
+      "cells": [
+        {
+          "arm_id": "qrng",
+          "card_id": "eval_awareness",
+          "role": "quantum arm",
+          "planned": 4,
+          "completed": 4,
+          "errored": 0,
+          "taints": {
+            "qrng_degraded": 1
+          },
+          "flags": null,
+          "judgements": {
+            "no_score": 1,
+            "ok": 1
+          }
+        },
+        {
+          "arm_id": "qrng",
+          "card_id": "psychobench",
+          "role": "quantum arm",
+          "planned": 4,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": null,
+          "judgements": {}
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "eval_awareness",
+          "role": "seeded pseudo-random arm",
+          "planned": 4,
+          "completed": 4,
+          "errored": 0,
+          "taints": {},
+          "flags": null,
+          "judgements": {}
+        },
+        {
+          "arm_id": "prng7",
+          "card_id": "psychobench",
+          "role": "seeded pseudo-random arm",
+          "planned": 4,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": null,
+          "judgements": {}
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "eval_awareness",
+          "role": "biased pseudo-random control arm",
+          "planned": 4,
+          "completed": 4,
+          "errored": 0,
+          "taints": {},
+          "flags": null,
+          "judgements": {}
+        },
+        {
+          "arm_id": "bent",
+          "card_id": "psychobench",
+          "role": "biased pseudo-random control arm",
+          "planned": 4,
+          "completed": 0,
+          "errored": 0,
+          "taints": {},
+          "flags": null,
+          "judgements": {}
+        }
+      ],
+      "taints": {
+        "qrng_degraded": 1
+      },
+      "tainted_samples": 1,
+      "cautions": [],
+      "flag_kinds": [
+        {
+          "kind": "empty_output",
+          "phase": "generation",
+          "label": "empty reply",
+          "sentence": "The reply has no visible text: once one reasoning block at its start is set aside, nothing is left but whitespace and invisible characters.",
+          "cautions": true
+        },
+        {
+          "kind": "truncated",
+          "phase": "generation",
+          "label": "ended at the token limit",
+          "sentence": "The reply ended because it reached the token limit.",
+          "cautions": false
+        },
+        {
+          "kind": "repetition",
+          "phase": "generation",
+          "label": "ends in a loop",
+          "sentence": "The reply ends in a loop: the same text of 1 to 200 characters repeated at least 8 times in a row over at least 240 characters. A last copy that is cut short counts as one of the 8, and whitespace at the end of the reply is ignored.",
+          "cautions": true
+        },
+        {
+          "kind": "garbled",
+          "phase": "generation",
+          "label": "damaged characters",
+          "sentence": "The reply has at least 20 characters, and at least 5% of them, and at least 3, are replacement characters or control characters other than tab, newline and carriage return, which is what broken text decoding leaves behind.",
+          "cautions": true
+        },
+        {
+          "kind": "reasoning_in_output",
+          "phase": "generation",
+          "label": "reasoning in the reply",
+          "sentence": "The reply starts with a <think> tag, or has a </think> tag with no <think> before it, so reasoning text sits where the answer should be.",
+          "cautions": true
+        },
+        {
+          "kind": "tier0_missing",
+          "phase": "tier0",
+          "label": "no token log",
+          "sentence": "In a run whose token records come from the engine's token log, the request asked the engine for a token log and none arrived; or, in any run, a token came back without a log-probability. No token records were written for the sample. Its reply, score and judgement stand.",
+          "cautions": true
+        },
+        {
+          "kind": "u_outside_bracket",
+          "phase": "tier0",
+          "label": "draw outside its bracket",
+          "sentence": "For at least one token the random draw lies outside the probability bracket of the token that was sampled. A healthy engine cannot produce this.",
+          "cautions": true
+        },
+        {
+          "kind": "score_error",
+          "phase": "score",
+          "label": "scorer failed",
+          "sentence": "The card's scorer raised an error or returned a value that cannot be stored, so the sample has no score.",
+          "cautions": true
+        },
+        {
+          "kind": "unparsed",
+          "phase": "score",
+          "label": "answer not extracted",
+          "sentence": "The card's scorer reports that it could not extract an answer from the reply.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_failed",
+          "phase": "judge",
+          "label": "no judge reply",
+          "sentence": "The judge gave no reply for the sample: the request failed, or the harness could not build the judge prompt or read the reply's fields. The judgement is asked again when the run is resumed.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_unreadable",
+          "phase": "judge",
+          "label": "judge reply without a score",
+          "sentence": "The judge replied and no score could be read from the reply. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_out_of_range",
+          "phase": "judge",
+          "label": "judge score not allowed",
+          "sentence": "The score read from the judge's reply is not one of the values the rubric allows. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_cut",
+          "phase": "judge",
+          "label": "judge reply cut short",
+          "sentence": "The judge's reply did not end normally, so it may be incomplete.",
+          "cautions": true
+        }
+      ]
+    },
+    "fresh": {
+      "run_id": "run-fresh",
+      "study_id": "s_1f1fefa8f29b",
+      "state": "ready",
+      "checks_version": 1,
+      "note": null,
+      "halts": [],
+      "cells": [],
+      "taints": {},
+      "tainted_samples": 0,
+      "cautions": [
+        {
+          "kind": "run_not_complete",
+          "text": "The run is in the state ready, not complete: the counts describe what is stored so far.",
+          "card_id": null,
+          "flag": null,
+          "arms": []
+        }
+      ],
+      "flag_kinds": [
+        {
+          "kind": "empty_output",
+          "phase": "generation",
+          "label": "empty reply",
+          "sentence": "The reply has no visible text: once one reasoning block at its start is set aside, nothing is left but whitespace and invisible characters.",
+          "cautions": true
+        },
+        {
+          "kind": "truncated",
+          "phase": "generation",
+          "label": "ended at the token limit",
+          "sentence": "The reply ended because it reached the token limit.",
+          "cautions": false
+        },
+        {
+          "kind": "repetition",
+          "phase": "generation",
+          "label": "ends in a loop",
+          "sentence": "The reply ends in a loop: the same text of 1 to 200 characters repeated at least 8 times in a row over at least 240 characters. A last copy that is cut short counts as one of the 8, and whitespace at the end of the reply is ignored.",
+          "cautions": true
+        },
+        {
+          "kind": "garbled",
+          "phase": "generation",
+          "label": "damaged characters",
+          "sentence": "The reply has at least 20 characters, and at least 5% of them, and at least 3, are replacement characters or control characters other than tab, newline and carriage return, which is what broken text decoding leaves behind.",
+          "cautions": true
+        },
+        {
+          "kind": "reasoning_in_output",
+          "phase": "generation",
+          "label": "reasoning in the reply",
+          "sentence": "The reply starts with a <think> tag, or has a </think> tag with no <think> before it, so reasoning text sits where the answer should be.",
+          "cautions": true
+        },
+        {
+          "kind": "tier0_missing",
+          "phase": "tier0",
+          "label": "no token log",
+          "sentence": "In a run whose token records come from the engine's token log, the request asked the engine for a token log and none arrived; or, in any run, a token came back without a log-probability. No token records were written for the sample. Its reply, score and judgement stand.",
+          "cautions": true
+        },
+        {
+          "kind": "u_outside_bracket",
+          "phase": "tier0",
+          "label": "draw outside its bracket",
+          "sentence": "For at least one token the random draw lies outside the probability bracket of the token that was sampled. A healthy engine cannot produce this.",
+          "cautions": true
+        },
+        {
+          "kind": "score_error",
+          "phase": "score",
+          "label": "scorer failed",
+          "sentence": "The card's scorer raised an error or returned a value that cannot be stored, so the sample has no score.",
+          "cautions": true
+        },
+        {
+          "kind": "unparsed",
+          "phase": "score",
+          "label": "answer not extracted",
+          "sentence": "The card's scorer reports that it could not extract an answer from the reply.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_failed",
+          "phase": "judge",
+          "label": "no judge reply",
+          "sentence": "The judge gave no reply for the sample: the request failed, or the harness could not build the judge prompt or read the reply's fields. The judgement is asked again when the run is resumed.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_unreadable",
+          "phase": "judge",
+          "label": "judge reply without a score",
+          "sentence": "The judge replied and no score could be read from the reply. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_out_of_range",
+          "phase": "judge",
+          "label": "judge score not allowed",
+          "sentence": "The score read from the judge's reply is not one of the values the rubric allows. The reply is kept without a score and the judge is not asked again.",
+          "cautions": true
+        },
+        {
+          "kind": "judge_cut",
+          "phase": "judge",
+          "label": "judge reply cut short",
+          "sentence": "The judge's reply did not end normally, so it may be incomplete.",
+          "cautions": true
+        }
+      ]
+    }
+  }
+}

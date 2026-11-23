@@ -61,6 +61,40 @@ describe("launch dialog", () => {
     expect(launch.mock.calls[0]?.[0]).toMatchObject({ kind: "full", prereg_hash: "b".repeat(64), readiness: report });
   });
 
+  it("starts on the kind the study's pilot setting names, and on a pilot for a study that says nothing about one", () => {
+    const startsOn = (study: StudyConfig) => {
+      const view = render(<LaunchDialog open config={study} providerKeys={{}} onClose={() => undefined} onClearKeys={() => undefined} onLaunched={() => undefined} />);
+      const kind = (screen.getByRole("radio", { name: /^Pilot/ }) as HTMLInputElement).checked ? "pilot" : "full";
+      expect((screen.getByRole("radio", { name: /^Full run/ }) as HTMLInputElement).checked).toBe(kind === "full");
+      view.unmount();
+      return kind;
+    };
+    expect(startsOn({ ...config, pilot: { enabled: true, prompts: 200 } })).toBe("pilot");
+    expect(startsOn({ ...config, pilot: { enabled: false, prompts: 200 } })).toBe("full");
+    // The server's default for a pilot that is not mentioned is "enabled", and the settings show it ticked.
+    const silent: Partial<StudyConfig> = { ...config };
+    delete silent.pilot;
+    expect(startsOn(silent as StudyConfig)).toBe("pilot");
+    expect(startsOn({ ...config, pilot: { prompts: 50 } })).toBe("pilot");
+  });
+
+  it("says what a pilot of a designed study is: the whole study, labelled non-confirmatory", () => {
+    expect(config.design).toBeTruthy();
+    open();
+    expect(screen.getByRole("group", { name: "Kind of run" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "Pilot: runs the study as configured and is labelled non-confirmatory. It does not set margins." })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Full run: runs the study as configured. Only the first full run of a study can be confirmatory." })).toBeInTheDocument();
+    // Nothing subsamples a pilot, so nothing here may say it is smaller.
+    expect(document.body.textContent).not.toMatch(/a few prompts|subsample|base rates|smaller|size of this run/i);
+  });
+
+  it("promises no confirmatory run to a study on the fixed Study 1 plan", () => {
+    render(<LaunchDialog open config={{ ...config, design: null }} providerKeys={{}} onClose={() => undefined} onClearKeys={() => undefined} onLaunched={() => undefined} />);
+    expect(screen.getByRole("radio", { name: "Pilot: runs the study as configured. Its results are labelled as a pilot. It does not set margins." })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Full run: runs the study as configured." })).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/confirmatory|a few prompts|base rates/i);
+  });
+
   it("refuses without a session and never calls the API", async () => {
     const readiness = vi.spyOn(api, "readiness");
     open();

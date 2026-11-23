@@ -6,7 +6,8 @@ export function ResultsTable({
 }: {
   rows: Comparison[];
   caption: string;
-  correction?: string;
+  /** Names the adjusted-p column; `null` leaves it out, for rows that carry no adjusted p. */
+  correction?: string | null;
 }) {
   return (
     <div className="results-table" tabIndex={0}>
@@ -19,7 +20,7 @@ export function ResultsTable({
             <th>Effect</th>
             <th>Confidence interval</th>
             <th>Raw p</th>
-            <th>{correction} p</th>
+            {correction !== null && <th>{correction} p</th>}
           </tr>
         </thead>
         <tbody>
@@ -48,9 +49,11 @@ export function ResultsTable({
                   : "Unavailable"}
               </td>
               <td>{row.available ? numberText(row.p_value) : "Unavailable"}</td>
-              <td>
-                {row.available ? numberText(row.p_adjusted) : "Unavailable"}
-              </td>
+              {correction !== null && (
+                <td>
+                  {row.available ? numberText(row.p_adjusted) : "Unavailable"}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

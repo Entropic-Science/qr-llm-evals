@@ -63,6 +63,12 @@ export interface Contracts {
   AdminUserUpdate: AdminUserUpdate;
   SettleRequest: SettleRequest;
   StorageResponse: StorageResponse;
+  EndpointMeta: EndpointMeta;
+  CardItemsResponse: CardItemsResponse;
+  DecisionsTable: DecisionsTable;
+  ResultFlag: ResultFlag;
+  Halt: Halt;
+  HealthSummary: HealthSummary;
 }
 /**
  * Everything the prereg freezes. ``config_hash(study)`` is its identity.
@@ -91,6 +97,10 @@ export interface StudyConfig {
    * @minItems 1
    */
   cards: CardSelection[];
+  /**
+   * Absent on studies from before the design block; never serialized as null.
+   */
+  design?: StudyDesign | null;
   judge: JudgeSpec;
   narrative_model: ModelRef;
   supervised?: SupervisedConfig | null;
@@ -169,6 +179,55 @@ export interface CardSelection {
 export interface CardOverrides {
   k?: number | null;
   items?: number | null;
+}
+/**
+ * What the study claims and tests, declared by the researcher before launch.
+ *
+ * Without this block the analysis plan is the built-in Study 1 plan. With it,
+ * the plan is projected from these declarations: the confirmatory endpoints,
+ * the significance level, whether the absence of an effect may be claimed, and
+ * the biased-sampler level that has to be detected for that claim to stand.
+ * Whether an endpoint can carry a confirmatory test is a property of its card
+ * and is checked where the plan is built; this layer cannot see the cards.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "StudyDesign".
+ */
+export interface StudyDesign {
+  version?: 1;
+  claim: "difference" | "difference_or_equivalence";
+  /**
+   * @minItems 1
+   * @maxItems 8
+   */
+  confirmatory: EndpointRef[];
+  alpha?: 0.05 | 0.01 | 0.005;
+  /**
+   * The ε of the biased arm that serves as the positive control.
+   */
+  sensitivity_epsilon?: (number | null) & (0.01 | 0.03 | 0.1 | 0.5 | null);
+  margins?: MarginDecl[];
+}
+/**
+ * One endpoint of one selected card, named as the card names it.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "EndpointRef".
+ */
+export interface EndpointRef {
+  card_id: string;
+  endpoint: string;
+}
+/**
+ * An equivalence margin declared for an endpoint whose card states no SESOI.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "MarginDecl".
+ */
+export interface MarginDecl {
+  card_id: string;
+  endpoint: string;
+  margin: number;
 }
 /**
  * The study's shared judge: an Anthropic Messages API call on the user's own key.
@@ -482,6 +541,14 @@ export interface Run {
   keys_present?: {
     [k: string]: boolean | undefined;
   };
+  /**
+   * Every stop of the run by a result check, oldest first; never shortened.
+   */
+  halts?: Halt[];
+  /**
+   * Version of the result checks the run started under; empty for a run made before result checks.
+   */
+  checks_version?: number | null;
 }
 /**
  * Result of ``POST /api/readiness`` (spec §2.7).
@@ -583,6 +650,66 @@ export interface Taint {
   at: string;
 }
 /**
+ * One stop of a run by a result check, kept in ``Run.halts``.
+ *
+ * A stop is a pause with a stored reason: nothing is removed and nothing
+ * resumes by itself. ``resumed_at`` is empty while the halt is open and is
+ * stamped by the run that the host resumes.
+ *
+ * A halt is written to ``run.json``, sent as an event and served on open
+ * routes, so it must never hold a key (AGENTS.md invariant 3). The record
+ * sees to that itself: its text passes through the log redaction, and a
+ * cause or count is kept under its own name only when that name has the
+ * shape of one the harness writes. Free text, such as an upstream error
+ * message, is tallied as :data:`OTHER_CAUSE`.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Halt".
+ */
+export interface Halt {
+  rule:
+    | "generation_errors"
+    | "entropy_degraded"
+    | "tier0_failed"
+    | "scorer_errors"
+    | "empty_outputs"
+    | "nothing_parsed"
+    | "unfinished"
+    | "judge_rejected"
+    | "judge_unusable"
+    | "nothing_judged"
+    | "judge_phase_error";
+  scope: "arm" | "card" | "phase" | "run";
+  /**
+   * The arm or the card the rule fired for; empty otherwise.
+   */
+  scope_id?: string | null;
+  phase: "preflight" | "generation" | "judge";
+  at: string;
+  /**
+   * What the rule saw, with the real scope and counts.
+   */
+  sentence: string;
+  /**
+   * What Resume can and cannot recover after this stop.
+   */
+  recovery: string;
+  counts?: {
+    [k: string]: number | undefined;
+  };
+  /**
+   * A tally by cause in the harness's own words (an HTTP status, a class name).
+   */
+  causes?: {
+    [k: string]: number | undefined;
+  };
+  /**
+   * @maxItems 3
+   */
+  sample_refs?: string[];
+  resumed_at?: string | null;
+}
+/**
  * One line of ``generations.jsonl``.
  *
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -656,6 +783,11 @@ export interface Timing {
 /**
  * One line of ``judge/<judge_id>.jsonl``.
  *
+ * A row whose ``status`` says a reply was received (``ok``, ``unreadable``,
+ * ``out_of_range``) is final: the judge is not asked again for that sample.
+ * Only a ``failed`` row, and a row from before rows had a status that has no
+ * score, is asked again when the run is resumed.
+ *
  * This interface was referenced by `Contracts`'s JSON-Schema
  * via the `definition` "JudgeRow".
  */
@@ -665,9 +797,27 @@ export interface JudgeRow {
   model: string;
   rubric_hash: string;
   score?: number | null;
+  /**
+   * Further named values the card's judge_fields() read from the judge's reply; the analysis joins them to the sample's score row.
+   */
+  fields?: {
+    [k: string]: number | null | undefined;
+  };
   raw?: string;
   usage?: Usage;
   at: string;
+  /**
+   * ok: a score was read. failed: no reply came. unreadable: a reply came and no score could be read from it. out_of_range: the value read is not one the rubric allows. Empty on rows written before result checks.
+   */
+  status?: ("ok" | "failed" | "unreadable" | "out_of_range") | null;
+  /**
+   * The judge's own stop reason, when it gave one.
+   */
+  stop_reason?: string | null;
+  /**
+   * Version of the reader that read this reply.
+   */
+  reader_version?: number | null;
 }
 /**
  * One line of ``tier0.jsonl``.
@@ -883,12 +1033,19 @@ export interface StatisticalPlan {
   cards_json: string;
   endpoints: EndpointPlan[];
   contrasts: Contrast[];
+  /**
+   * Set for a study with a design block; absent on a legacy plan.
+   */
+  design?: PlanDesign | null;
   alpha?: number;
   permutations?: number;
   bootstrap_replicates?: 10000;
   random_seed?: 42;
   ci_level?: number;
-  pilot_quantile?: number;
+  /**
+   * Legacy pilot-derived margins only; a designed plan fixes its margins.
+   */
+  pilot_quantile?: number | null;
   margin_rule?: string;
   missing_margin_rule?: string;
   pairing?: string;
@@ -935,6 +1092,84 @@ export interface Contrast {
   a: string[];
   b: string[];
   epsilon?: number | null;
+}
+/**
+ * The designed part of a statistical plan.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "PlanDesign".
+ */
+export interface PlanDesign {
+  version?: 1;
+  matrix_version?: 1;
+  claim: string;
+  alpha: number;
+  power?: number;
+  min_completeness?: number;
+  reference_effect?: number;
+  sensitivity_epsilon: number | null;
+  families: FamilySizes;
+  hypotheses: HypothesisPlan[];
+}
+/**
+ * How many tests each Holm family corrects for, unavailable members included.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "FamilySizes".
+ */
+export interface FamilySizes {
+  difference: number;
+  equivalence: number;
+  negative_control: number;
+}
+/**
+ * One registered hypothesis: an endpoint in one (model, sampling) cell.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "HypothesisPlan".
+ */
+export interface HypothesisPlan {
+  id: string;
+  card_id: string;
+  endpoint: string;
+  label: string;
+  model: string;
+  sampling: string;
+  test: "paired_permutation" | "ks_two_sample" | "mmd_hamming_permutation";
+  sided: "two_sided" | "one_sided_upper";
+  contrast: number;
+  negative_controls: number[];
+  positive_control: number | null;
+  margin: number | null;
+  margin_source: "card_sesoi" | "declared" | "none";
+  planned_units: number;
+  planned_pairs: number;
+  sample_size: SampleSize;
+  statement: string;
+}
+/**
+ * Whether the planned number of prompts can carry one hypothesis.
+ *
+ * The numbers are worst-case bounds computed before any data exist. A field
+ * is ``None`` when no closed form applies to the test.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "SampleSize".
+ */
+export interface SampleSize {
+  n: number;
+  n_floor: number;
+  control_floor?: number | null;
+  mde_standardized: number | null;
+  sd_bound: number | null;
+  mde_raw: number | null;
+  power_at_margin: number | null;
+  equivalence_floor: number | null;
+  n_recommended: number | null;
+  reachable: boolean | null;
+  k_recommended?: number | null;
+  rating: "sufficient" | "marginal" | "insufficient" | "unknown";
+  basis: "margin_worst_case" | "standardized_reference" | "no_closed_form";
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -1049,6 +1284,10 @@ export interface ConfigParseResponse {
    * Card ids this registry does not have.
    */
   unknown_cards: string[];
+  /**
+   * Rules spanning several fields that the study breaks (references between models, arms, seeds and evals; the design block). Empty for a valid study. A study with problems is a draft and is refused at launch.
+   */
+  problems?: string[];
 }
 /**
  * Everything the prereg freezes. ``config_hash(study)`` is its identity.
@@ -1074,6 +1313,10 @@ export interface StudyConfig1 {
    * @minItems 1
    */
   cards: CardSelection[];
+  /**
+   * Absent on studies from before the design block; never serialized as null.
+   */
+  design?: StudyDesign | null;
   judge: JudgeSpec;
   narrative_model: ModelRef;
   supervised?: SupervisedConfig | null;
@@ -1328,6 +1571,12 @@ export interface StudyView {
     [k: string]: unknown | undefined;
   }[];
   /**
+   * Sample counts keyed by run id. A run whose files could not be summarised has no entry.
+   */
+  health?: {
+    [k: string]: RunHealthCounts | undefined;
+  };
+  /**
    * Completed or in-progress analysis ids keyed by run id.
    */
   analyses: {
@@ -1337,6 +1586,32 @@ export interface StudyView {
    * True when every archived run is withdrawn.
    */
   withdrawn: boolean;
+}
+/**
+ * The sample counts of one run, read off its health summary (``GET /runs/{id}/health``).
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "RunHealthCounts".
+ */
+export interface RunHealthCounts {
+  /**
+   * Samples that have a completed reply.
+   */
+  completed_samples: number;
+  /**
+   * Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.
+   */
+  failed_samples: number;
+  /**
+   * Samples that carry any taint.
+   */
+  tainted_samples: number;
+  /**
+   * Tainted samples and windows of the run, by kind of taint; `other` counts taints of a kind this harness does not know.
+   */
+  taints: {
+    [k: string]: number | undefined;
+  };
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema
@@ -1608,4 +1883,392 @@ export interface StorageRunView {
   state: string;
   created_at: string;
   size_bytes: number;
+}
+/**
+ * The registered facts about one (card, endpoint) pair.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "EndpointMeta".
+ */
+export interface EndpointMeta {
+  label: string;
+  scale: "proportion" | "count" | "score" | "statistic";
+  level: "sample" | "prompt_group" | "token_stream";
+  range: [number, number] | null;
+  executable: boolean;
+  k_locked?: boolean;
+}
+/**
+ * A page of a card's prompts, or why they cannot be listed before a run.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "CardItemsResponse".
+ */
+export interface CardItemsResponse {
+  card_id: string;
+  /**
+   * True only for ``source == 'task_module'``.
+   */
+  listable: boolean;
+  source:
+    "task_module" | "derived_at_run" | "remote_dataset" | "inspect_task" | "no_prompts" | "error";
+  /**
+   * Why the prompts are not listed; null when they are.
+   */
+  reason: string | null;
+  total: number;
+  offset: number;
+  limit: number;
+  /**
+   * The told cell the messages were built for; null on a card without the factor.
+   */
+  told: ("told_qrng" | "told_prng" | "told_nothing") | null;
+  items: CardItem[];
+}
+/**
+ * One prompt as the target model receives it.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "CardItem".
+ */
+export interface CardItem {
+  /**
+   * Position in the card's own order; the runner takes the first N.
+   */
+  index: number;
+  prompt_id: string;
+  /**
+   * ``{role, content}`` turns; each content is cut at 6000 characters, which no prompt of the registry reaches.
+   */
+  messages: {
+    [k: string]: string | undefined;
+  }[];
+  /**
+   * True when some content was cut.
+   */
+  truncated: boolean;
+}
+/**
+ * ``tables/decisions.json``: every hypothesis resolved, and the study rolled up.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "DecisionsTable".
+ */
+export interface DecisionsTable {
+  schema_version?: 1;
+  precision: number;
+  matrix_version?: 1;
+  confirmatory: boolean;
+  non_confirmatory_reason: ("pilot_run" | "not_first_full_run") | null;
+  claim: string;
+  alpha: number;
+  power: number;
+  min_completeness: number;
+  sensitivity_epsilon: number | null;
+  families: FamilySizes;
+  study_verdict:
+    | "not_confirmatory"
+    | "invalid"
+    | "effect"
+    | "no_effect_within_margins"
+    | "mixed_or_inconclusive";
+  rows: DecisionRow[];
+}
+/**
+ * One hypothesis after the analysis: the numbers, the gates and the verdict.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "DecisionRow".
+ */
+export interface DecisionRow {
+  hypothesis_id: string;
+  card_id: string;
+  endpoint: string;
+  label: string;
+  model: string;
+  sampling: string;
+  test: "paired_permutation" | "ks_two_sample" | "mmd_hamming_permutation";
+  estimate: number | null;
+  ci_lower: number | null;
+  ci_upper: number | null;
+  ci_level: number;
+  p_value: number | null;
+  p_adjusted: number | null;
+  margin: number | null;
+  p_equivalence: number | null;
+  p_equivalence_adjusted: number | null;
+  completeness: number | null;
+  negative_control: NegativeControl;
+  positive_control: PositiveControl;
+  above_seed_noise: boolean | null;
+  planned_mde_raw: number | null;
+  planned_mde_standardized: number | null;
+  verdict:
+    "unavailable" | "invalid" | "effect" | "effect_within_margin" | "equivalent" | "inconclusive";
+  reason:
+    | (
+        | "not_produced"
+        | "incomplete"
+        | "negative_control"
+        | "negative_control_cannot_fail"
+        | "equivalence_not_claimed"
+        | "equivalence_not_testable"
+        | "no_margin"
+        | "interval_exceeds_margin"
+        | "positive_control_absent"
+        | "positive_control_failed"
+      )
+    | null;
+  wording: string;
+}
+/**
+ * Seed against seed: two runs of the same generator must not differ.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "NegativeControl".
+ */
+export interface NegativeControl {
+  passed: boolean;
+  n_pairs: number;
+  min_p_adjusted: number | null;
+  can_fail?: boolean;
+}
+/**
+ * The biased arm: a known sampler bias the assay has to detect.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "PositiveControl".
+ */
+export interface PositiveControl {
+  epsilon: number | null;
+  status: "passed" | "failed" | "absent";
+  p_value: number | null;
+}
+/**
+ * One line of ``flags.jsonl``: a result check found something about a sample.
+ *
+ * A flag is not an exclusion. The sample stays in every analysis exactly as
+ * before; nothing in ``analysis/`` reads this file. It is joined to the other
+ * records by ``sample_ref``.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "ResultFlag".
+ */
+export interface ResultFlag {
+  sample_ref: string;
+  kind:
+    | "empty_output"
+    | "truncated"
+    | "repetition"
+    | "garbled"
+    | "reasoning_in_output"
+    | "tier0_missing"
+    | "u_outside_bracket"
+    | "score_error"
+    | "unparsed"
+    | "judge_failed"
+    | "judge_unreadable"
+    | "judge_out_of_range"
+    | "judge_cut";
+  phase: "generation" | "tier0" | "score" | "judge";
+  card_id: string;
+  arm_id: string;
+  /**
+   * Written by the harness only: lengths, counts, a stop reason, an HTTP status, an exception class name. Never a key and never an upstream error message.
+   */
+  detail?: string;
+  /**
+   * How many times the thing was seen in the sample.
+   */
+  count?: number | null;
+  at: string;
+}
+/**
+ * ``GET /api/runs/{id}/health``: what a run folder holds and what to be careful about.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "HealthSummary".
+ */
+export interface HealthSummary {
+  run_id: string;
+  study_id: string;
+  /**
+   * The run's state; `other` when run.json holds a state this harness does not know.
+   */
+  state:
+    | (
+        | "created"
+        | "ready"
+        | "running"
+        | "paused"
+        | "needs_keys"
+        | "analysing"
+        | "complete"
+        | "aborted"
+      )
+    | "other";
+  /**
+   * Version of the result checks the run started under.
+   */
+  checks_version: number | null;
+  /**
+   * Set for a run made before result checks; it has no flag counts.
+   */
+  note: string | null;
+  /**
+   * Every stop of the run by a check, oldest first.
+   */
+  halts: Halt[];
+  /**
+   * One row for each arm and card pair.
+   */
+  cells: CellHealth[];
+  /**
+   * Tainted samples and windows of the whole run, by kind; `other` counts taints of a kind this harness does not know.
+   */
+  taints: {
+    [k: string]: number | undefined;
+  };
+  /**
+   * Samples that carry any taint.
+   */
+  tainted_samples: number;
+  cautions: Caution[];
+  /**
+   * Every flag kind, in the catalogue's order.
+   */
+  flag_kinds: FlagLegend[];
+}
+/**
+ * The counts of one arm and card pair.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "CellHealth".
+ */
+export interface CellHealth {
+  arm_id: string;
+  card_id: string;
+  /**
+   * What kind of arm this is, in words.
+   */
+  role: string;
+  /**
+   * Samples the runner planned for the pair, from the progress it recorded; empty when no plan was recorded.
+   */
+  planned: number | null;
+  /**
+   * Samples that have a completed reply.
+   */
+  completed: number;
+  /**
+   * Samples that were tried and have no completed reply: every attempt ended in an error or was cancelled.
+   */
+  errored: number;
+  /**
+   * Samples that carry a taint, by kind; `other` counts taints of a kind this harness does not know.
+   */
+  taints: {
+    [k: string]: number | undefined;
+  };
+  /**
+   * Samples that were flagged, by kind; empty for a run made before result checks.
+   */
+  flags: {
+    [k: string]: number | undefined;
+  } | null;
+  /**
+   * Samples by what became of their judgement; the latest row of a sample counts.
+   */
+  judgements: {
+    [k: string]: number | undefined;
+  };
+}
+/**
+ * One thing a reader should know before trusting a comparison. Never a verdict.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Caution".
+ */
+export interface Caution {
+  kind: "flag_share" | "run_not_complete" | "open_halt" | "reader_versions";
+  /**
+   * The caution as one complete sentence.
+   */
+  text: string;
+  /**
+   * The card a flag caution is about.
+   */
+  card_id: string | null;
+  /**
+   * The flag kind a flag caution is about.
+   */
+  flag:
+    | (
+        | "empty_output"
+        | "truncated"
+        | "repetition"
+        | "garbled"
+        | "reasoning_in_output"
+        | "tier0_missing"
+        | "u_outside_bracket"
+        | "score_error"
+        | "unparsed"
+        | "judge_failed"
+        | "judge_unreadable"
+        | "judge_out_of_range"
+        | "judge_cut"
+      )
+    | null;
+  /**
+   * For a flag: every arm of the card side by side, also those below the line. Empty for any other caution.
+   */
+  arms: CautionArm[];
+}
+/**
+ * One arm's numbers in a caution about a flag.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "CautionArm".
+ */
+export interface CautionArm {
+  arm_id: string;
+  role: string;
+  /**
+   * Completed samples that carry the flag.
+   */
+  count: number;
+  completed: number;
+  /**
+   * count / completed; empty when nothing completed.
+   */
+  share: number | null;
+}
+/**
+ * One flag kind as the catalogue describes it, so a page needs no text of its own.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "FlagLegend".
+ */
+export interface FlagLegend {
+  kind:
+    | "empty_output"
+    | "truncated"
+    | "repetition"
+    | "garbled"
+    | "reasoning_in_output"
+    | "tier0_missing"
+    | "u_outside_bracket"
+    | "score_error"
+    | "unparsed"
+    | "judge_failed"
+    | "judge_unreadable"
+    | "judge_out_of_range"
+    | "judge_cut";
+  phase: "generation" | "tier0" | "score" | "judge";
+  label: string;
+  sentence: string;
+  /**
+   * False for a kind that never raises a caution.
+   */
+  cautions: boolean;
 }

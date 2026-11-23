@@ -243,6 +243,30 @@
       "title": "DisplaySettings",
       "type": "object"
     },
+    "EndpointRef": {
+      "additionalProperties": false,
+      "description": "One endpoint of one selected card, named as the card names it.",
+      "properties": {
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "card_id",
+        "endpoint"
+      ],
+      "title": "EndpointRef",
+      "type": "object"
+    },
     "EntropyHealth": {
       "additionalProperties": false,
       "description": "Snapshot of ``GET /health/entropy`` (spec §2.7 step 1).",
@@ -384,6 +408,36 @@
         }
       },
       "title": "JudgeSpec",
+      "type": "object"
+    },
+    "MarginDecl": {
+      "additionalProperties": false,
+      "description": "An equivalence margin declared for an endpoint whose card states no SESOI.",
+      "properties": {
+        "card_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "pattern": "^[a-z0-9_]+$",
+          "title": "Card Id",
+          "type": "string"
+        },
+        "endpoint": {
+          "minLength": 1,
+          "title": "Endpoint",
+          "type": "string"
+        },
+        "margin": {
+          "exclusiveMinimum": 0,
+          "title": "Margin",
+          "type": "number"
+        }
+      },
+      "required": [
+        "card_id",
+        "endpoint",
+        "margin"
+      ],
+      "title": "MarginDecl",
       "type": "object"
     },
     "ModelRef": {
@@ -620,6 +674,18 @@
           "title": "Cards",
           "type": "array"
         },
+        "design": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StudyDesign"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Absent on studies from before the design block; never serialized as null."
+        },
         "judge": {
           "$ref": "#/$defs/JudgeSpec"
         },
@@ -676,6 +742,78 @@
         "narrative_model"
       ],
       "title": "StudyConfig",
+      "type": "object"
+    },
+    "StudyDesign": {
+      "additionalProperties": false,
+      "description": "What the study claims and tests, declared by the researcher before launch.\n\nWithout this block the analysis plan is the built-in Study 1 plan. With it,\nthe plan is projected from these declarations: the confirmatory endpoints,\nthe significance level, whether the absence of an effect may be claimed, and\nthe biased-sampler level that has to be detected for that claim to stand.\nWhether an endpoint can carry a confirmatory test is a property of its card\nand is checked where the plan is built; this layer cannot see the cards.",
+      "properties": {
+        "version": {
+          "const": 1,
+          "default": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "claim": {
+          "enum": [
+            "difference",
+            "difference_or_equivalence"
+          ],
+          "title": "Claim",
+          "type": "string"
+        },
+        "confirmatory": {
+          "items": {
+            "$ref": "#/$defs/EndpointRef"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Confirmatory",
+          "type": "array"
+        },
+        "alpha": {
+          "default": 0.05,
+          "enum": [
+            0.05,
+            0.01,
+            0.005
+          ],
+          "title": "Alpha",
+          "type": "number"
+        },
+        "sensitivity_epsilon": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The ε of the biased arm that serves as the positive control.",
+          "enum": [
+            0.01,
+            0.03,
+            0.1,
+            0.5,
+            null
+          ],
+          "title": "Sensitivity Epsilon"
+        },
+        "margins": {
+          "items": {
+            "$ref": "#/$defs/MarginDecl"
+          },
+          "title": "Margins",
+          "type": "array"
+        }
+      },
+      "required": [
+        "claim",
+        "confirmatory"
+      ],
+      "title": "StudyDesign",
       "type": "object"
     },
     "SupervisedConfig": {

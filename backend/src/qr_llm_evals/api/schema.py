@@ -22,7 +22,9 @@ from qr_llm_evals.cards.estimates import SelectionEstimate
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan
 from qr_llm_evals.models.schema import JudgeSpec, StudyConfig
-from qr_llm_evals.store.schema import ReadinessReport, Run, RunKind
+from qr_llm_evals.runner.preview import CONTENT_LIMIT, ItemSource
+from qr_llm_evals.store.health import TaintKey
+from qr_llm_evals.store.schema import ReadinessReport, Run, RunKind, ToldCondition
 from qr_llm_evals.supervised.schema import (
     AnswerValue,
     Observer,
@@ -78,6 +80,41 @@ class CardView(_Strict):
 class CardsResponse(_Strict):
     cards: list[CardView]
     count: int = Field(ge=0)
+
+
+# ── GET /cards/{id}/items ─────────────────────────────────────────────────────
+
+
+class CardItem(_Strict):
+    """One prompt as the target model receives it."""
+
+    index: int = Field(
+        ge=0, description="Position in the card's own order; the runner takes the first N."
+    )
+    prompt_id: str
+    messages: list[dict[str, str]] = Field(
+        description=(
+            f"``{{role, content}}`` turns; each content is cut at {CONTENT_LIMIT} characters, "
+            "which no prompt of the registry reaches."
+        )
+    )
+    truncated: bool = Field(description="True when some content was cut.")
+
+
+class CardItemsResponse(_Strict):
+    """A page of a card's prompts, or why they cannot be listed before a run."""
+
+    card_id: str
+    listable: bool = Field(description="True only for ``source == 'task_module'``.")
+    source: ItemSource
+    reason: str | None = Field(description="Why the prompts are not listed; null when they are.")
+    total: int = Field(ge=0)
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1)
+    told: ToldCondition | None = Field(
+        description="The told cell the messages were built for; null on a card without the factor."
+    )
+    items: list[CardItem]
 
 
 # ── GET /models ───────────────────────────────────────────────────────────────
@@ -211,6 +248,14 @@ class ConfigParseResponse(_Strict):
     config: StudyConfig = Field(description="The configuration in full form, defaults filled in.")
     config_hash: str
     unknown_cards: list[str] = Field(description="Card ids this registry does not have.")
+    problems: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Rules spanning several fields that the study breaks (references between "
+            "models, arms, seeds and evals; the design block). Empty for a valid study. "
+            "A study with problems is a draft and is refused at launch."
+        ),
+    )
 
 
 class JudgeCheckRequest(_Strict):
@@ -266,11 +311,37 @@ class AnalyseResponse(_Strict):
     state: Literal["analysing"] = "analysing"
 
 
+class RunHealthCounts(_Strict):
+    """The sample counts of one run, read off its health summary (``GET /runs/{id}/health``)."""
+
+    completed_samples: int = Field(ge=0, description="Samples that have a completed reply.")
+    failed_samples: int = Field(
+        ge=0,
+        description=(
+            "Samples that were tried and have no completed reply: every attempt ended in an "
+            "error or was cancelled."
+        ),
+    )
+    tainted_samples: int = Field(ge=0, description="Samples that carry any taint.")
+    taints: dict[TaintKey, int] = Field(
+        description=(
+            "Tainted samples and windows of the run, by kind of taint; `other` counts taints "
+            "of a kind this harness does not know."
+        )
+    )
+
+
 class StudyView(_Strict):
     study_id: str
     study: dict[str, Any]
     runs: list[dict[str, Any]] = Field(
         description="Public run summaries with host/key authentication fields stripped."
+    )
+    health: dict[str, RunHealthCounts] = Field(
+        default_factory=dict,
+        description=(
+            "Sample counts keyed by run id. A run whose files could not be summarised has no entry."
+        ),
     )
     analyses: dict[str, list[str]] = Field(
         description="Completed or in-progress analysis ids keyed by run id."
@@ -529,6 +600,8 @@ __all__ = [
     "SignupRequest",
     "UserView",
     "CardEstimateSummary",
+    "CardItem",
+    "CardItemsResponse",
     "CardView",
     "CardsResponse",
     "ControlAction",
@@ -546,6 +619,7 @@ __all__ = [
     "ReadinessRequest",
     "RunControlRequest",
     "RunControlResponse",
+    "RunHealthCounts",
     "ConfigParseRequest",
     "ConfigParseResponse",
     "JudgeCheckRequest",

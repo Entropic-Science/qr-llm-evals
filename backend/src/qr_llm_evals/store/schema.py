@@ -2,7 +2,9 @@
 
 ``Run`` lives in ``runs/<run_id>/run.json`` (and the SQLite ``runs`` index),
 ``GenerationRow`` / ``JudgeRow`` are JSONL lines per ``(arm, card)``, ``Taint``
-lines go to ``taints.jsonl``, and ``ReadinessReport`` is ``readiness.json``.
+lines go to ``taints.jsonl``, ``ResultFlag`` lines to ``flags.jsonl``, and
+``ReadinessReport`` is ``readiness.json``. A ``Halt`` is one stop of the run by
+a result check and is kept in ``Run.halts``.
 
 Two AGENTS.md invariants are enforced *here*, in the schema, so no code path can
 violate them by accident:
@@ -18,10 +20,30 @@ Layer 1: may import ``cards`` / ``models`` (layer 0).
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal
+import re
+from datetime import datetime
+from typing import Annotated, Any, ClassVar, Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
+from qr_llm_evals.cards.result_checks import (
+    FLAG_PHASE,
+    HALT_SAMPLE_REFS,
+    FlagKind,
+    FlagPhase,
+    HaltPhase,
+    JudgeStatus,
+    StopRule,
+    StopScope,
+)
+from qr_llm_evals.logging_utils import redact
 from qr_llm_evals.models.schema import (
     SEED_MAX_EXCLUSIVE,
     ArmId,
@@ -53,6 +75,12 @@ Identifier = Annotated[str, Field(min_length=1, max_length=128)]
 class _Record(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    #: Fields left out of the file when they are ``None`` or empty
+    #: (``store.artifacts.dump_row``). A field added to a record after files of
+    #: it were written is listed here, so a record that does not use it keeps the
+    #: bytes it always had and an older harness can still read it.
+    OMIT_WHEN_EMPTY: ClassVar[frozenset[str]] = frozenset()
+
 
 class Taint(_Record):
     """A sample or window whose quantum claim (or integrity) is compromised."""
@@ -67,6 +95,121 @@ class Taint(_Record):
     def _check_target(self) -> Taint:
         if self.sample_ref is None and self.window_id is None:
             raise ValueError("taint must name a sample_ref or a window_id")
+        return self
+
+
+class ResultFlag(_Record):
+    """One line of ``flags.jsonl``: a result check found something about a sample.
+
+    A flag is not an exclusion. The sample stays in every analysis exactly as
+    before; nothing in ``analysis/`` reads this file. It is joined to the other
+    records by ``sample_ref``.
+    """
+
+    OMIT_WHEN_EMPTY: ClassVar[frozenset[str]] = frozenset({"count"})
+
+    sample_ref: SampleRef
+    kind: FlagKind
+    phase: FlagPhase
+    card_id: CardId
+    arm_id: ArmId
+    detail: str = Field(
+        default="",
+        max_length=300,
+        description=(
+            "Written by the harness only: lengths, counts, a stop reason, an HTTP status, an "
+            "exception class name. Never a key and never an upstream error message."
+        ),
+    )
+    count: int | None = Field(
+        default=None, ge=1, description="How many times the thing was seen in the sample."
+    )
+    at: AwareDatetime
+
+    @model_validator(mode="after")
+    def _check_phase(self) -> ResultFlag:
+        if FLAG_PHASE[self.kind] != self.phase:
+            raise ValueError(
+                f"flag kind {self.kind!r} belongs to phase {FLAG_PHASE[self.kind]!r}, "
+                f"not {self.phase!r}"
+            )
+        return self
+
+
+#: What a key of ``Halt.causes`` or ``Halt.counts`` may look like: an HTTP status, a
+#: name (an exception class, a taint or flag kind, a count), an arm and card pair,
+#: or a phrase of two to six plain words such as "no finish reason". A phrase has
+#: letters only, so nothing with a digit or punctuation in it passes as one.
+_HALT_NAME = re.compile(
+    r"HTTP \d{3}"
+    r"|[A-Za-z_][A-Za-z0-9_.]{0,63}"
+    r"|[a-z0-9_]{1,64}/[a-z0-9_]{1,64}"
+    r"|[A-Za-z]{1,20}(?: [A-Za-z]{1,20}){1,5}"
+)
+#: The key a cause or count is tallied under when it is not such a name.
+OTHER_CAUSE = "other"
+
+
+def _halt_names(tally: dict[str, int]) -> dict[str, int]:
+    """``tally`` with every key that is not a harness name, or holds a secret, merged."""
+    named: dict[str, int] = {}
+    for key, n in tally.items():
+        name = key if _HALT_NAME.fullmatch(key) and redact(key) == key else OTHER_CAUSE
+        named[name] = named.get(name, 0) + n
+    return named
+
+
+class Halt(_Record):
+    """One stop of a run by a result check, kept in ``Run.halts``.
+
+    A stop is a pause with a stored reason: nothing is removed and nothing
+    resumes by itself. ``resumed_at`` is empty while the halt is open and is
+    stamped by the run that the host resumes.
+
+    A halt is written to ``run.json``, sent as an event and served on open
+    routes, so it must never hold a key (AGENTS.md invariant 3). The record
+    sees to that itself: its text passes through the log redaction, and a
+    cause or count is kept under its own name only when that name has the
+    shape of one the harness writes. Free text, such as an upstream error
+    message, is tallied as :data:`OTHER_CAUSE`.
+    """
+
+    rule: StopRule
+    scope: StopScope
+    scope_id: str | None = Field(
+        default=None, description="The arm or the card the rule fired for; empty otherwise."
+    )
+    phase: HaltPhase
+    at: AwareDatetime
+    sentence: str = Field(description="What the rule saw, with the real scope and counts.")
+    recovery: str = Field(description="What Resume can and cannot recover after this stop.")
+    counts: dict[str, int] = Field(default_factory=dict)
+    causes: dict[str, int] = Field(
+        default_factory=dict,
+        description="A tally by cause in the harness's own words (an HTTP status, a class name).",
+    )
+    sample_refs: list[SampleRef] = Field(default_factory=list, max_length=HALT_SAMPLE_REFS)
+    resumed_at: AwareDatetime | None = None
+
+    @field_validator("sentence", "recovery", "scope_id")
+    @classmethod
+    def _text_without_secrets(cls, value: str | None) -> str | None:
+        return None if value is None else redact(value)
+
+    @field_validator("sample_refs")
+    @classmethod
+    def _refs_without_secrets(cls, value: list[str]) -> list[str]:
+        return [redact(ref) for ref in value]
+
+    @field_validator("counts", "causes")
+    @classmethod
+    def _harness_names_only(cls, value: dict[str, int]) -> dict[str, int]:
+        return _halt_names(value)
+
+    @model_validator(mode="after")
+    def _check_scope(self) -> Halt:
+        if (self.scope in ("arm", "card")) != (self.scope_id is not None):
+            raise ValueError("scope_id names the arm or the card, and is empty for any other scope")
         return self
 
 
@@ -185,20 +328,61 @@ class GenerationRow(_Record):
 
 
 class JudgeRow(_Record):
-    """One line of ``judge/<judge_id>.jsonl``."""
+    """One line of ``judge/<judge_id>.jsonl``.
+
+    A row whose ``status`` says a reply was received (``ok``, ``unreadable``,
+    ``out_of_range``) is final: the judge is not asked again for that sample.
+    Only a ``failed`` row, and a row from before rows had a status that has no
+    score, is asked again when the run is resumed.
+    """
+
+    OMIT_WHEN_EMPTY: ClassVar[frozenset[str]] = frozenset(
+        {"status", "stop_reason", "reader_version"}
+    )
 
     sample_ref: SampleRef
     judge_id: Identifier
     model: str
     rubric_hash: Sha256Hex
     score: float | None = None
+    fields: dict[str, float | None] = Field(
+        default_factory=dict,
+        description=(
+            "Further named values the card's judge_fields() read from the judge's reply; "
+            "the analysis joins them to the sample's score row."
+        ),
+    )
     raw: str = ""
     usage: Usage = Field(default_factory=Usage)
     at: AwareDatetime
+    status: JudgeStatus | None = Field(
+        default=None,
+        description=(
+            "ok: a score was read. failed: no reply came. unreadable: a reply came and no "
+            "score could be read from it. out_of_range: the value read is not one the rubric "
+            "allows. Empty on rows written before result checks."
+        ),
+    )
+    stop_reason: str | None = Field(
+        default=None, max_length=64, description="The judge's own stop reason, when it gave one."
+    )
+    reader_version: int | None = Field(
+        default=None, ge=1, description="Version of the reader that read this reply."
+    )
+
+    @model_validator(mode="after")
+    def _check_status(self) -> JudgeRow:
+        if self.status == "ok" and self.score is None:
+            raise ValueError("a judge row with status 'ok' needs a score")
+        if self.status in ("failed", "unreadable", "out_of_range") and self.score is not None:
+            raise ValueError(f"a judge row with status {self.status!r} has no score")
+        return self
 
 
 class Run(_Record):
     """``runs/<run_id>/run.json``. Secrets never appear here: ``keys_present`` only."""
+
+    OMIT_WHEN_EMPTY: ClassVar[frozenset[str]] = frozenset({"halts", "checks_version"})
 
     run_id: Identifier
     study_id: Identifier
@@ -224,6 +408,34 @@ class Run(_Record):
     keys_present: dict[str, bool] = Field(
         default_factory=dict, description="e.g. {'judge': true, 'openai': false}."
     )
+    halts: list[Halt] = Field(
+        default_factory=list,
+        description="Every stop of the run by a result check, oldest first; never shortened.",
+    )
+    checks_version: int | None = Field(
+        default=None,
+        ge=1,
+        description=(
+            "Version of the result checks the run started under; empty for a run made "
+            "before result checks."
+        ),
+    )
+
+    def open_halts(self) -> list[Halt]:
+        """Halts the host has not resumed past."""
+        return [halt for halt in self.halts if halt.resumed_at is None]
+
+    def with_halt(self, halt: Halt) -> Run:
+        """A copy of the record with ``halt`` added at the end."""
+        return self.model_copy(update={"halts": [*self.halts, halt]})
+
+    def with_halts_resumed(self, at: datetime) -> Run:
+        """A copy in which every open halt is stamped as resumed at ``at``."""
+        stamped = [
+            halt if halt.resumed_at is not None else halt.model_copy(update={"resumed_at": at})
+            for halt in self.halts
+        ]
+        return self.model_copy(update={"halts": stamped})
 
 
 __all__ = [
@@ -234,11 +446,13 @@ __all__ = [
     "FinishReason",
     "GenerationRow",
     "GenerationWindow",
+    "Halt",
     "Identifier",
     "JudgeRow",
     "Progress",
     "Provenance",
     "ReadinessReport",
+    "ResultFlag",
     "Run",
     "RunKind",
     "RunState",

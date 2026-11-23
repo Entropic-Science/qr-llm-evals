@@ -14,7 +14,7 @@ from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.runner import Orchestrator, RunControl, RunnerConfig
 from qr_llm_evals.runner.tasks import load_task_module, told_conditions
 from qr_llm_evals.store import Run, Store
-from stub_engine import StubEngine
+from stub_engine import Reply, StubEngine
 
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "tier4_selfreport.yaml"
@@ -175,7 +175,9 @@ def test_introspection_runs_end_to_end_at_minimum_k_on_stub_engine(tmp_path: Pat
         RunnerConfig(vllm_origin="http://stub", max_inflight=1, repo_root=ROOT),
         secrets=SecretBag(),
         control=control,
-        transport=StubEngine().transport,
+        # The stub's own words hold no rating. A model gives one, so the stub is
+        # told to: ten replies with no rating in any of them stop a run.
+        transport=StubEngine(script=lambda body: Reply(text="5")).transport,
         clock=lambda: NOW,
         perf=lambda: 0.0,
     )

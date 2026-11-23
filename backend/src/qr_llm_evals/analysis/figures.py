@@ -78,13 +78,21 @@ def _cumulative_figures(table: dict[str, Any], directory: Path, stem: str) -> li
     for session_id, session in sorted(sessions.items()):
         cumulative = session.get("cumulative_deviation", {})
         values = cumulative.get("cumdev", [])
-        envelope = cumulative.get("envelope_95", [])
+        # A study that registered its own interval level writes ``envelope`` with
+        # ``envelope_level``; every other table carries ``envelope_95``.
+        level = cumulative.get("envelope_level")
+        if isinstance(level, int | float) and not isinstance(level, bool):
+            envelope = cumulative.get("envelope", [])
+            envelope_label = f"{round(100 * level, 6):g}% envelope"
+        else:
+            envelope = cumulative.get("envelope_95", [])
+            envelope_label = "95% envelope"
         if not values:
             continue
         fig, ax = plt.subplots(figsize=(7.2, 4.2), constrained_layout=True)
         x = range(1, len(values) + 1)
         ax.plot(x, values, color=PALETTE["source"], label="cumulative deviation")
-        ax.plot(x, envelope, color=PALETTE["envelope"], linestyle="--", label="95% envelope")
+        ax.plot(x, envelope, color=PALETTE["envelope"], linestyle="--", label=envelope_label)
         ax.plot(x, [-float(value) for value in envelope], color=PALETTE["envelope"], linestyle="--")
         ax.axhline(0, color="#111827", linewidth=0.8)
         ax.set_xlabel("Second bin")
