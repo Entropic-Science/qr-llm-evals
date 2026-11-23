@@ -502,6 +502,13 @@ agrees with a verdict or says that a run is not confirmatory. The verdict of
 record is the one in `tables/decisions.json`, and a narrative that reads
 differently does not change it.
 
+The gate reads a number wherever it stands, also at the end of a sentence.
+Two things are not read as numbers: digits inside an identifier or a dotted
+version (`study1`, `1.2.3`), and the marker of a numbered list (one or two
+digits and a full stop at the start of a line, followed by text). A whole
+number below 100 that starts a line and ends a sentence there is therefore
+not checked.
+
 Some verdicts are ruled out at registration, and the pre-registration and
 the setup pages say so for each hypothesis (`design.reachable_verdicts`):
 `equivalent` when the study registers no equivalence claim, when the test
@@ -1250,6 +1257,10 @@ And the following is not built:
   ends the judge phase before it is through.
 - No stop rule ends a run. Every stop is a pause, and whether to resume or
   abort is the host's decision.
+- A complete run cannot be resumed. When fewer samples failed than the
+  `unfinished` rule needs to stop a run (at most 2% of the planned samples
+  of an arm and eval, or fewer than 3), the run completes without them, and
+  nothing tries those samples again afterwards.
 
 ## Rendering and hash semantics
 

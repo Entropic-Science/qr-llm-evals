@@ -29,7 +29,7 @@ python3.11 -m venv "$RELEASE/.venv"
 "$RELEASE/.venv/bin/python" -m pip install --require-hashes -r "$RELEASE/requirements.lock"
 # Import from the archive, keeping registry/config paths beside the source.
 # Optional reviewed Linux locks can be supplied by a future committed release.
-for extra in analysis inspect metrics; do
+for extra in analysis inspect metrics mask; do
   if [[ -f $RELEASE/requirements-$extra.lock ]]; then
     "$RELEASE/.venv/bin/python" -m pip install --require-hashes -r "$RELEASE/requirements.lock" -r "$RELEASE/requirements-$extra.lock"
   fi

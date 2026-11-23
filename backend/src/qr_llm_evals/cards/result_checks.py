@@ -147,6 +147,25 @@ NOTHING_JUDGED_FIRST = 30
 #: A halt names at most this many samples.
 HALT_SAMPLE_REFS = 3
 
+#: The harness's own phrases for what went wrong with a sample when there is no
+#: HTTP status and no exception class to name. A cause of several words is kept
+#: in a halt only when it is one of these (``store.schema.Halt``), so a sentence
+#: that came from outside the harness is never stored as a cause.
+CAUSE_MALFORMED_FRAME = "malformed stream frame"
+CAUSE_NO_FINISH_REASON = "no finish reason"
+CAUSE_UNMAPPED_FINISH = "finish reason not mapped"
+CAUSE_NON_FINITE_SCORE = "non-finite score"
+CAUSE_UNWRITABLE_SCORE = "unwritable score"
+CAUSE_PHRASES: frozenset[str] = frozenset(
+    {
+        CAUSE_MALFORMED_FRAME,
+        CAUSE_NO_FINISH_REASON,
+        CAUSE_UNMAPPED_FINISH,
+        CAUSE_NON_FINITE_SCORE,
+        CAUSE_UNWRITABLE_SCORE,
+    }
+)
+
 #: Finish reasons of a generation that has a completed row.
 COMPLETED_FINISH_REASONS: frozenset[str] = frozenset({"stop", "length"})
 #: Taints that feed ``entropy_degraded``.
@@ -1666,6 +1685,12 @@ class Breaker:
 
 
 __all__ = [
+    "CAUSE_MALFORMED_FRAME",
+    "CAUSE_NON_FINITE_SCORE",
+    "CAUSE_NO_FINISH_REASON",
+    "CAUSE_PHRASES",
+    "CAUSE_UNMAPPED_FINISH",
+    "CAUSE_UNWRITABLE_SCORE",
     "CAUTION_SHARE",
     "CHECKS_VERSION",
     "COMPLETED_FINISH_REASONS",

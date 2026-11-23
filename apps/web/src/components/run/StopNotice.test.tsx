@@ -64,6 +64,11 @@ describe("StopNotice", () => {
     expect(viewer).toHaveTextContent("Only a browser tab that holds the run's host token can resume or abort the run.");
     expect(viewer).toHaveTextContent("This view has no token, so it shows no controls.");
     expect(viewer).not.toHaveTextContent("buttons below work here");
+    // Resume can still be refused: `check_owner_can_generate` answers 403 for a disabled account and for a used-up quota.
+    expect(host).toHaveTextContent("The server refuses Resume while the account that launched the run is disabled or has no token quota left, and the page then shows the server's reason.");
+    const gates = readFileSync(resolve(process.cwd(), "../../backend/src/qr_llm_evals/api/gates.py"), "utf-8");
+    expect(gates).toContain('raise ApiError(403, "the account that launched this run is disabled")');
+    expect(gates).toContain("raise ApiError(403, quota_message(quota))");
   });
 
   it("promises no Resume on a run that was aborted while stopped", () => {

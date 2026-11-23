@@ -21,6 +21,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 
 from qr_llm_evals.logging_utils import (
+    MIN_SECRET_LENGTH,
     REDACTED,
     SecretFilter,
     redact,
@@ -51,7 +52,9 @@ class SecretBag:
         if not isinstance(value, str) or not value.strip():
             raise ValueError(f"secret {name!r} must be a non-empty string")
         old = self._values.get(name)
-        if old is not None and old != value:
+        if old == value:
+            return  # held once already: the registry counts holders
+        if old is not None:
             unregister_secret(old)
         self._values[name] = value
         register_secret(value)
@@ -97,6 +100,20 @@ class SecretBag:
         for name in self._values:
             present.setdefault(name, True)
         return present
+
+    def redact(self, text: str) -> str:
+        """``text`` without this bag's values, registered secrets and known key shapes.
+
+        Every text that came from outside the harness (an upstream error body,
+        an exception message, a judge reply) passes through this before it is
+        stored in the run folder or sent as an event. The bag's own values are
+        removed here as well as through the log registry, so a stored text does
+        not depend on the state of a process-wide filter.
+        """
+        for value in sorted(self._values.values(), key=len, reverse=True):
+            if len(value) >= MIN_SECRET_LENGTH and value in text:
+                text = text.replace(value, REDACTED)
+        return redact(text)
 
     # ── never leak ────────────────────────────────────────────────────────
 

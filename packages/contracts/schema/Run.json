@@ -124,7 +124,7 @@
     },
     "Halt": {
       "additionalProperties": false,
-      "description": "One stop of a run by a result check, kept in ``Run.halts``.\n\nA stop is a pause with a stored reason: nothing is removed and nothing\nresumes by itself. ``resumed_at`` is empty while the halt is open and is\nstamped by the run that the host resumes.\n\nA halt is written to ``run.json``, sent as an event and served on open\nroutes, so it must never hold a key (AGENTS.md invariant 3). The record\nsees to that itself: its text passes through the log redaction, and a\ncause or count is kept under its own name only when that name has the\nshape of one the harness writes. Free text, such as an upstream error\nmessage, is tallied as :data:`OTHER_CAUSE`.",
+      "description": "One stop of a run by a result check, kept in ``Run.halts``.\n\nA stop is a pause with a stored reason: nothing is removed and nothing\nresumes by itself. ``resumed_at`` is empty while the halt is open and is\nstamped by the run that the host resumes.\n\nA halt is written to ``run.json``, sent as an event and served on open\nroutes, so it must never hold a key (AGENTS.md invariant 3). The Breaker\nwrites fixed sentences and the harness's own names, and the record guards\nwhat it is given all the same. A cause or count is kept under its own name\nonly when that name has the shape of one the harness writes\n(``_HALT_NAME``) or is one of the catalogue's phrases; anything else, such\nas an upstream error message, is tallied as :data:`OTHER_CAUSE`. The\nsentence, the recovery text, ``scope_id`` and the sample refs pass through\nthe log redaction, which takes out a key a running run holds and a key of\na known provider shape.\n\nThe limit of that guard: a key that no run holds any more and that has no\nknown shape is not recognised in those four text fields, nor as a cause\nwritten like an arm and eval pair (``x/y``). Only a hand-edited\n``run.json`` or a caller that passes free text can put one there.",
       "properties": {
         "rule": {
           "enum": [
@@ -529,6 +529,7 @@
       "$ref": "#/$defs/Progress"
     },
     "taints": {
+      "description": "Never written: always an empty list. The taints of a run are the lines of taints.jsonl; their counts are on GET /runs/{id}/health and in StudyView.health.",
       "items": {
         "$ref": "#/$defs/Taint"
       },

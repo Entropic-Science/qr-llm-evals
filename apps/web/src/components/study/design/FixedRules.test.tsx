@@ -21,10 +21,21 @@ describe("FixedRules: result checks", () => {
     expect(row).toHaveTextContent(RESULT_CHECKS_TEXT);
     const link = within(row).getByRole("link", { name: 'See "Result checks" in the analysis plan.' });
     expect(link).toHaveAttribute("href", "/docs/ANALYSIS_PLAN");
-    // It sits in the list and is not a rule with a value, so the count of rules in the heading is unchanged.
+    // It sits in the list and is not a rule with a value.
     expect(row.closest("dl")).toHaveClass("fixed-rules__list");
     expect(row.querySelector(".rec--locked")).toBeNull();
-    expect(container.querySelector("summary small")).toHaveTextContent(`${fixedRules(recs).length} rules that are not choices`);
+  });
+
+  it("counts in the heading the rows it lists, the Holm families and the result checks included", () => {
+    const plain = render(<FixedRules recs={recs} />);
+    const listed = plain.container.querySelectorAll(".fixed-rules__list > div").length;
+    expect(listed).toBe(fixedRules(recs).length + 1);
+    expect(plain.container.querySelector("summary small")).toHaveTextContent(`${listed} rules that are not choices`);
+    plain.unmount();
+    const withFamilies = render(<FixedRules recs={recs} families={{ difference: 2, equivalence: 0, negative_control: 3 }} />);
+    const rows = withFamilies.container.querySelectorAll(".fixed-rules__list > div").length;
+    expect(rows).toBe(listed + 1);
+    expect(withFamilies.container.querySelector("summary small")).toHaveTextContent(`${rows} rules that are not choices`);
   });
 
   it("names no flag kind and no stop rule: the setup lists none", () => {

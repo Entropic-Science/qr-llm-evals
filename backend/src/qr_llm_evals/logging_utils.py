@@ -75,20 +75,29 @@ MIN_SECRET_LENGTH = 8
 
 
 class _SecretRegistry:
-    """Process-wide set of secret values to scrub from log output."""
+    """Process-wide secret values to scrub from log output, counted by holder.
+
+    Two runs can hold the same key (one user, two studies). A value stays
+    registered until every holder that registered it has let go of it, so one
+    run ending does not switch off the scrubbing for the other.
+    """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._values: set[str] = set()
+        self._values: dict[str, int] = {}
 
     def add(self, value: str) -> None:
         if len(value) >= MIN_SECRET_LENGTH:
             with self._lock:
-                self._values.add(value)
+                self._values[value] = self._values.get(value, 0) + 1
 
     def discard(self, value: str) -> None:
         with self._lock:
-            self._values.discard(value)
+            held = self._values.get(value, 0)
+            if held <= 1:
+                self._values.pop(value, None)
+            else:
+                self._values[value] = held - 1
 
     def snapshot(self) -> tuple[str, ...]:
         with self._lock:
@@ -109,7 +118,7 @@ def register_secret(value: str) -> None:
 
 
 def unregister_secret(value: str) -> None:
-    """Stop scrubbing ``value`` (a run has ended and its bag was cleared)."""
+    """Let go of ``value`` once; it is scrubbed until every holder has (see the registry)."""
     _REGISTRY.discard(value)
 
 

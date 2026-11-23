@@ -375,6 +375,17 @@ class JudgePhase:
             return True
         return self._breaker is not None and self._breaker.tripped is not None
 
+    def _no_reply(self, err: BaseException) -> _Judgement:
+        """A call that gave no reply. Its stored text is the error, without the run's keys.
+
+        The message of the error may quote the provider's error body, and a
+        body may repeat the key it was sent (AGENTS.md invariant 3). A reply
+        that was received is stored as it came and never passes through here.
+        """
+        failed = _failed(err)
+        failed.raw = self._secrets.redact(failed.raw)
+        return failed
+
     def _judge_one(
         self,
         judge: JudgeCall,
@@ -387,11 +398,11 @@ class JudgePhase:
         try:
             user = task.judge_prompt(sample)
         except Exception as err:  # noqa: BLE001 - one sample's prompt must not end the phase
-            return _failed(err)
+            return self._no_reply(err)
         try:
             reply = judge.call(system, user)
         except Exception as err:  # noqa: BLE001 - whatever went wrong, no reply came
-            return _failed(err)
+            return self._no_reply(err)
         text, usage = reply.text, reply.usage
         stop_reason = reply.stop_reason[:64] if isinstance(reply.stop_reason, str) else None
         findings: list[rc.Finding] = []
@@ -529,7 +540,7 @@ class JudgePhase:
                         phase=finding.phase,
                         card_id=card.id,
                         arm_id=arm_id,
-                        detail=finding.detail,
+                        detail=self._secrets.redact(finding.detail),
                         count=finding.count,
                         at=at,
                     )

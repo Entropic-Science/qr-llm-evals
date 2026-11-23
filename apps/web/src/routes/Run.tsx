@@ -48,6 +48,18 @@ function reduceEvent(state: RunEventState, event: RunEvent): RunEventState {
   return halt ? { ...next, view: withHalt(next.view, halt) } : next;
 }
 
+/**
+ * What to say once the server has taken a control request. The answer carries the state the record had when the
+ * request was taken, and a run that is started or resumed changes to running only afterwards, so the state named
+ * there would be out of date at once. The run state at the top of the page is the one to read.
+ */
+export function controlAccepted(action: RunControlRequest["action"], state: string): string {
+  if (action === "start") return "Start accepted. The run state above changes to running when generation begins.";
+  if (action === "resume") return "Resume accepted. The run state above changes to running when the run has taken up its work again.";
+  if (action === "pause") return state === "paused" ? "Run is paused." : "Pause accepted. Requests under way finish first, then the run state above changes to paused.";
+  return `Run is ${state}.`;
+}
+
 export function Run({ params }: RouteProps) {
   const runId = decodeURIComponent(params.runId);
   const queryClient = useQueryClient();
@@ -80,7 +92,7 @@ export function Run({ params }: RouteProps) {
   async function control(action: RunControlRequest["action"]) {
     if (!hostToken) return;
     setControlBusy(true); setControlMessage(`${action} requested…`);
-    try { const result = await api.controlRun(runId, { action }, hostToken); setControlMessage(`Run is ${result.state}.`); await query.refetch(); void health.refetch(); }
+    try { const result = await api.controlRun(runId, { action }, hostToken); setControlMessage(controlAccepted(action, result.state)); await query.refetch(); void health.refetch(); }
     catch (error) { setControlMessage(error instanceof Error ? error.message : "Control request failed."); }
     finally { setControlBusy(false); }
   }

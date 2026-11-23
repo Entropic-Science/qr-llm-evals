@@ -34,6 +34,7 @@ from pydantic import (
 )
 
 from qr_llm_evals.cards.result_checks import (
+    CAUSE_PHRASES,
     FLAG_PHASE,
     HALT_SAMPLE_REFS,
     FlagKind,
@@ -136,25 +137,43 @@ class ResultFlag(_Record):
         return self
 
 
-#: What a key of ``Halt.causes`` or ``Halt.counts`` may look like: an HTTP status, a
-#: name (an exception class, a taint or flag kind, a count), an arm and card pair,
-#: or a phrase of two to six plain words such as "no finish reason". A phrase has
-#: letters only, so nothing with a digit or punctuation in it passes as one.
+#: What a key of ``Halt.causes`` or ``Halt.counts`` may look like:
+#:
+#: * an HTTP status (``HTTP 502``);
+#: * a class name, with or without its module: letters only, starting with a
+#:   capital (``ReadTimeout``, ``httpx.ConnectError``);
+#: * a name in the catalogue's style (a taint or flag kind, a count): one to six
+#:   lower-case words of at most 20 letters joined by ``_``, each with at most
+#:   one digit at its end (``in_a_row``, ``tier0_missing``);
+#: * an arm and an eval (``qrng/creative``).
+#:
+#: Besides these, one of the catalogue's phrases (``CAUSE_PHRASES``) is kept. No
+#: other text of several words is: a sentence from outside the harness is not a
+#: name. The shapes leave no room for a long run of mixed letters and digits,
+#: which is what a provider key looks like. They cannot tell a single word from
+#: outside (``invalid``, ``Unauthorized``) from a name, and they keep any
+#: ``x/y`` of lower-case letters, digits and underscores.
 _HALT_NAME = re.compile(
     r"HTTP \d{3}"
-    r"|[A-Za-z_][A-Za-z0-9_.]{0,63}"
+    r"|(?:[a-z][a-z0-9_]{0,19}\.){0,3}[A-Z][A-Za-z]{2,39}"
+    r"|[a-z]{1,20}\d?(?:_[a-z]{1,20}\d?){0,5}"
     r"|[a-z0-9_]{1,64}/[a-z0-9_]{1,64}"
-    r"|[A-Za-z]{1,20}(?: [A-Za-z]{1,20}){1,5}"
 )
 #: The key a cause or count is tallied under when it is not such a name.
 OTHER_CAUSE = "other"
+
+
+def _is_halt_name(key: str) -> bool:
+    if key in CAUSE_PHRASES:
+        return True
+    return _HALT_NAME.fullmatch(key) is not None and redact(key) == key
 
 
 def _halt_names(tally: dict[str, int]) -> dict[str, int]:
     """``tally`` with every key that is not a harness name, or holds a secret, merged."""
     named: dict[str, int] = {}
     for key, n in tally.items():
-        name = key if _HALT_NAME.fullmatch(key) and redact(key) == key else OTHER_CAUSE
+        name = key if _is_halt_name(key) else OTHER_CAUSE
         named[name] = named.get(name, 0) + n
     return named
 
@@ -167,11 +186,20 @@ class Halt(_Record):
     stamped by the run that the host resumes.
 
     A halt is written to ``run.json``, sent as an event and served on open
-    routes, so it must never hold a key (AGENTS.md invariant 3). The record
-    sees to that itself: its text passes through the log redaction, and a
-    cause or count is kept under its own name only when that name has the
-    shape of one the harness writes. Free text, such as an upstream error
-    message, is tallied as :data:`OTHER_CAUSE`.
+    routes, so it must never hold a key (AGENTS.md invariant 3). The Breaker
+    writes fixed sentences and the harness's own names, and the record guards
+    what it is given all the same. A cause or count is kept under its own name
+    only when that name has the shape of one the harness writes
+    (``_HALT_NAME``) or is one of the catalogue's phrases; anything else, such
+    as an upstream error message, is tallied as :data:`OTHER_CAUSE`. The
+    sentence, the recovery text, ``scope_id`` and the sample refs pass through
+    the log redaction, which takes out a key a running run holds and a key of
+    a known provider shape.
+
+    The limit of that guard: a key that no run holds any more and that has no
+    known shape is not recognised in those four text fields, nor as a cause
+    written like an arm and eval pair (``x/y``). Only a hand-edited
+    ``run.json`` or a caller that passes free text can put one there.
     """
 
     rule: StopRule
@@ -402,7 +430,13 @@ class Run(_Record):
     tier0_source: Tier0Source | None = None
     determinism_tier: DeterminismTier = "none"
     progress: Progress = Field(default_factory=Progress)
-    taints: list[Taint] = Field(default_factory=list)
+    taints: list[Taint] = Field(
+        default_factory=list,
+        description=(
+            "Never written: always an empty list. The taints of a run are the lines of "
+            "taints.jsonl; their counts are on GET /runs/{id}/health and in StudyView.health."
+        ),
+    )
     withdrawn: bool = False
     needs_keys: bool = False
     keys_present: dict[str, bool] = Field(

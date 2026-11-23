@@ -25,11 +25,16 @@ pre-registered primary findings from exploratory findings and mention the
 seed-vs-seed controls beside treatment claims. Return Markdown only."""
 
 # A numeric token can be signed, decimal, scientific notation, or a percentage.
-# Word/dot boundaries avoid treating fragments of identifiers and hashes as data.
+# Word/dot boundaries avoid treating fragments of identifiers and hashes as data
+# (``v1.2.3``, ``study1.yaml``). A dot after the number ends the token only when a
+# digit follows it, so a number at the end of a sentence ("was 0.999.") is a token.
 _NUMBER = re.compile(
     r"(?<![\w.])[-+]?(?:\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|\.\d+)"
-    r"(?:[eE][-+]?\d+)?%?(?![\w.])"
+    r"(?:[eE][-+]?\d+)?%?(?!\w|\.\d)"
 )
+# The marker of a Markdown ordered list ("1. ", "12. " at the start of a line) is
+# not a result. It is blanked before the narrative is read for numbers.
+_LIST_MARKER = re.compile(r"(?m)^([ \t]*)\d{1,2}\.(?=[ \t]+\S)")
 
 Table = Mapping[str, Any] | str | bytes
 
@@ -73,10 +78,18 @@ def verify_numbers(narrative: str, tables: Mapping[str, Table]) -> list[str]:
     An empty list means the narrative passes the publication gate.  Matching is
     deliberately textual: changing ``0.050000`` to ``0.05`` is not allowed,
     because even harmless-looking reformats can conceal a changed interpretation.
+
+    A number is checked wherever it stands, also at the end of a sentence and
+    before ``,`` ``;`` ``:`` ``)`` or ``%``. Two things are not read as numbers:
+    digits inside an identifier or a dotted version (``study1``, ``1.2.3``), and
+    the marker of a Markdown ordered list (one or two digits and a full stop at
+    the start of a line, followed by text). The second means that a whole number
+    below 100 that starts a line and ends a sentence there is not checked.
     """
     rendered = "\n".join(_rendered_table(table) for table in tables.values())
     allowed = set(numeric_tokens(rendered))
-    return [token for token in numeric_tokens(narrative) if token not in allowed]
+    prose = _LIST_MARKER.sub(r"\1", narrative)
+    return [token for token in numeric_tokens(prose) if token not in allowed]
 
 
 def render_narrative(

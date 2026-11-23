@@ -113,8 +113,9 @@ no items and generates nothing:
 the study judge. The two MASK cards together make about 15,850 judge calls per
 arm at their defaults, which costs more than their generation; lower `items`
 on both cards for a pilot (`evals/mask/README.md`). The MASK dataset ships as
-Parquet only, and reading it needs `pyarrow`, which is not in
-`requirements.lock`:
+Parquet only, and reading it needs `pyarrow`. On the box it comes from
+`requirements-mask.lock`, which `scripts/deploy.sh` installs with every
+release. On a development machine install the extra:
 
 ```bash
 pip install -e '.[mask]'
@@ -1197,6 +1198,13 @@ rollback toggles back. Failure attempts to restore the original current and
 returns nonzero; inspect the journal even if restoration succeeds. Configuration,
 data schema, and Cloudflare dashboard settings are **not** rolled back. Apply
 reviewed environment changes separately and only use compatible code releases.
+
+Do not roll back to a release from before the result checks while runs made
+with the checks must stay readable. Such a run has `checks_version` (and,
+after a stop, `halts`) in its `run.json` and `status` on its judge rows. A
+release from before the checks does not know these fields and refuses to
+load the run. The files are not changed by a rollback, so the run is
+readable again once a release with the checks is current.
 Web app rollback is separate: roll the Worker back to a previously validated
 version in its Deployments tab,
 then recheck browser/API contract compatibility. No deployment script publishes

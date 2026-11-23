@@ -27,7 +27,7 @@ function whoCanResume(standing: "paused" | "needs_keys", isHost: boolean): strin
       : "The server restarted after this stop, so the run needs its provider keys again before it can be resumed. Only a browser tab that holds the run's host token can supply them and resume.";
   }
   return isHost
-    ? "This browser tab holds the run's host token, so the Resume and Abort buttons below work here. The run stays paused until Resume is pressed."
+    ? "This browser tab holds the run's host token, so the Resume and Abort buttons below work here. The run stays paused until Resume is pressed. The server refuses Resume while the account that launched the run is disabled or has no token quota left, and the page then shows the server's reason."
     : "Only a browser tab that holds the run's host token can resume or abort the run. The server gives that token once, to the tab that launched the run, and does not issue it again. This view has no token, so it shows no controls.";
 }
 
