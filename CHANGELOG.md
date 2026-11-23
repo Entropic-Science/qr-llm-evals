@@ -13,6 +13,12 @@ All notable changes to this project are documented here. The format follows
   and the message of an `error` event now pass through the redaction of the
   run's keys (`SecretBag.redact`) before they are written. A text without a
   key is stored as before.
+- A run that was launched without any provider key is `paused` after a
+  backend restart, and Resume takes it up again. Before, it became
+  `needs_keys` like every other unfinished run, Resume was refused until a
+  key was supplied, and the keys route refuses an empty request, so the run
+  could only go on with a key it did not need. Found by the pilot on the
+  live engine. A run that held a key still becomes `needs_keys`.
 - The log filter keeps scrubbing a key until every run that holds it has
   ended. Before, the first of two runs with the same key to end switched the
   scrubbing off for the other one's log lines.

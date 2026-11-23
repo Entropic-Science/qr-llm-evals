@@ -1241,9 +1241,10 @@ def test_a_server_restart_between_the_stop_and_the_resume_keeps_the_halt(tmp_pat
     rs = h.run_store(tmp_path, config)
     assert h.orchestrator(rs, config, cards, StubEngine(script=_dead)).run().state == "paused"
 
-    # A new process: nothing in memory, every unfinished run needs its keys again.
+    # A new process: nothing in memory, every unfinished run that held a key needs it again.
     after = h.reopen(rs)
-    assert mark_orphans([after.read_run()], after.write_run) == [rs.run_id]
+    held = after.read_run().model_copy(update={"keys_present": {"anthropic": True}})
+    assert mark_orphans([held], after.write_run) == [rs.run_id]
     live = RunRegistry().adopt(after)
     parked = live.read()
     assert parked.state == "needs_keys" and len(parked.open_halts()) == 1
@@ -1258,3 +1259,27 @@ def test_a_server_restart_between_the_stop_and_the_resume_keeps_the_halt(tmp_pat
     done = live.read()
     assert done.state == "complete" and done.halts[0].resumed_at == h.NOW
     assert h.never_completed(rs, config) == []
+
+
+def test_a_run_without_keys_is_resumed_after_a_restart_with_nothing_to_supply(
+    tmp_path: Path,
+) -> None:
+    """Seen on the live engine: such a run was ``needs_keys`` and no key could be supplied."""
+    config, cards = h.study(), {h.CARD: h.card()}
+    rs = h.run_store(tmp_path, config)
+    assert h.orchestrator(rs, config, cards, StubEngine(script=_dead)).run().state == "paused"
+
+    after = h.reopen(rs)
+    assert not any(after.read_run().keys_present.values())
+    assert mark_orphans([after.read_run()], after.write_run) == [rs.run_id]
+    live = RunRegistry().adopt(after)
+    parked = live.read()
+    assert parked.state == "paused" and not parked.needs_keys
+    assert len(parked.open_halts()) == 1
+    live.resume(_factory(config, cards, StubEngine()))
+    live.join(30)
+    done = live.read()
+    # Resume was taken and every sample generated. The test study has a judged eval, so the
+    # run then asks for the judge key it never had, which is the ordinary needs-keys stop.
+    assert done.halts[0].resumed_at is not None and h.never_completed(rs, config) == []
+    assert done.state == "needs_keys"

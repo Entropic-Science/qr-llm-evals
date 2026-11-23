@@ -8,6 +8,7 @@ orchestrator runs on. The store holds the durable half (``run.json`` + JSONL).
 A backend restart therefore loses every ``LiveRun``; :func:`mark_orphans`
 flips each unfinished run on disk to ``needs_keys`` at boot so the host
 re-enters the BYO keys and resumes (D-14: honest about never persisting keys).
+A run that held no key has none to re-enter and becomes ``paused`` instead.
 
 Threading: the orchestrator is synchronous and blocks; it runs on a daemon
 thread per run. ``start`` / ``resume`` are the only paths into ``running``
@@ -186,7 +187,8 @@ class LiveRun:
             if self.thread_alive:
                 raise RuntimeError("runner did not stop during backend shutdown")
             if not host_aborted and self.read().state != "complete":
-                self.set_state("needs_keys", needs_keys=True)
+                held = held_keys(self.read())
+                self.set_state("needs_keys" if held else "paused", needs_keys=held)
         self.bus.close()
         self.secrets.clear()
 
@@ -234,13 +236,27 @@ class RunRegistry:
             live.close()
 
 
+def held_keys(run: Run) -> bool:
+    """Whether the run was given a provider key, by its ``keys_present`` record."""
+    return any(run.keys_present.values())
+
+
 def mark_orphans(runs: Iterable[Run], write: Callable[[Run], None]) -> list[str]:
-    """Flip every unfinished run to ``needs_keys`` (boot after a restart, D-14)."""
+    """Flip every unfinished run after a restart (boot, D-14); the ids that changed.
+
+    A run that held a provider key becomes ``needs_keys``: the key is gone with
+    the process and the host supplies it again. A run that held none has
+    nothing to supply, and the keys route refuses an empty request, so it
+    becomes ``paused`` and the host resumes it. Neither goes on by itself.
+    """
     flipped: list[str] = []
     for run in runs:
         if run.state in TERMINAL_STATES:
             continue
-        write(run.model_copy(update={"state": "needs_keys", "needs_keys": True}))
+        held = held_keys(run)
+        write(
+            run.model_copy(update={"state": "needs_keys" if held else "paused", "needs_keys": held})
+        )
         flipped.append(run.run_id)
     return flipped
 

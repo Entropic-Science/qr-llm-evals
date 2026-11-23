@@ -246,7 +246,8 @@ compared, and comparisons are never pooled.
   had produced nothing. Without the second rule a run that was passed over
   while unstarted, and started afterwards, would make two runs the first.
   The first rule reads the run's state, and a restart of the backend moves
-  every unfinished run to `needs_keys`: an unstarted full run that is on
+  every unfinished run to `needs_keys` (or to `paused` when it held no
+  provider key): an unstarted full run that is on
   the server across a restart counts from then on.
 - **A study is registered once and takes further runs.** The first launch
   freezes the configuration, the pre-registration and, for a designed study,
