@@ -296,6 +296,8 @@ def _observed_and_null(
       permutation in it. BLAS does not return the same last bits for a row when
       other rows share the call, so this is the one step that is not split: two
       ``permutations x prompt size`` float arrays are the memory the loop needs.
+      The labels are also held column-major, as a column slice of the whole
+      matrix was, because the memory layout is part of that call.
     * The sum along a row does not depend on the other rows, so the products
       that are summed are formed in batches of ``batch_cells`` cells.
     """
@@ -312,7 +314,9 @@ def _observed_and_null(
         seen_xy += np.sum(kz * (1.0 - zg), axis=1)
 
         batches = _row_batches(n_permutations, members.size, batch_cells)
-        zg = np.empty((n_permutations, members.size), dtype=np.float64)
+        # Column-major, as the slice of the whole label matrix was: the layout decides
+        # which way BLAS walks the product, and with it the last bits on some CPUs.
+        zg = np.empty((n_permutations, members.size), dtype=np.float64, order="F")
         for start, stop in batches:
             zg[start:stop] = rng.permuted(np.tile(observed, (stop - start, 1)), axis=1)
         kz = zg @ kg
