@@ -53,7 +53,6 @@ ARM_ROLES: dict[str, str] = {
     "prng_seeded": "seeded pseudo-random arm",
     "prng_system": "system pseudo-random arm",
     "prng_epsilon": "biased pseudo-random control arm",
-    "prng_resample": "resampled pseudo-random control arm",
     "provider": "provider arm",
 }
 #: The role of an arm that has files in the run and is not in the frozen study.

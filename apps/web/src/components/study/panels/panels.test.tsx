@@ -565,6 +565,19 @@ describe("the token limits panel", () => {
   });
 });
 
+describe("the conditioning panel", () => {
+  it("cautions that a raw quantum arm has no matched control, and only while raw is chosen", () => {
+    const { state } = mount(["conditioning"]);
+    const caution = /differs from the pseudo-random arms by the device’s byte statistics as well as by the source, and the harness has no matched control for that/;
+    expect(screen.queryByText(caution)).toBeNull();
+    fireEvent.click(screen.getByLabelText("Raw: the device's measured bytes"));
+    expect(state.latest.conditioning?.mode).toBe("raw");
+    expect(screen.getByText(caution)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Hashed: uniform bytes"));
+    expect(screen.queryByText(caution)).toBeNull();
+  });
+});
+
 describe("the design panels", () => {
   const DESIGN = ["claim", "outcomes", "alpha", "positive-control", "margins", "expectations"];
 

@@ -28,7 +28,6 @@ from qr_llm_evals.models.envelope import (
     bent_population_mean,
     build_envelope,
     build_request_body,
-    conditioning_xargs,
     envelope_hash,
     envelope_json,
     equivalence_violations,
@@ -192,7 +191,6 @@ def test_source_type_table() -> None:
         "prng_seeded": "seeded_prng",
         "prng_system": "system",
         "prng_epsilon": "seeded_prng",
-        "prng_resample": "qbert_prng_resample",
     }
 
 
@@ -207,16 +205,6 @@ def test_system_prng_row() -> None:
     env = build_envelope(_arm("sys", source="prng_system"), CTX)
     assert env["qr_entropy_source_type"] == "system"
     assert "qr_seed" not in env
-
-
-def test_resample_row_is_the_named_grpc_lane() -> None:
-    env = build_envelope(_arm("res", source="prng_resample"), CTX)
-    assert env["qr_entropy_source_type"] == "qbert_prng_resample"
-    assert "qr_seed" not in env
-    assert env == {
-        **build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX),
-        **{"qr_entropy_source_type": "qbert_prng_resample"},
-    }
 
 
 # ── entropy conditioning ─────────────────────────────────────────────────────
@@ -266,8 +254,6 @@ def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:
     quantum = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX, conditioning=HASHED)
     raw = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX)
     assert quantum == {**raw, **_HASH_KEYS}
-    resample = _arm("res", source="prng_resample")
-    assert conditioning_xargs(resample, HASHED) == _HASH_KEYS
     for arm in (STUDY1_ARMS["prng_seed_1"], _arm("sys", source="prng_system")):
         assert build_envelope(arm, CTX, conditioning=HASHED) == build_envelope(arm, CTX)
 

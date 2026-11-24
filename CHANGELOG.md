@@ -32,17 +32,14 @@ All notable changes to this project are documented here. The format follows
   digest, so the quantum arm samples from uniform bytes whatever the device's
   own byte distribution is; the hash, the block size and the bytes kept per
   digest are settings (SHA-256, 128 and 16 by default, which reads 8 raw
-  bytes for every byte served). `raw` serves the measured bytes. The four
+  bytes for every byte served). `raw` serves the measured bytes; the panel and
+  the pre-registration then say that the quantum arm differs from the
+  pseudo-random arms by the device's byte statistics as well as by the source,
+  and that the harness has no matched control for that. The four
   `qr_conditioning_*` keys ride only the arms that draw from the entropy
   server; a card cannot set them, and they count as entropy keys in the
   equivalence check. The field is left out of a study that does not carry it,
   so every study from before it keeps its bytes, its hash and its raw run.
-- New arm source `prng_resample` ("Resampled device pool", provenance label
-  `resampled_prng`): a seeded pseudo-random replay of windows of a recording of
-  the quantum device, served by the entropy server. It is the matched control
-  for a raw study, because it has the device's own byte statistics. It is never
-  labelled quantum. The designed analysis does not use it yet: such an arm is
-  run and reported, and no registered hypothesis compares against it.
 - The designed pre-registration states the study's conditioning under "Arms
   and equivalence". The legacy template is frozen; a legacy document shows the
   conditioning in its illustrative envelopes.

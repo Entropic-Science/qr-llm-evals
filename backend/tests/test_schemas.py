@@ -722,10 +722,3 @@ def test_a_study_without_conditioning_keeps_its_bytes_and_hash(study1_raw: dict[
     assert StudyConfig.model_validate_json(hashed.model_dump_json()) == hashed
     with pytest.raises(ValidationError):
         StudyConfig.model_validate({**study1_raw, "conditioning": {"keep_bytes": 17}})
-
-
-def test_a_resample_arm_takes_no_seed_and_is_never_quantum() -> None:
-    arm = Arm.model_validate(_arm(id="resample", source="prng_resample"))
-    assert arm.source_label == "resampled_prng"
-    with pytest.raises(ValidationError):
-        Arm.model_validate(_arm(id="resample", source="prng_resample", study_seed=1))

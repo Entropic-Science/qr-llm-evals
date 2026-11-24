@@ -20,7 +20,7 @@ export function ConditioningModeField({ config, updateConfig }: FieldProps) {
     note={mode === "hash_truncate"
       ? "The entropy server hashes its raw read block by block and serves only part of each digest. The bytes are uniform whatever the device's own byte distribution is, so the quantum arm and the seeded controls start from the same distribution."
       : <>
-        The quantum arm samples from the bytes exactly as the device measured them. A device whose bytes are not uniform then gives a skewed draw, and a seeded control is no fair comparison for it. Add an arm with the source &ldquo;Resampled device pool&rdquo; in the arm table: it replays windows of a recording of the same device, so it has the same byte statistics.
+        The quantum arm samples from the bytes exactly as the device measured them. Raw device bytes are not uniform, so a raw quantum arm differs from the pseudo-random arms by the device&rsquo;s byte statistics as well as by the source, and the harness has no matched control for that.
         {absent ? " This study has no conditioning block: it is from before the setting, and it runs on raw bytes." : ""}
       </>}
   >
