@@ -83,6 +83,7 @@ class EngineTier0UniformDrawer:
             ctx,
             [{"role": "user", "content": "Return one token."}],
             priority=self.priority,
+            conditioning=study.conditioning,
         )
         target = target_for("qr_server", None, vllm_origin=self.origin)
         completion = OpenAIClient(target.base_url).generate(body)

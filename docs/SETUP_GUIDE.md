@@ -1053,6 +1053,19 @@ apply to it.
   discards the result. The harness keeps the rows for the reply's tokens.
 - **DEP-2**: epsilon-biased seeded PRNG also belongs in qr-sampler. Unsupported
   arms remain unavailable; record the missing positive control in the prereg.
+- **DEP-3**: entropy conditioning and the resampled control are served by
+  Qbert0G and requested through qr-sampler. A study with
+  `conditioning.mode: hash_truncate` needs `conditioning.allow_request: true`
+  in `/etc/qbert0g/qbert0g.config.yaml` and a qr-sampler that knows the
+  `qr_conditioning_*` keys. An arm with the source `prng_resample` needs the
+  `prng_resample` control in the same file (with its recorded pool) and the
+  `qbert_prng_resample` instance in `QR_ENTROPY_SOURCE_INSTANCES` and
+  `QR_PREINIT_ENTROPY_SOURCES` of `/etc/qr-server/qr-server.env`; both are
+  described in qr-sampler's `deployments/qr-server/README.md`. Readiness sends
+  every arm's real envelope, so an engine that lacks either refuses the arm
+  there and not in the run. A hashed token reads eight times the raw bytes of
+  a raw one at the default parameters; the request must stay within the
+  entropy key's `max_bytes_per_request`.
 - **Stop/go**: absent primary measurements or required dependencies require a
   documented protocol decision before preregistration. Never silently count
   missing tests as evidence for a null effect. Do not claim consciousness

@@ -718,7 +718,9 @@ class Renderer:
             model = next(m for m in config.models if m.id == arm.model)
             envelope = (
                 build_envelope(
-                    arm, SampleContext(card_id="prereg", prompt_id="example", epoch=0, max_tokens=1)
+                    arm,
+                    SampleContext(card_id="prereg", prompt_id="example", epoch=0, max_tokens=1),
+                    conditioning=config.conditioning,
                 )
                 if model.family == "qr_llm" and arm.source != "provider"
                 else {}

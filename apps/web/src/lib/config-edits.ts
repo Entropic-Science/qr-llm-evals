@@ -1,7 +1,8 @@
 import type {
-  Arm, DisplaySettings, EndpointRef, EstimateAssumptions, EvalCard, JudgeSpec, ModelRef, PilotConfig, StudyDesign,
+  Arm, Conditioning, DisplaySettings, EndpointRef, EstimateAssumptions, EvalCard, JudgeSpec, ModelRef, PilotConfig, StudyDesign,
   SupervisedConfig,
 } from "@qr-evals/contracts";
+import { resolveConditioning } from "./conditioning";
 import type { WizardStudyConfig } from "./config-store";
 import { MAX_CONFIRMATORY, metaFor, recommendDesign, recommendK } from "./design";
 import { DEFAULT_JUDGE } from "./judge";
@@ -234,6 +235,11 @@ export function setDisplaySettings(config: WizardStudyConfig, mode: "single" | "
 }
 
 // ── advanced ─────────────────────────────────────────────────────────────────
+
+/** Changes the entropy conditioning. A study without the block gets one: what it ran under (raw), with the change. */
+export function setConditioning(config: WizardStudyConfig, patch: Partial<Conditioning>): WizardStudyConfig {
+  return { ...config, conditioning: { ...resolveConditioning(config.conditioning), ...patch } };
+}
 
 export function setEstimates(config: WizardStudyConfig, patch: Partial<EstimateAssumptions>): WizardStudyConfig {
   return { ...config, estimates: { ...config.estimates, ...patch } };

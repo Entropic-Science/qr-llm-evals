@@ -59,7 +59,7 @@ Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 ModelFamily = Literal["qr_llm", "external"]
 Provider = Literal["qr_server", "openai", "anthropic_compat", "custom"]
 Sampling = Literal["creative", "t1_minp", "greedy"]
-Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "provider"]
+Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "prng_resample", "provider"]
 ObserverMode = Literal["supervised", "unsupervised"]
 Availability = Literal["available", "unavailable"]
 Display = Literal["single", "tiled"]
@@ -74,15 +74,38 @@ Tier0Source = Literal["engine_log", "api_logprobs"]
 #: Provenance labels per source (spec §2.2). ``quantum`` is the only label that
 #: may ever carry ``quantum=true`` (AGENTS.md invariant 2).
 SourceLabel = Literal[
-    "quantum", "seeded_prng", "system_prng", "seeded_prng_biased", "provider_prng"
+    "quantum",
+    "seeded_prng",
+    "system_prng",
+    "seeded_prng_biased",
+    "resampled_prng",
+    "provider_prng",
 ]
 SOURCE_LABELS: dict[str, str] = {
     "qrng": "quantum",
     "prng_seeded": "seeded_prng",
     "prng_system": "system_prng",
     "prng_epsilon": "seeded_prng_biased",
+    "prng_resample": "resampled_prng",
     "provider": "provider_prng",
 }
+
+#: Entropy conditioning (what the entropy server does to its raw bytes before
+#: serving them). SOURCE: qr-sampler ``src/qr_sampler/config/conditioning.py``
+#: ``CONDITIONING_MODES`` / ``CONDITIONING_HASHES`` (digest size in bytes).
+ConditioningMode = Literal["raw", "hash_truncate"]
+ConditioningHash = Literal["sha256", "sha512", "sha3_256", "blake2b"]
+CONDITIONING_DIGEST_BYTES: dict[str, int] = {
+    "sha256": 32,
+    "sha512": 64,
+    "sha3_256": 32,
+    "blake2b": 64,
+}
+#: Largest raw block one digest may be computed over (Qbert0G
+#: ``conditioning.max_in_bytes`` on the box).
+CONDITIONING_MAX_IN_BYTES = 4096
+#: Sources whose bytes come from the entropy server, so conditioning applies.
+CONDITIONED_SOURCES: frozenset[str] = frozenset({"qrng", "prng_resample"})
 
 #: Study 1 seeds (PRD §7.1); each seed runs the full suite.
 DEFAULT_SEEDS: tuple[int, ...] = (1, 7, 42)
@@ -188,6 +211,48 @@ class Arm(_Strict):
     @property
     def source_label(self) -> str:
         return SOURCE_LABELS[self.source]
+
+
+class Conditioning(_Strict):
+    """How entropy-server bytes are conditioned for every arm that draws them.
+
+    ``hash_truncate`` (the default of a new study): the server cuts its raw
+    read into ``in_bytes`` blocks, hashes each on its own and serves the first
+    ``keep_bytes`` of each digest, so the amplifier sees uniform bytes whatever
+    the device's own byte distribution is. ``raw`` serves the measured bytes
+    untouched; the parameters are then unused and keep their defaults.
+
+    Two rules are fixed and mirror the server's: at most half of every digest
+    is kept, and every block holds at least twice the bytes it yields.
+    """
+
+    mode: ConditioningMode = "hash_truncate"
+    hash: ConditioningHash = "sha256"
+    in_bytes: int = Field(default=128, ge=2, le=CONDITIONING_MAX_IN_BYTES)
+    keep_bytes: int = Field(default=16, ge=1)
+
+    @model_validator(mode="after")
+    def _check_rules(self) -> Conditioning:
+        if self.mode == "raw":
+            return self
+        half = CONDITIONING_DIGEST_BYTES[self.hash] // 2
+        if self.keep_bytes > half:
+            raise ValueError(
+                f"conditioning.keep_bytes must be at most {half} for {self.hash} "
+                f"(at least half of every digest is discarded), got {self.keep_bytes}"
+            )
+        if self.in_bytes < 2 * self.keep_bytes:
+            raise ValueError(
+                f"conditioning.in_bytes must be at least 2 * keep_bytes "
+                f"({2 * self.keep_bytes}), got {self.in_bytes}"
+            )
+        return self
+
+    def raw_bytes_per_token(self, sample_count: int) -> int:
+        """Raw device bytes read to serve one token's ``sample_count`` bytes."""
+        if self.mode == "raw":
+            return sample_count
+        return -(-sample_count // self.keep_bytes) * self.in_bytes
 
 
 class CardOverrides(_Strict):
@@ -375,6 +440,13 @@ class StudyConfig(_Strict):
         default=None,
         description="Absent on studies from before the design block; never serialized as null.",
     )
+    conditioning: Conditioning | None = Field(
+        default=None,
+        description=(
+            "Entropy conditioning of the arms that draw from the entropy server. Absent "
+            "on studies from before the field (they ran on raw bytes); never serialized as null."
+        ),
+    )
     judge: JudgeSpec
     narrative_model: ModelRef
     supervised: SupervisedConfig | None = None
@@ -505,6 +577,8 @@ class StudyConfig(_Strict):
         data = handler(self)
         if data.get("design") is None:
             data.pop("design", None)
+        if data.get("conditioning") is None:
+            data.pop("conditioning", None)
         return data
 
 
@@ -555,6 +629,12 @@ def read_draft(raw: Any) -> tuple[StudyConfig, list[str]]:
 
 __all__ = [
     "ALPHA_LEVELS",
+    "CONDITIONED_SOURCES",
+    "CONDITIONING_DIGEST_BYTES",
+    "CONDITIONING_MAX_IN_BYTES",
+    "Conditioning",
+    "ConditioningHash",
+    "ConditioningMode",
     "DEFAULT_SEEDS",
     "DRAFT_PROBLEMS",
     "EPSILON_LEVELS",

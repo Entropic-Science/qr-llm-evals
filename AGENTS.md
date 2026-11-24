@@ -142,7 +142,11 @@ package must be side-effect free (no network, no writes, no downloads).
    `qr_population_mean`. The last one is set only on a biased (ε) control arm:
    it lowers the amplifier's reference mean by ε standard errors, so every
    `u` becomes `Φ(z + ε)`. No arm that is compared as quantum against
-   pseudo-random may carry it.
+   pseudo-random may carry it. The study's entropy conditioning
+   (`StudyConfig.conditioning`, `qr_conditioning_*`) is sent only on arms that
+   draw from the entropy server (`qrng`, `prng_resample`) and is omitted for
+   `raw`; the field is never serialized when absent, so older studies keep
+   their hash.
 2. **Never label PRNG output as quantum.** Provenance `quantum=true` only for
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge

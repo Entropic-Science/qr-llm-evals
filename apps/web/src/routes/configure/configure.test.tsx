@@ -99,7 +99,7 @@ describe("setup steps", () => {
 
   it("draws each step from its panels and walks through all five with Continue", () => {
     const { container } = render(<Configure />);
-    expect(panels(container)).toEqual(["comparison"]);
+    expect(panels(container)).toEqual(["comparison", "conditioning"]);
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(heading()).toHaveTextContent("What is measured");
     expect(heading()).toHaveFocus();
@@ -1333,7 +1333,7 @@ describe("all settings over a step", () => {
     render(<Configure />);
     fireEvent.click(bar().getByRole("button", { name: "All settings" }));
     const shown = () => [...settings().querySelectorAll<HTMLElement>("[data-panel]")].filter((panel) => !panel.hidden && !panel.closest("section")?.hidden).map((panel) => panel.dataset.panel);
-    expect(shown()).toHaveLength(21);
+    expect(shown()).toHaveLength(22);
     fireEvent.change(within(settings()).getByRole("searchbox", { name: "Filter settings" }), { target: { value: "narrative" } });
     expect(shown()).toEqual(["narrative"]);
     fireEvent.change(within(settings()).getByRole("searchbox", { name: "Filter settings" }), { target: { value: "no such thing" } });

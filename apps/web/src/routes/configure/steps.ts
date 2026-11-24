@@ -1,6 +1,6 @@
 import type { EvalCard } from "@qr-evals/contracts";
 import type { JSX } from "react";
-import { comparisonPanel } from "../../components/study/panels/arms";
+import { comparisonPanel, conditioningPanel } from "../../components/study/panels/arms";
 import { alphaPanel, claimPanel, expectationsPanel, marginsPanel, outcomesPanel, positiveControlPanel } from "../../components/study/panels/design";
 import { judgePanel } from "../../components/study/panels/judge";
 import { evalsPanel, promptsPanel } from "../../components/study/panels/measures";
@@ -51,7 +51,7 @@ export const STEPS: readonly StepDef[] = [
     label: "Compare",
     heading: "What is compared",
     intro: "Choose the models and sampling presets to compare. In each comparison one quantum arm is set against the mean of several seeded pseudo-random control runs.",
-    panels: () => [comparisonPanel],
+    panels: () => [comparisonPanel, conditioningPanel],
     shown: always,
     problems: (all) => problemsFor("compare", all),
     Component: Compare,

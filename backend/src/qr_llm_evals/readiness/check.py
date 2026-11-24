@@ -270,7 +270,11 @@ def run_readiness(
     )
     models = _models(study)
     probe = EngineProbe(
-        gen_client, models, priority=config.priority, top_logprobs=config.top_logprobs
+        gen_client,
+        models,
+        priority=config.priority,
+        top_logprobs=config.top_logprobs,
+        conditioning=study.conditioning,
     )
 
     # 1. entropy health
@@ -295,7 +299,7 @@ def run_readiness(
             arms[arm.id] = ArmReadiness(available=True, reason=PROVIDER_ARM_REASON)
             continue
         try:
-            envelope = build_envelope(arm, dry_ctx)
+            envelope = build_envelope(arm, dry_ctx, conditioning=study.conditioning)
         except EnvelopeError as err:
             arms[arm.id] = ArmReadiness(available=False, reason=str(err))
             accepted[arm.id] = False

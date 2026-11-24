@@ -1,6 +1,6 @@
 import type { JSX } from "react";
 import { armTablePanel, estimatesPanel, modelsPanel, pilotPanel, recordPanel, seedListPanel } from "../components/study/panels/advanced";
-import { comparisonPanel } from "../components/study/panels/arms";
+import { comparisonPanel, conditioningPanel } from "../components/study/panels/arms";
 import { alphaPanel, claimPanel, expectationsPanel, marginsPanel, outcomesPanel, positiveControlPanel } from "../components/study/panels/design";
 import { judgePanel, narrativePanel } from "../components/study/panels/judge";
 import { evalsPanel, promptsPanel } from "../components/study/panels/measures";
@@ -49,7 +49,7 @@ export const SECTIONS: readonly { id: SectionId; label: string }[] = [
 /** Every panel, in page order: by section, and within a section in reading order. */
 export const PANELS: readonly PanelDef[] = [
   titlePanel, peoplePanel,
-  comparisonPanel,
+  comparisonPanel, conditioningPanel,
   evalsPanel, promptsPanel,
   claimPanel, outcomesPanel, alphaPanel, positiveControlPanel, marginsPanel, expectationsPanel,
   sessionsPanel, displaySettingsPanel,

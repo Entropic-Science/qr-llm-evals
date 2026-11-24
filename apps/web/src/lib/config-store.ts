@@ -1,5 +1,6 @@
 import { StudyConfigSchema, type StudyConfig } from "@qr-evals/contracts";
 import studyOneDesignedJson from "../../../../packages/contracts/fixtures/study1.designed.json";
+import { HASHED_DEFAULT } from "./conditioning";
 import { DEFAULT_JUDGE } from "./judge";
 
 export type WizardStudyConfig = StudyConfig & { title: string };
@@ -83,6 +84,9 @@ export function studyOneTemplate(): WizardStudyConfig {
     { card_id: "self_reported_coincidence", overrides: { k: 10 } },
   ];
   source.judge = { ...DEFAULT_JUDGE };
+  // A new study samples its quantum arm from hashed, uniform bytes. The fixture is the pinned Study 1, which
+  // has no conditioning block and ran on raw bytes.
+  source.conditioning = { ...HASHED_DEFAULT };
   const parsed = parseStudyConfig(source);
   if (!parsed) throw new Error("The bundled Study 1 template does not match StudyConfig.");
   return parsed;

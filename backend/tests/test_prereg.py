@@ -120,6 +120,23 @@ def test_deterministic_and_golden_bytes() -> None:
     assert config_hash(changed) != config_hash(config)
 
 
+def test_a_legacy_document_shows_conditioning_in_its_envelopes_only() -> None:
+    """The legacy template is frozen (its hash is in ``golden.md``); the envelopes still say it."""
+    config = small_study()
+    renderer = load_renderer(
+        cards=load_cards(FIXTURES / "registry/evals"), repo_root=FIXTURES / "registry"
+    )
+    legacy = renderer.render(config)
+    assert "qr_conditioning" not in legacy
+    data = config.model_dump(mode="json")
+    hashed = renderer.render(StudyConfig.model_validate({**data, "conditioning": {}}))
+    quantum = sum(a.source == "qrng" for a in config.arms)
+    assert hashed.count('"qr_conditioning_mode":"hash_truncate"') == quantum > 0
+    raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
+    assert "qr_conditioning" not in raw
+    assert len({prereg_hash(doc) for doc in (legacy, hashed, raw)}) == 3
+
+
 def test_study1_sections_and_plan_roundtrip() -> None:
     config = study1()
     document = render(config, readiness(config))
@@ -908,3 +925,20 @@ def test_designed_document_says_when_a_hypothesis_plans_no_data() -> None:
     assert hypotheses.count(sentence) == 2
     # A study that plans its token-stream tests says nothing of the kind.
     assert "plans no data" not in render(designed())
+
+
+def test_a_designed_document_states_the_conditioning_the_study_carries() -> None:
+    renderer = load_renderer()
+    data = designed_data()
+    assert "Entropy conditioning" not in renderer.render(StudyConfig.model_validate(data))
+
+    hashed = renderer.render(StudyConfig.model_validate({**data, "conditioning": {}}))
+    arms = _section(hashed, "Arms and equivalence")
+    assert "Entropy conditioning: hashed." in arms
+    assert "blocks of 128 bytes" in arms and "`sha256`" in arms
+    assert "first 16 bytes of each digest" in arms and "80000 raw device bytes" in arms
+    assert '"qr_conditioning_keep_bytes":16' in hashed
+
+    raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
+    assert "Entropy conditioning: raw." in _section(raw, "Arms and equivalence")
+    assert "qr_conditioning" not in raw

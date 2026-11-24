@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- A study chooses how the bytes of the entropy server are conditioned
+  (`StudyConfig.conditioning`, the "Entropy conditioning" panel of the Compare
+  step and of the settings page). `hash_truncate`, the default of a new study,
+  asks the server to hash its raw read block by block and to serve part of each
+  digest, so the quantum arm samples from uniform bytes whatever the device's
+  own byte distribution is; the hash, the block size and the bytes kept per
+  digest are settings (SHA-256, 128 and 16 by default, which reads 80,000 raw
+  bytes per token). `raw` serves the measured bytes. The four
+  `qr_conditioning_*` keys ride only the arms that draw from the entropy
+  server; a card cannot set them, and they count as entropy keys in the
+  equivalence check. The field is left out of a study that does not carry it,
+  so every study from before it keeps its bytes, its hash and its raw run.
+- New arm source `prng_resample` ("Resampled device pool", provenance label
+  `resampled_prng`): a seeded pseudo-random replay of windows of a recording of
+  the quantum device, served by the entropy server. It is the matched control
+  for a raw study, because it has the device's own byte statistics. It is never
+  labelled quantum. The designed analysis does not use it yet: such an arm is
+  run and reported, and no registered hypothesis compares against it.
+- The designed pre-registration states the study's conditioning under "Arms
+  and equivalence". The legacy template is frozen; a legacy document shows the
+  conditioning in its illustrative envelopes.
+
 - No key of a run is stored in the run folder or sent in an event when an
   upstream answer repeats it. The text of a failed generation (the `detail`
   of a taint in `taints.jsonl` and in the `taint` event), the `raw` field of
