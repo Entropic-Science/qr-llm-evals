@@ -254,12 +254,6 @@ class Conditioning(_Strict):
             return "1"
         return f"{self.in_bytes / self.keep_bytes:g}"
 
-    def raw_bytes_per_token(self, sample_count: int) -> int:
-        """Raw device bytes read to serve one token's ``sample_count`` bytes."""
-        if self.mode == "raw":
-            return sample_count
-        return -(-sample_count // self.keep_bytes) * self.in_bytes
-
 
 class CardOverrides(_Strict):
     """Frozen per-card overrides, applied within the card's declared bounds."""
