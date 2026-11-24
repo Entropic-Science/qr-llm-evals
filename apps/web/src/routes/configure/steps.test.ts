@@ -45,7 +45,7 @@ describe("step registry", () => {
 
   it("composes each step from its panels", () => {
     const template = studyOneTemplate();
-    expect(panelIds("compare", template)).toEqual(["comparison"]);
+    expect(panelIds("compare", template)).toEqual(["comparison", "conditioning"]);
     expect(panelIds("measure", template)).toEqual(["evals", "prompts"]);
     expect(panelIds("design", template)).toEqual(["claim", "outcomes", "alpha", "prompts", "positive-control", "margins", "expectations"]);
     expect(panelIds("instruments", template)).toEqual(["judge", "sessions"]);

@@ -101,6 +101,10 @@ export interface StudyConfig {
    * Absent on studies from before the design block; never serialized as null.
    */
   design?: StudyDesign | null;
+  /**
+   * Entropy conditioning of the arms that draw from the entropy server. Absent on studies from before the field (they ran on raw bytes); never serialized as null.
+   */
+  conditioning?: Conditioning | null;
   judge: JudgeSpec;
   narrative_model: ModelRef;
   supervised?: SupervisedConfig | null;
@@ -145,7 +149,7 @@ export interface Arm {
    */
   model: string;
   sampling: "creative" | "t1_minp" | "greedy";
-  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "provider";
+  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "prng_resample" | "provider";
   /**
    * Required for prng_seeded / prng_epsilon; per-request qr_seed is derived from it.
    */
@@ -228,6 +232,27 @@ export interface MarginDecl {
   card_id: string;
   endpoint: string;
   margin: number;
+}
+/**
+ * How entropy-server bytes are conditioned for every arm that draws them.
+ *
+ * ``hash_truncate`` (the default of a new study): the server cuts its raw
+ * read into ``in_bytes`` blocks, hashes each on its own and serves the first
+ * ``keep_bytes`` of each digest, so the amplifier sees uniform bytes whatever
+ * the device's own byte distribution is. ``raw`` serves the measured bytes
+ * untouched; the parameters are then unused and keep their defaults.
+ *
+ * Two rules are fixed and mirror the server's: at most half of every digest
+ * is kept, and every block holds at least twice the bytes it yields.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "Conditioning".
+ */
+export interface Conditioning {
+  mode?: "raw" | "hash_truncate";
+  hash?: "sha256" | "sha512" | "sha3_256" | "blake2b";
+  in_bytes?: number;
+  keep_bytes?: number;
 }
 /**
  * The study's shared judge: an Anthropic Messages API call on the user's own key.
@@ -771,7 +796,13 @@ export interface Provenance {
    */
   preset?: string | null;
   envelope_hash: string;
-  source_label: "quantum" | "seeded_prng" | "system_prng" | "seeded_prng_biased" | "provider_prng";
+  source_label:
+    | "quantum"
+    | "seeded_prng"
+    | "system_prng"
+    | "seeded_prng_biased"
+    | "resampled_prng"
+    | "provider_prng";
   quantum: boolean;
   study_seed?: number | null;
   qr_seed?: number | null;
@@ -1329,6 +1360,10 @@ export interface StudyConfig1 {
    * Absent on studies from before the design block; never serialized as null.
    */
   design?: StudyDesign | null;
+  /**
+   * Entropy conditioning of the arms that draw from the entropy server. Absent on studies from before the field (they ran on raw bytes); never serialized as null.
+   */
+  conditioning?: Conditioning | null;
   judge: JudgeSpec;
   narrative_model: ModelRef;
   supervised?: SupervisedConfig | null;

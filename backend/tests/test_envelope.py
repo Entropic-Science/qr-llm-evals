@@ -28,6 +28,7 @@ from qr_llm_evals.models.envelope import (
     bent_population_mean,
     build_envelope,
     build_request_body,
+    conditioning_xargs,
     envelope_hash,
     envelope_json,
     equivalence_violations,
@@ -35,7 +36,7 @@ from qr_llm_evals.models.envelope import (
     validate_overrides,
 )
 from qr_llm_evals.models.providers import load_provider_profiles
-from qr_llm_evals.models.schema import Arm, ModelRef
+from qr_llm_evals.models.schema import Arm, Conditioning, ModelRef
 
 QR_LLM = ModelRef(id="qr-llm", family="qr_llm", provider="qr_server", served_name="qr-llm")
 CTX = SampleContext(
@@ -191,6 +192,7 @@ def test_source_type_table() -> None:
         "prng_seeded": "seeded_prng",
         "prng_system": "system",
         "prng_epsilon": "seeded_prng",
+        "prng_resample": "qbert_prng_resample",
     }
 
 
@@ -205,6 +207,94 @@ def test_system_prng_row() -> None:
     env = build_envelope(_arm("sys", source="prng_system"), CTX)
     assert env["qr_entropy_source_type"] == "system"
     assert "qr_seed" not in env
+
+
+def test_resample_row_is_the_named_grpc_lane() -> None:
+    env = build_envelope(_arm("res", source="prng_resample"), CTX)
+    assert env["qr_entropy_source_type"] == "qbert_prng_resample"
+    assert "qr_seed" not in env
+    assert env == {
+        **build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX),
+        **{"qr_entropy_source_type": "qbert_prng_resample"},
+    }
+
+
+# ── entropy conditioning ─────────────────────────────────────────────────────
+
+HASHED = Conditioning()
+_HASH_KEYS = {
+    "qr_conditioning_mode": "hash_truncate",
+    "qr_conditioning_hash": "sha256",
+    "qr_conditioning_in_bytes": 128,
+    "qr_conditioning_keep_bytes": 16,
+}
+
+
+def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
+    assert HASHED.model_dump() == {
+        "mode": "hash_truncate",
+        "hash": "sha256",
+        "in_bytes": 128,
+        "keep_bytes": 16,
+    }
+    # 8 raw device bytes per byte served: 80,000 for a 10,000-byte token, 48,000 for 6,000.
+    assert HASHED.read_ratio() == "8"
+    assert Conditioning(in_bytes=40).read_ratio() == "2.5"
+    assert Conditioning(mode="raw").read_ratio() == "1"
+    assert HASHED.raw_bytes_per_token(10_000) == 80_000
+    assert HASHED.raw_bytes_per_token(6_000) == 48_000
+    assert Conditioning(mode="raw").raw_bytes_per_token(10_000) == 10_000
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"keep_bytes": 17},  # more than half a sha256 digest
+        {"in_bytes": 31},  # less than twice keep_bytes
+        {"hash": "sha512", "keep_bytes": 33},
+        {"hash": "md5"},
+        {"mode": "whiten"},
+        {"in_bytes": 8192},
+    ],
+)
+def test_conditioning_rules_are_refused(bad: dict[str, Any]) -> None:
+    with pytest.raises(ValueError):
+        Conditioning.model_validate(bad)
+
+
+def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:
+    quantum = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX, conditioning=HASHED)
+    raw = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX)
+    assert quantum == {**raw, **_HASH_KEYS}
+    resample = _arm("res", source="prng_resample")
+    assert conditioning_xargs(resample, HASHED) == _HASH_KEYS
+    for arm in (STUDY1_ARMS["prng_seed_1"], _arm("sys", source="prng_system")):
+        assert build_envelope(arm, CTX, conditioning=HASHED) == build_envelope(arm, CTX)
+
+
+def test_raw_conditioning_leaves_the_envelope_of_an_older_study() -> None:
+    for arm in STUDY1_ARMS.values():
+        raw = build_envelope(arm, CTX, conditioning=Conditioning(mode="raw"))
+        assert envelope_json(raw) == envelope_json(build_envelope(arm, CTX))
+
+
+def test_a_hashed_study_is_still_one_pipeline() -> None:
+    envelopes = {k: build_envelope(a, CTX, conditioning=HASHED) for k, a in STUDY1_ARMS.items()}
+    assert equivalence_violations(envelopes) == []
+    assert set(_HASH_KEYS) <= EQUIVALENCE_KEYS
+
+
+@pytest.mark.parametrize("key", sorted(_HASH_KEYS))
+def test_a_card_cannot_set_the_conditioning(key: str) -> None:
+    with pytest.raises(EnvelopeError):
+        validate_overrides({key: _HASH_KEYS[key]})
+
+
+def test_the_request_body_carries_the_study_conditioning() -> None:
+    body = build_request_body(
+        STUDY1_ARMS["qrng_unsupervised"], QR_LLM, CTX, MESSAGES, conditioning=HASHED
+    )
+    assert {k: body["vllm_xargs"][k] for k in _HASH_KEYS} == _HASH_KEYS
 
 
 def test_epsilon_row_bends_the_reference_mean_only() -> None:

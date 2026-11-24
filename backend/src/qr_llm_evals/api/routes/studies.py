@@ -74,7 +74,14 @@ def _analysis(study_dir: StudyDir, analysis_id: str, run_id: str | None = None) 
 
 
 SOURCE_LABELS = frozenset(
-    {"quantum", "seeded_prng", "system_prng", "seeded_prng_biased", "provider_prng"}
+    {
+        "quantum",
+        "seeded_prng",
+        "system_prng",
+        "seeded_prng_biased",
+        "resampled_prng",
+        "provider_prng",
+    }
 )
 
 

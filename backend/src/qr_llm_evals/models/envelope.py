@@ -17,6 +17,13 @@ Invariants enforced here (AGENTS.md invariant 1):
   different pipelines and the study would compare amplifiers, not entropy.
 * **Arms differ only in the entropy keys** (:data:`EQUIVALENCE_KEYS`);
   :func:`equivalence_violations` is what the readiness check asserts.
+* **Conditioning belongs to the study, and to the bytes of the entropy
+  server.** A study's ``conditioning`` (``hash_truncate``) is sent on every arm
+  whose source draws from the entropy server (:data:`CONDITIONED_SOURCES`) and
+  on no other: a seeded or system PRNG is uniform already and the engine
+  refuses conditioning on it. The four keys are therefore entropy keys. A raw
+  study sends none of them, so its envelopes are those of a study from before
+  the field.
 * **Biased (epsilon) arms bend the numbers, nothing else.** The engine has no
   ``qr_bias_epsilon`` hook (DEP-2), so a ``prng_epsilon`` arm shifts the
   z-score amplifier's reference mean instead (:func:`bent_population_mean`):
@@ -40,7 +47,14 @@ from typing import Any, Final
 
 from qr_llm_evals.config import DEFAULT_TOP_LOGPROBS, MAX_TOP_LOGPROBS
 from qr_llm_evals.models.providers import UNKNOWN_PROFILE, ProviderProfile
-from qr_llm_evals.models.schema import Arm, ModelRef, Sampling, Source
+from qr_llm_evals.models.schema import (
+    CONDITIONED_SOURCES,
+    Arm,
+    Conditioning,
+    ModelRef,
+    Sampling,
+    Source,
+)
 from qr_llm_evals.models.seeds import derive_seed
 
 # ── constants copied from sibling repositories (kept in lockstep) ────────────
@@ -105,6 +119,10 @@ REFUSED_QR_KEYS: Final[frozenset[str]] = frozenset(
         "qr_signal_amplifier_type",
         "qr_zscore_calibration_samples",
         "qr_entropy_prefetch",
+        "qr_conditioning_mode",
+        "qr_conditioning_hash",
+        "qr_conditioning_in_bytes",
+        "qr_conditioning_keep_bytes",
         # diagnostic / draw-size knobs
         "qr_diagnostic_mode",
         "qr_log_level",
@@ -129,12 +147,45 @@ SOURCE_TYPES: Final[dict[Source, str]] = {
     "prng_seeded": "seeded_prng",
     "prng_system": "system",
     "prng_epsilon": "seeded_prng",
+    # SOURCE: qr-sampler ``deployments/qr-server/qr-server.env.example``
+    # ``QR_ENTROPY_SOURCE_INSTANCES``: the gRPC lane whose key is bound to
+    # Qbert0G's ``prng_resample`` control (seeded windows of a frozen recorded
+    # dragonfly-0 pool), the matched control for raw quantum bytes.
+    "prng_resample": "qbert_prng_resample",
 }
 
 #: The only keys on which qr-llm arms of one study may differ (spec §5.2).
 EQUIVALENCE_KEYS: Final[frozenset[str]] = frozenset(
-    {"qr_entropy_source_type", "qr_seed", "qr_bias_epsilon", "qr_population_mean"}
+    {
+        "qr_entropy_source_type",
+        "qr_seed",
+        "qr_bias_epsilon",
+        "qr_population_mean",
+        "qr_conditioning_mode",
+        "qr_conditioning_hash",
+        "qr_conditioning_in_bytes",
+        "qr_conditioning_keep_bytes",
+    }
 )
+
+
+def conditioning_xargs(arm: Arm, conditioning: Conditioning | None) -> dict[str, Any]:
+    """The ``qr_conditioning_*`` keys of ``arm`` under the study's conditioning.
+
+    Empty for a raw (or absent) conditioning and for every source that does not
+    draw from the entropy server.
+    """
+    if conditioning is None or conditioning.mode == "raw":
+        return {}
+    if arm.source not in CONDITIONED_SOURCES:
+        return {}
+    return {
+        "qr_conditioning_mode": conditioning.mode,
+        "qr_conditioning_hash": conditioning.hash,
+        "qr_conditioning_in_bytes": conditioning.in_bytes,
+        "qr_conditioning_keep_bytes": conditioning.keep_bytes,
+    }
+
 
 GREEDY_QRNG_REASON: Final[str] = "greedy consults no randomness"
 
@@ -215,12 +266,18 @@ def request_seed(arm: Arm, ctx: SampleContext) -> int | None:
 
 
 def build_envelope(
-    arm: Arm, ctx: SampleContext, overrides: Mapping[str, Any] | None = None
+    arm: Arm,
+    ctx: SampleContext,
+    overrides: Mapping[str, Any] | None = None,
+    *,
+    conditioning: Conditioning | None = None,
 ) -> dict[str, Any]:
     """The ``vllm_xargs`` dict for one generation on a qr-llm target.
 
     Key order is fixed (source, preset, sampling pins, seed, amplifier pins,
-    bent reference mean, card overrides) so the JSON bytes are reproducible; tests pin them.
+    bent reference mean, conditioning, card overrides) so the JSON bytes are
+    reproducible; tests pin them. ``conditioning`` is the study's
+    (:func:`conditioning_xargs`).
     """
     if arm.source == "provider":
         raise EnvelopeError(f"arm {arm.id!r}: provider arms carry no qr_* envelope")
@@ -245,6 +302,7 @@ def build_envelope(
         # The engine has no epsilon hook (DEP-2); the bend is the amplifier's reference
         # mean, a per-request field. The arm stays `unavailable` until readiness sees it accepted.
         envelope["qr_population_mean"] = bent_population_mean(float(arm.epsilon or 0.0))
+    envelope.update(conditioning_xargs(arm, conditioning))
     envelope.update(extra)
     return envelope
 
@@ -329,6 +387,7 @@ def build_request_body(
     profile: ProviderProfile | None = None,
     top_logprobs: int = TOP_LOGPROBS,
     token_log: bool = False,
+    conditioning: Conditioning | None = None,
 ) -> dict[str, Any]:
     """The full chat-completions body (spec §2.2 common body).
 
@@ -356,7 +415,7 @@ def build_request_body(
     if model.provider == "qr_server":
         if arm.source == "provider":
             raise EnvelopeError(f"arm {arm.id!r}: source 'provider' is not a qr-llm source")
-        envelope = build_envelope(arm, ctx, overrides)
+        envelope = build_envelope(arm, ctx, overrides, conditioning=conditioning)
         if arm.sampling == "greedy":
             body["temperature"] = 0.0
         elif token_log:
@@ -405,6 +464,7 @@ __all__ = [
     "build_envelope",
     "build_request_body",
     "check_top_logprobs",
+    "conditioning_xargs",
     "envelope_hash",
     "envelope_json",
     "equivalence_violations",

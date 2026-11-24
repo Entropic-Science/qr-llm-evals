@@ -23,6 +23,7 @@ export const SOURCE_LABELS: Record<Arm["source"], string> = {
   prng_seeded: "Seeded pseudo-random · control",
   prng_system: "System pseudo-random · control",
   prng_epsilon: "Biased pseudo-random · positive control",
+  prng_resample: "Resampled device pool · matched control for raw bytes",
   provider: "Provider's own (opaque)",
 };
 const EPSILON_STATE_TEXT: Record<EpsilonState, string> = { absent: "absent", off: "planned, off", on: "on" };

@@ -122,6 +122,20 @@ restarting the same PRNG uniform stream for every prompt. The arms differ only
 in entropy source, derived seed, and optional epsilon; exceptions are explicit
 in cards and frozen in preregistration.
 
+The bytes of a hardware device are not uniform, and the amplifier turns a
+skewed byte mean into a skewed draw. A study therefore says how the bytes of
+the entropy server are conditioned (`StudyConfig.conditioning`). With
+`hash_truncate`, the default of a new study, the server hashes its raw read
+block by block and serves only part of each digest, so the quantum arm samples
+from uniform bytes like the seeded controls do. The hash, the block size and
+the bytes kept are frozen with the study, and the server records them and the
+sha256 of the raw block with every request. With `raw` the quantum arm samples
+from the measured bytes; the control that matches it is a `prng_resample` arm,
+a seeded replay of windows of a recording of the same device. A seeded or
+system PRNG arm is never hashed, so the `qr_conditioning_*` keys are among the
+keys on which arms may differ. A study without the block is from before the
+setting and runs on raw bytes.
+
 `quantum=true` requires the QRNG source and no fallback. A fallback taints a
 sample; seeded, system, biased, and external provider PRNG are never labelled
 quantum. Sample IDs connect generations, Tier-0 records, scoring, and resumption.

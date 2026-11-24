@@ -23,7 +23,7 @@ import httpx
 
 from qr_llm_evals.client.openai_client import Completion, OpenAIClient, UpstreamError
 from qr_llm_evals.models.envelope import TOP_LOGPROBS, SampleContext, build_request_body
-from qr_llm_evals.models.schema import Arm, ModelRef
+from qr_llm_evals.models.schema import Arm, Conditioning, ModelRef
 
 logger = logging.getLogger("qr_llm_evals.readiness")
 
@@ -98,10 +98,13 @@ class EngineProbe:
         *,
         priority: int = 0,
         top_logprobs: int = TOP_LOGPROBS,
+        conditioning: Conditioning | None = None,
     ) -> None:
         self._client = client
         self._models = dict(models)
         self._priority = priority
+        # The study's conditioning, so every probe exercises the envelope the run sends.
+        self._conditioning = conditioning
         # Probe with the depth the run will request, so an engine whose
         # --max-logprobs is below it fails readiness instead of every generation.
         self._top_logprobs = top_logprobs
@@ -123,6 +126,7 @@ class EngineProbe:
             priority=self._priority,
             stream=True,
             top_logprobs=self._top_logprobs,
+            conditioning=self._conditioning,
         )
         body["request_id"] = request_id
         if extra_xargs:

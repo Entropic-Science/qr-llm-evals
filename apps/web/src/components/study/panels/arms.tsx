@@ -2,6 +2,9 @@ import {
   ArmTable, CellGridField, ControlSeedsField, CustomArmsNotice, DeterministicField, EpsilonArmsField, QuantumArmField,
   SeedValuesField, SupervisedToggleField, rosterOf,
 } from "../../../routes/configure/fields/compare";
+import {
+  ConditioningHashField, ConditioningInBytesField, ConditioningKeepBytesField, ConditioningModeField, ConditioningSummary,
+} from "../../../routes/configure/fields/conditioning";
 import { definePanel } from "./Panel";
 
 /**
@@ -26,4 +29,22 @@ export const comparisonPanel = definePanel(
       </details>
     </>;
   },
+);
+
+/**
+ * How the entropy server's bytes reach the arms that draw from it: hashed and truncated (uniform), or raw.
+ * It belongs with the comparison because it decides what the quantum arm is compared on.
+ */
+export const conditioningPanel = definePanel(
+  {
+    id: "conditioning", section: "arms", label: "Entropy conditioning",
+    paths: ["conditioning.mode", "conditioning.hash", "conditioning.in_bytes", "conditioning.keep_bytes"],
+  },
+  (props) => <>
+    <ConditioningModeField {...props} />
+    <ConditioningHashField {...props} />
+    <ConditioningInBytesField {...props} />
+    <ConditioningKeepBytesField {...props} />
+    <ConditioningSummary {...props} />
+  </>,
 );

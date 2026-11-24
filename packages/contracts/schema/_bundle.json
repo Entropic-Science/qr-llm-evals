@@ -454,6 +454,7 @@
             "prng_seeded",
             "prng_system",
             "prng_epsilon",
+            "prng_resample",
             "provider"
           ],
           "title": "Source",
@@ -1239,6 +1240,47 @@
         "judgements"
       ],
       "title": "CellHealth",
+      "type": "object"
+    },
+    "Conditioning": {
+      "additionalProperties": false,
+      "description": "How entropy-server bytes are conditioned for every arm that draws them.\n\n``hash_truncate`` (the default of a new study): the server cuts its raw\nread into ``in_bytes`` blocks, hashes each on its own and serves the first\n``keep_bytes`` of each digest, so the amplifier sees uniform bytes whatever\nthe device's own byte distribution is. ``raw`` serves the measured bytes\nuntouched; the parameters are then unused and keep their defaults.\n\nTwo rules are fixed and mirror the server's: at most half of every digest\nis kept, and every block holds at least twice the bytes it yields.",
+      "properties": {
+        "mode": {
+          "default": "hash_truncate",
+          "enum": [
+            "raw",
+            "hash_truncate"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "hash": {
+          "default": "sha256",
+          "enum": [
+            "sha256",
+            "sha512",
+            "sha3_256",
+            "blake2b"
+          ],
+          "title": "Hash",
+          "type": "string"
+        },
+        "in_bytes": {
+          "default": 128,
+          "maximum": 4096,
+          "minimum": 2,
+          "title": "In Bytes",
+          "type": "integer"
+        },
+        "keep_bytes": {
+          "default": 16,
+          "minimum": 1,
+          "title": "Keep Bytes",
+          "type": "integer"
+        }
+      },
+      "title": "Conditioning",
       "type": "object"
     },
     "ConfigParseRequest": {
@@ -4275,6 +4317,7 @@
             "seeded_prng",
             "system_prng",
             "seeded_prng_biased",
+            "resampled_prng",
             "provider_prng"
           ],
           "title": "Source Label",
@@ -6131,6 +6174,18 @@
           ],
           "default": null,
           "description": "Absent on studies from before the design block; never serialized as null."
+        },
+        "conditioning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Conditioning"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Entropy conditioning of the arms that draw from the entropy server. Absent on studies from before the field (they ran on raw bytes); never serialized as null."
         },
         "judge": {
           "$ref": "#/$defs/JudgeSpec"

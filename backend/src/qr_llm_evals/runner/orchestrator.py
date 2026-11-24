@@ -1165,9 +1165,12 @@ class Orchestrator:
             profile=profile,
             top_logprobs=self._top_logprobs,
             token_log=bool(self.config.token_log_dir),
+            conditioning=self.study.conditioning,
         )
         envelope: Mapping[str, Any] = (
-            build_envelope(arm, ctx, qr_overrides) if model.provider == "qr_server" else {}
+            build_envelope(arm, ctx, qr_overrides, conditioning=self.study.conditioning)
+            if model.provider == "qr_server"
+            else {}
         )
         qr_seed = request_seed(arm, ctx) if model.provider == "qr_server" else None
         is_qr = model.provider == "qr_server"

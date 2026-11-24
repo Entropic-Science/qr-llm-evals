@@ -1,5 +1,6 @@
 import { StudyConfigSchema, type Arm, type EvalCard, type ModelRef } from "@qr-evals/contracts";
 import { declareDesign, setCardK, setCardItems, setModels, setSeeds, toggleCard, toggleConfirmatory, useRecommended } from "./config-edits";
+import { conditioningProblems } from "./conditioning";
 import type { WizardStudyConfig } from "./config-store";
 import {
   MAX_PERMUTATIONS, cellArms, cellText, compared, controlSeeds, draftHypotheses, epsilonArms, familySizes, formatG,
@@ -366,6 +367,7 @@ function references(config: WizardStudyConfig, cells: ReturnType<typeof sourceCe
     add("compare.duplicate_seed", "error", `The seed list names ${seed} twice. Each seed is listed once.`, "study",
       { label: "Remove the repeat", apply: (study) => setSeeds(study, [...new Set(study.seeds ?? DEFAULT_SEEDS)]) }, "compare", "seeds[]");
   }
+  for (const { message, path } of conditioningProblems(config.conditioning)) add("compare.conditioning", "error", message, "study", undefined, "compare", path);
   const models = new Set(config.models.map((model) => model.id));
   for (const arm of config.arms) {
     const node = `arm:${arm.id}`;

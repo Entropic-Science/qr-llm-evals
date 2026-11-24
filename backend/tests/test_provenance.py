@@ -80,6 +80,7 @@ def test_label_table_is_the_spec_table() -> None:
         "prng_seeded": "seeded_prng",
         "prng_system": "system_prng",
         "prng_epsilon": "seeded_prng_biased",
+        "prng_resample": "resampled_prng",
         "provider": "provider_prng",
     }
 

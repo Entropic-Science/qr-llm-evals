@@ -315,6 +315,10 @@ def test_equivalence_keys_are_exactly_the_entropy_keys() -> None:
         "qr_seed",
         "qr_bias_epsilon",
         "qr_population_mean",
+        "qr_conditioning_mode",
+        "qr_conditioning_hash",
+        "qr_conditioning_in_bytes",
+        "qr_conditioning_keep_bytes",
     } == EQUIVALENCE_KEYS
 
 

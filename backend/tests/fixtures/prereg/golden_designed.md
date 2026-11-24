@@ -498,7 +498,7 @@ The consciousness/intention mechanism is a hypothesis, not an established physic
 - **config_hash:** ed46b3ad02fb2817212222dd34c390fc4204b5abc8223e3525bc5fd4186c8126
 - **plan_hash:** cbe1e912ddb85fc881fad8e600e76ef80b7a585c59f7a1fd4945ed4075edd02c
 - **cards_hash:** 85b017938c945b18f037dbfc25857fbc882b17c4387404db0be4ae1edbe947e3
-- **template_hash:** f6fd0cb9a07e7cd607222b0d866406d33962b66fcae17f14f2ac8ac983f2cb43
+- **template_hash:** 13476e6f02e49af1d01d6000824d0bfa08c50651056a581dcb1389db089d5b0b
 - **prereg_hash:** displayed separately as SHA-256 of these exact UTF-8 LF Markdown bytes; intentionally not embedded in its own preimage.
 
 ### Frozen study config

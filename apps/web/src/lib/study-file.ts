@@ -39,7 +39,7 @@ const HEADER = [
 ];
 
 const TOP_LEVEL_ORDER = [
-  "schema_version", "template", "title", "authors", "contact", "created_at", "models", "arms", "cards", "design", "seeds",
+  "schema_version", "template", "title", "authors", "contact", "created_at", "models", "arms", "conditioning", "cards", "design", "seeds",
   "judge", "narrative_model", "supervised", "estimates", "pilot", "expectations", "data_licence",
 ];
 
