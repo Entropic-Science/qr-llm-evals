@@ -17,13 +17,13 @@ Invariants enforced here (AGENTS.md invariant 1):
   and a token could draw another number of bytes than the study states.
 * **Arms differ only in the entropy keys** (:data:`EQUIVALENCE_KEYS`);
   :func:`equivalence_violations` is what the readiness check asserts.
-* **Conditioning belongs to the study, and to the bytes of the entropy
-  server.** A study's ``conditioning`` (``hash_truncate``) is sent on every arm
-  whose source draws from the entropy server (:data:`CONDITIONED_SOURCES`) and
-  on no other: a seeded or system PRNG is uniform already and the engine
-  refuses conditioning on it. The four keys are therefore entropy keys. A raw
-  study sends none of them, so its envelopes are those of a study from before
-  the field.
+* **Conditioning belongs to the study, and every arm says its mode.** A
+  study's ``hash_truncate`` conditioning is sent on every arm whose source
+  draws from the entropy server (:data:`CONDITIONED_SOURCES`) and on no other:
+  a seeded or system PRNG is uniform already and the engine refuses hashing on
+  it. Every other arm, and every arm of a raw study or of a study without the
+  block, sends ``qr_conditioning_mode: "raw"``, so the engine's process default
+  never decides the mode. The four keys are therefore entropy keys.
 * **Biased (epsilon) arms bend the numbers, nothing else.** The engine has no
   ``qr_bias_epsilon`` hook (DEP-2), so a ``prng_epsilon`` arm shifts the
   z-score amplifier's reference mean instead (:func:`bent_population_mean`):
@@ -173,13 +173,14 @@ EQUIVALENCE_KEYS: Final[frozenset[str]] = frozenset(
 def conditioning_xargs(arm: Arm, conditioning: Conditioning | None) -> dict[str, Any]:
     """The ``qr_conditioning_*`` keys of ``arm`` under the study's conditioning.
 
-    Empty for a raw (or absent) conditioning and for every source that does not
-    draw from the entropy server.
+    The four keys of a hashed study for a source that draws from the entropy
+    server; the mode ``raw`` alone in every other case (a raw study, a study
+    without the block, a seeded or system source). The mode is always sent, so
+    an engine whose own default is hashed cannot hash a raw arm or refuse a
+    pseudo-random one.
     """
-    if conditioning is None or conditioning.mode == "raw":
-        return {}
-    if arm.source not in CONDITIONED_SOURCES:
-        return {}
+    if conditioning is None or conditioning.mode == "raw" or arm.source not in CONDITIONED_SOURCES:
+        return {"qr_conditioning_mode": "raw"}
     return {
         "qr_conditioning_mode": conditioning.mode,
         "qr_conditioning_hash": conditioning.hash,
@@ -276,9 +277,9 @@ def build_envelope(
     """The ``vllm_xargs`` dict for one generation on a qr-llm target.
 
     Key order is fixed (source, preset, sampling pins, seed, amplifier pins
-    ending with the draw size, bent reference mean, conditioning, card overrides) so the JSON bytes are
-    reproducible; tests pin them. ``conditioning`` is the study's
-    (:func:`conditioning_xargs`).
+    ending with the draw size, bent reference mean, conditioning, card
+    overrides) so the JSON bytes are reproducible; tests pin them.
+    ``conditioning`` is the study's (:func:`conditioning_xargs`).
     """
     if arm.source == "provider":
         raise EnvelopeError(f"arm {arm.id!r}: provider arms carry no qr_* envelope")

@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Every envelope states its conditioning mode. The quantum arm of a hashed
+  study sends the four `qr_conditioning_*` keys as before; every other arm
+  that samples through the amplifier (a seeded, system or biased arm, and
+  every arm of a raw study or of a study without a conditioning block) now
+  sends `qr_conditioning_mode: "raw"`. Before, those arms sent no conditioning
+  key and took the engine's default mode, so an engine started with a hashed
+  default would have hashed the bytes of a raw study and refused the
+  pseudo-random arms. Every study now needs a qr-sampler that knows the key.
+  Like the draw size below, the key changes every envelope, every envelope
+  hash and the envelope lines of every pre-registration, also for a study
+  without a design block: the six pinned legacy pre-registration hashes and
+  the envelope lines of `golden.md` moved for these two keys and for nothing
+  else, and no config, plan or cards hash moved.
 - The harness states how many entropy bytes a token draws. Every envelope of
   an arm that samples through the amplifier now carries
   `qr_sample_count: 10000` with the amplifier pins, so no process default of
@@ -16,7 +29,7 @@ All notable changes to this project are documented here. The format follows
   pre-registration change with the key, also for a study without a design
   block: the pre-registration hashes pinned in
   `backend/tests/test_legacy_bytes.py` and the envelope lines of
-  `backend/tests/fixtures/prereg/golden.md` were updated for this one reason,
+  `backend/tests/fixtures/prereg/golden.md` were updated for this key and the one above,
   and no config, plan or cards hash moved. Nothing renders a stored study
   again or derives a stored envelope hash again to compare it, so a study
   registered before this release keeps its document and its hash, and loads,
@@ -59,7 +72,7 @@ All notable changes to this project are documented here. The format follows
   serving more than half of a digest may compromise the integrity of the
   signal. The four
   `qr_conditioning_*` keys ride only the arms that draw from the entropy
-  server; a card cannot set them, and they count as entropy keys in the
+  server (every other arm says `raw`); a card cannot set them, and they count as entropy keys in the
   equivalence check. The field is left out of a study that does not carry it,
   so every study from before it keeps its bytes, its hash and its raw run.
 - The designed pre-registration states the study's conditioning under "Arms

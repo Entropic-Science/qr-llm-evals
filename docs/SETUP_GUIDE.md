@@ -1083,9 +1083,12 @@ apply to it.
   qr-sampler. A study with `conditioning.mode: hash_truncate` needs
   `conditioning.allow_request: true` in `/etc/qbert0g/qbert0g.config.yaml` and
   a qr-sampler that knows the `qr_conditioning_*` keys; qr-sampler's
-  `deployments/qr-server/README.md` describes both. Readiness sends every
-  arm's real envelope, so an engine that lacks either refuses the arm there
-  and not in the run. A hashed token reads eight times the raw bytes of
+  `deployments/qr-server/README.md` describes both. Every envelope carries
+  `qr_conditioning_mode` (`raw` on every arm that is not the quantum arm of a
+  hashed study), so the engine's own default mode decides nothing, and every
+  study, raw ones included, needs a qr-sampler that knows the key. Readiness
+  sends every arm's real envelope, so an engine that lacks either refuses the
+  arm there and not in the run. A hashed token reads eight times the raw bytes of
   a raw one at the default parameters; the request must stay within the
   entropy key's `max_bytes_per_request`. The harness sends the draw size
   itself: every envelope carries `qr_sample_count: 10000`, so a token draws

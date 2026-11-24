@@ -128,13 +128,18 @@ def test_a_legacy_document_shows_conditioning_in_its_envelopes_only() -> None:
         cards=load_cards(FIXTURES / "registry/evals"), repo_root=FIXTURES / "registry"
     )
     legacy = renderer.render(config)
-    assert "qr_conditioning" not in legacy
+    sampling = sum(a.source != "provider" and a.sampling != "greedy" for a in config.arms)
+    said_raw = '"qr_conditioning_mode":"raw"'
+    assert legacy.count(said_raw) == sampling > 0
+    assert "hash_truncate" not in legacy and "qr_conditioning_hash" not in legacy
     data = config.model_dump(mode="json")
     hashed = renderer.render(StudyConfig.model_validate({**data, "conditioning": {}}))
     quantum = sum(a.source == "qrng" for a in config.arms)
     assert hashed.count('"qr_conditioning_mode":"hash_truncate"') == quantum > 0
+    assert hashed.count(said_raw) == sampling - quantum
     raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
-    assert "qr_conditioning" not in raw
+    assert raw.count(said_raw) == sampling
+    assert "qr_conditioning_hash" not in raw
     assert len({prereg_hash(doc) for doc in (legacy, hashed, raw)}) == 3
 
 
@@ -951,4 +956,5 @@ def test_a_designed_document_states_the_conditioning_the_study_carries() -> None
 
     raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
     assert "Entropy conditioning: raw." in _section(raw, "Arms and equivalence")
-    assert "qr_conditioning" not in raw
+    assert '"qr_conditioning_mode":"raw"' in raw
+    assert "qr_conditioning_hash" not in raw and '"qr_conditioning_mode":"hash_truncate"' not in raw

@@ -137,7 +137,10 @@ from the measured bytes. It then differs from the pseudo-random arms by the
 device's byte statistics as well as by the source, and the harness has no
 matched control for that. A seeded or system PRNG arm is never hashed, so the
 `qr_conditioning_*` keys are among the keys on which arms may differ. A study
-without the block is from before the setting and runs on raw bytes.
+without the block is from before the setting and runs on raw bytes. Every
+envelope states its mode: the quantum arm of a hashed study sends the four
+keys, and every other arm of any study sends `qr_conditioning_mode: "raw"`,
+so no default of the engine decides whether an arm's bytes are hashed.
 
 `quantum=true` requires the QRNG source and no fallback. A fallback taints a
 sample; seeded, system, biased, and external provider PRNG are never labelled

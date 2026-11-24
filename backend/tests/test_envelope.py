@@ -64,6 +64,8 @@ STUDY1_ARMS: dict[str, Arm] = {
 _PINS = (
     '"qr_signal_amplifier_type":"zscore_mean","qr_entropy_prefetch":false,'
     '"qr_zscore_calibration_samples":0,"qr_sample_count":10000'
+    # Study 1 has no conditioning block: every arm says raw itself.
+    ',"qr_conditioning_mode":"raw"'
 )
 _CREATIVE = '"qr_preset":"creative_sampling","qr_top_p":0.95'
 
@@ -236,6 +238,7 @@ _HASH_KEYS = {
     "qr_conditioning_in_bytes": 128,
     "qr_conditioning_keep_bytes": 16,
 }
+_RAW_KEY = {"qr_conditioning_mode": "raw"}
 
 
 def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
@@ -291,14 +294,41 @@ def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:
     quantum = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX, conditioning=HASHED)
     raw = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX)
     assert quantum == {**raw, **_HASH_KEYS}
-    for arm in (STUDY1_ARMS["prng_seed_1"], _arm("sys", source="prng_system")):
-        assert build_envelope(arm, CTX, conditioning=HASHED) == build_envelope(arm, CTX)
+    assert list(quantum)[-4:] == list(_HASH_KEYS)
+    others = (
+        STUDY1_ARMS["prng_seed_1"],
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+    )
+    for arm in others:
+        hashed = build_envelope(arm, CTX, conditioning=HASHED)
+        assert hashed == build_envelope(arm, CTX)
+        assert {k: v for k, v in hashed.items() if k.startswith("qr_conditioning_")} == _RAW_KEY
 
 
-def test_raw_conditioning_leaves_the_envelope_of_an_older_study() -> None:
+def test_every_sampling_arm_states_its_conditioning_mode() -> None:
+    """The engine's process default never decides whether an arm's bytes are hashed."""
+    arms = [
+        *STUDY1_ARMS.values(),
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("t1", sampling="t1_minp"),
+    ]
+    for arm in arms:
+        for conditioning in (None, Conditioning(mode="raw"), HASHED):
+            env = build_envelope(arm, CTX, conditioning=conditioning)
+            hashed = conditioning is HASHED and arm.source == "qrng"
+            assert env["qr_conditioning_mode"] == ("hash_truncate" if hashed else "raw")
+    greedy = _arm("greedy", sampling="greedy", source="prng_system")
+    assert "qr_conditioning_mode" not in build_envelope(greedy, CTX, conditioning=HASHED)
+
+
+def test_a_raw_study_and_a_study_without_the_block_send_the_same_envelope() -> None:
     for arm in STUDY1_ARMS.values():
         raw = build_envelope(arm, CTX, conditioning=Conditioning(mode="raw"))
         assert envelope_json(raw) == envelope_json(build_envelope(arm, CTX))
+        assert list(raw)[-1] == "qr_conditioning_mode"
+        assert not {"qr_conditioning_hash", "qr_conditioning_in_bytes"} & set(raw)
 
 
 def test_a_hashed_study_is_still_one_pipeline() -> None:
@@ -406,12 +436,13 @@ def test_envelope_hash_is_order_independent_and_pinned() -> None:
     reordered = dict(reversed(list(env.items())))
     assert envelope_hash(env) == envelope_hash(reordered)
     assert envelope_json(env) == (
-        '{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc",'
+        '{"qr_conditioning_mode":"raw","qr_entropy_prefetch":false,'
+        '"qr_entropy_source_type":"quantum_grpc",'
         '"qr_preset":"creative_sampling","qr_sample_count":10000,'
         '"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,'
         '"qr_zscore_calibration_samples":0}'
     )
-    assert envelope_hash(env) == "777c2922a9fdb2187dfb46ef1ce53e230823e6c033d4e54b8d5590ccbdd6f3df"
+    assert envelope_hash(env) == "88031fe1760464d2f18f648ef346236b5d3b0b441a4ca06b5312a0056ab08c89"
 
 
 # ── full request body ────────────────────────────────────────────────────────
