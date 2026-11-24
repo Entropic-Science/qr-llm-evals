@@ -46,7 +46,7 @@ describe("step registry", () => {
   it("composes each step from its panels", () => {
     const template = studyOneTemplate();
     expect(panelIds("compare", template)).toEqual(["comparison", "conditioning"]);
-    expect(panelIds("measure", template)).toEqual(["evals", "prompts"]);
+    expect(panelIds("measure", template)).toEqual(["evals", "prompts", "token-limits"]);
     expect(panelIds("design", template)).toEqual(["claim", "outcomes", "alpha", "prompts", "positive-control", "margins", "expectations"]);
     expect(panelIds("instruments", template)).toEqual(["judge", "sessions"]);
     expect(panelIds("review", template)).toEqual(["people"]);
@@ -107,6 +107,9 @@ describe("problemPath", () => {
   it("points at the eval or the outcome the problem names", () => {
     expect(problemPath(problem("design.below_floor", "error", "card:self_referential_probe"))).toBe("cards.self_referential_probe.items");
     expect(problemPath(problem("measure.out_of_bounds", "error", "card:novelty_bench"))).toBe("cards.novelty_bench.items");
+    // A token limit out of bounds, or one on an eval that takes none, leads to that eval in the token limits table.
+    expect(problemPath({ ...problem("measure.out_of_bounds", "error", "card:novelty_bench"), path: "cards[].overrides.max_tokens" })).toBe("cards.novelty_bench.max_tokens");
+    expect(problemPath({ ...problem("measure.limit_not_taken", "error", "card:target_hit_ranking"), path: "cards[].overrides.max_tokens" })).toBe("cards.target_hit_ranking.max_tokens");
     expect(problemPath(problem("design.margin_not_allowed", "error", "endpoint:altered_state_meq/meq30_total"))).toBe("design.margins.altered_state_meq/meq30_total");
     expect(problemPath(problem("design.epsilon_missing", "error", "gate:pos:qr-llm/creative"))).toBe("design.sensitivity_epsilon");
   });

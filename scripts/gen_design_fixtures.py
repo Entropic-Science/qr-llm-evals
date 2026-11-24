@@ -644,6 +644,16 @@ def _cases() -> list[tuple[str, str, Config]]:
     )
 
     config = designed_study()
+    _probe(config)["overrides"] = {"k": None, "items": None, "max_tokens": 5}
+    out.append(
+        (
+            "token_limit_out_of_bounds",
+            "A draft whose token limit is below the usual length of the eval's replies.",
+            config,
+        )
+    )
+
+    config = designed_study()
     config["design"]["confirmatory"] = []
     out.append(("no_outcome", "A draft in which no outcome decides the study.", config))
 

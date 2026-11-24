@@ -26,6 +26,31 @@ function legacyDraft(): WizardStudyConfig {
   return parsed;
 }
 
+describe("a study's token limits, as the page holds them", () => {
+  const limitKeys = (config: WizardStudyConfig) => config.cards.filter((selection) => Object.hasOwn(selection.overrides ?? {}, "max_tokens")).map((selection) => selection.card_id);
+
+  it("holds no limit a study does not set, not even as null, so the stored and shared study keeps its bytes", () => {
+    expect(limitKeys(studyOneTemplate())).toEqual([]);
+    expect(limitKeys(legacyDraft())).toEqual([]);
+    const written = { ...legacyDraft(), cards: legacyDraft().cards.map((selection) => ({ ...selection, overrides: { ...selection.overrides, max_tokens: null } })) };
+    expect(limitKeys(parseStudyConfig(written)!)).toEqual([]);
+    expect(JSON.stringify(parseStudyConfig(written))).toBe(JSON.stringify(legacyDraft()));
+    expect(JSON.stringify(studyOneTemplate())).not.toContain("max_tokens\":null");
+  });
+
+  it("keeps a limit a study sets through the browser's storage and a share link", () => {
+    const template = studyOneTemplate();
+    const set: WizardStudyConfig = { ...template, cards: template.cards.map((selection) => (selection.card_id === "novelty_bench" ? { ...selection, overrides: { ...selection.overrides, max_tokens: 2400 } } : selection)) };
+    expect(limitKeys(parseStudyConfig(set)!)).toEqual(["novelty_bench"]);
+    const storage = memoryStorage();
+    expect(saveConfig(set, storage)).toBe(true);
+    expect(readDraft(storage)).toEqual(set);
+    expect(decodeShareConfig(encodeShareConfig(set)!)).toEqual(set);
+    // Above what any study may hold, the schema refuses it.
+    expect(parseStudyConfig({ ...set, cards: [{ card_id: "novelty_bench", overrides: { max_tokens: 64_001 } }] })).toBeNull();
+  });
+});
+
 function shareOf(config: WizardStudyConfig): string {
   const encoded = encodeShareConfig(config);
   if (encoded === null) throw new Error("A valid study has a share link.");

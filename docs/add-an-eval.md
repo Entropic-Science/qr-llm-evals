@@ -126,7 +126,7 @@ recomputes them from the card, so they must be arithmetic, not guesses:
 | `dataset.items` | prompts actually run after subsampling (state the stratification in `subsample`) |
 | `k` | samples per prompt; keep the registry value unless the budget forces a cut, then say so in `notes` |
 | `est_tokens_per_sample` | typical generated tokens per sample for this model class; count **every** stage/turn of one sample (a narrative + questionnaire, or two conversation turns) |
-| `max_tokens` | the per-call cap you send; must be ≥ `est_tokens_per_sample` (for multi-turn cards it is per call) |
+| `max_tokens` | the per-call cap you send; must be ≥ `est_tokens_per_sample` (for multi-turn cards it is per call) and at most 64,000. It is the eval's *standard* token limit. A study may set another one between `est_tokens_per_sample` and 64,000, and the setup offers four times this value as the *safe* limit (`cards/token_limits.py`), so choose the standard for a reply of ordinary length, not for the worst case |
 | `told_actual` | `true` multiplies the budget by 3 (told qrng / prng / nothing per arm) |
 | `est_gen_tokens_per_arm` | `items × k × est_tokens_per_sample × (3 if told_actual else 1)` — the validator checks this exactly |
 

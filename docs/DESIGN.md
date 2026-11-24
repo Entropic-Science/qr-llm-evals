@@ -1,7 +1,7 @@
 # Research harness design
 
 This is the repository-facing design summary of approved spec v1 (2026-09-14),
-D-1 through D-14, and of D-15 and D-16 (November 2026), which were decided
+D-1 through D-14, and of D-15, D-16 and D-17 (November 2026), which were decided
 after that spec and are recorded only here. The binding task inputs remain
 `.\.zenflow\tasks\plz-follow-the-following-workflo-a741\requirements.md` and
 `.\.zenflow\tasks\plz-follow-the-following-workflo-a741\spec.md`.
@@ -70,6 +70,7 @@ comparisons and cannot promise the identical pinned local pipeline.
 | D-14 | Run-scoped BYO keys only in process memory; restart requires key resupply. | [Secrets](#storage-and-secrets) |
 | D-15 | A study with a `design` block is decided by a registered decision matrix. For such a study, exceeding the largest seed-pair difference is a reported flag (`above_seed_noise`), not a condition of a claim, and the negative-control gate is "no seed pair rejects after correction". This amends requirement FR-6.1 for designed studies only; a study without the block keeps the Study 1 plan and FR-6.1 unchanged. | [Designed studies](#designed-studies-d-15) |
 | D-16 | The harness checks every reply, token record, score and judgement as a run stores it, by rules that no study can change. A flag marks a sample and excludes nothing; exclusions stay with the four kinds of taint. A check that stops a run pauses it with a stored reason, and only the host goes on from there. | [Result checks](#result-checks-d-16) |
+| D-17 | A study may set the token limit of an eval (`cards[].overrides.max_tokens`) between the usual length of its replies and 64,000; unset, the card's own limit holds and the study keeps its bytes. The limit is one number per eval, the same for every arm, and part of the config hash. The recommended limits (standard, safe) are kept beside the cards, outside the card snapshot. | [Token limits](#token-limits-d-17) |
 
 ## Layering
 
@@ -340,6 +341,45 @@ compared, and comparisons are never pooled.
 margins, randomised interleaving of arms, a replay control arm, a lock or
 registration step in the UI, and a session-level supervised test. The
 outcomes this excludes are listed in `.\docs\ANALYSIS_PLAN.md`.
+
+## Token limits (D-17)
+
+Every request of a generating eval carries `max_tokens`, and the engine ends
+a reply that reaches it. Until November 2026 that number was the card's and
+nothing else. The first pilot on the live engine showed why that is too
+rigid: on `livecodebench` the model was still thinking when it reached the
+card's 10,000 tokens, so the replies held no program to score.
+
+A study can now set the limit per eval, in `cards[].overrides.max_tokens`.
+
+- **Bounds.** From the card's `est_tokens_per_sample` (a limit below the
+  usual length of a reply would cut most of them) to 64,000
+  (`TOKEN_LIMIT_MAX`), which leaves the prompt at least half of the 131,072
+  tokens of context the engine on the box serves. The study schema refuses a
+  value outside 1 to 64,000, and the plan, the estimate, the
+  pre-registration and the runner refuse one outside the card's bounds or on
+  an eval that generates nothing.
+- **Recommendations.** `cards/token_limits.py` gives each generating eval a
+  *standard* limit (the card's own) and a *safe* one (four times that, at
+  least 256, at most 64,000). They are served as `token_limit` on
+  `GET /cards` and generated into the contracts package
+  (`token-limits.json`). They sit beside the cards and not on them, because
+  a card snapshot is hashed into every plan (as with `endpoint_meta.py`).
+  The safe limit is a rule; it has not been measured on any eval.
+- **One limit for all arms.** The limit belongs to the eval in the study,
+  never to an arm, so quantum and pseudo-random replies are cut at the same
+  length.
+- **Hashes.** An unset limit is not serialized, so the config hash, the study
+  id and the plan of every existing study are what they were. A set limit
+  moves the config hash, and the plan names that hash. The plan holds no
+  limit of its own.
+- **Where it is applied.** The thin runner and the Inspect bridge both send
+  the study's limit. Both pre-registration templates print the limit in
+  force; the designed one also names the card's own when the study set
+  another.
+- **What does not change.** Estimates rest on `est_tokens_per_sample`, not
+  on the limit. A reply that ends at the limit is flagged `truncated`
+  whatever the limit was, and no check treats a higher limit differently.
 
 ## Result checks (D-16)
 

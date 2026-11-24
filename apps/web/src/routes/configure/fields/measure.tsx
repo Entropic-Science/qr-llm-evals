@@ -22,7 +22,7 @@ function outcomeLabel(card: EvalCard, endpoint: string = headline(card)): string
 }
 
 /** A value the study carries for a setting the eval does not take, with the way back to the eval's own. */
-function Stray({ value, what, onRemove }: { value: number; what: string; onRemove: () => void }) {
+export function Stray({ value, what, onRemove }: { value: number; what: string; onRemove: () => void }) {
   return <span className="field__value">
     {value} <small>set in this study, but {what}</small>{" "}
     <button type="button" className="text-button" onClick={onRemove}>Use the card&apos;s value</button>

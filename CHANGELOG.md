@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- A study can set the token limit of an eval. `cards[].overrides.max_tokens`
+  replaces the card's own `max_tokens` for every request of that eval, in
+  every arm, on the thin runner and through Inspect. The value must lie
+  between the card's `est_tokens_per_sample` and 64,000; the plan, the
+  estimate, the pre-registration and the runner refuse one outside that or
+  on an eval that generates nothing. A study that sets no limit is not
+  changed: the key is not written, so its hashes stay what they were.
+- Each generating eval has two recommended limits: **standard** (the card's
+  own) and **safe** (four times that, at least 256, at most 64,000).
+  `GET /cards` returns them as `token_limit`, and the Measure step and
+  "All settings" have a "Token limits" table with both presets, "Set all to
+  safe" and the most an arm can generate at the chosen limit. The eval's
+  box on the study map has the same field. The safe limit is a rule, not a
+  measured bound, and a reply that reaches any limit is still flagged as
+  cut.
+- Both pre-registration templates print the limit in force for each eval,
+  and the designed one adds "set by this study; the card has N" where the
+  study set its own. The designed template's hash changed with that line.
+- An eval card may not ask for more than 64,000 tokens.
 - A study chooses how the bytes of the entropy server are conditioned
   (`StudyConfig.conditioning`, the "Entropy conditioning" panel of the Compare
   step and of the settings page). `hash_truncate`, the default of a new study,

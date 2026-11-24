@@ -1,4 +1,4 @@
-import { cardById, cards, type EvalCard, type HypothesisPlan, type StudyConfig } from "@qr-evals/contracts";
+import { cardById, cards, tokenLimits, type EvalCard, type HypothesisPlan, type StudyConfig } from "@qr-evals/contracts";
 import fixture from "../../../../packages/contracts/fixtures/design.json";
 import {
   MAX_PERMUTATIONS, cardMargin, controlPermutations, draftHypotheses, eligible, familySizes, ineligibleReason, marginRefusal,
@@ -220,6 +220,17 @@ describe("design: what the mirror must hold to", () => {
     expect(draftHypotheses(override({ items: probe.dataset.items + 1 }), cards)).toEqual([]);
     expect(draftHypotheses(override({ items: 0 }), cards)).toEqual([]);
     expect(draftHypotheses(override({ k: (probe.k_bounds?.[1] ?? probe.k ?? 1) + 1 }), cards)).toEqual([]);
+    // A token limit outside the eval's bounds, one that is not whole, and one on an eval that generates nothing.
+    const limits = tokenLimits[probe.id]!;
+    const limit = (max_tokens: number) => withCards((selections) => selections.map((selection) => (selection.card_id === probe.id ? { ...selection, overrides: { ...selection.overrides, max_tokens } } : selection)));
+    expect(draftHypotheses(limit(limits.min - 1), cards)).toEqual([]);
+    expect(draftHypotheses(limit(limits.max + 1), cards)).toEqual([]);
+    expect(draftHypotheses(limit(limits.min + 0.5), cards)).toEqual([]);
+    expect(tokenLimits.target_hit_ranking).toBeUndefined();
+    expect(designed.cards.some((selection) => selection.card_id === "target_hit_ranking")).toBe(true);
+    expect(draftHypotheses(withCards((selections) => selections.map((selection) => (selection.card_id === "target_hit_ranking" ? { ...selection, overrides: { max_tokens: 500 } } : selection))), cards)).toEqual([]);
+    // Within the bounds it changes nothing about what is planned.
+    for (const value of [limits.min, limits.safe, limits.max]) expect(draftHypotheses(limit(value), cards)).toEqual(draftHypotheses(designed, cards));
     // In bounds, the override is what the hypothesis plans.
     const six = draftHypotheses(override({ items: 6 }), cards).find((hypothesis) => hypothesis.card_id === probe.id);
     expect(six?.sample_size).toMatchObject({ n: 6, n_floor: 7, rating: "insufficient" });

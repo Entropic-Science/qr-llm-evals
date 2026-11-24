@@ -176,7 +176,7 @@ describe("study map: the popover of a node", () => {
     expect(fields("arm:qrng_supervised")).toEqual(["roster.supervised"]);
     expect(fields(DECK)).toEqual(["roster.seeds", "roster.seed_values"]);
     expect(fields("tier0")).toEqual(["cards[].card_id"]);
-    expect(fields("test:H3")).toEqual(["cards.self_referential_probe.items", "cards.self_referential_probe.k"]);
+    expect(fields("test:H3")).toEqual(["cards.self_referential_probe.items", "cards.self_referential_probe.k", "cards.self_referential_probe.max_tokens"]);
     expect(fields(`gate:neg:${LANE}`)).toEqual(["roster.seeds"]);
     expect(fields(`gate:pos:${LANE}`)).toEqual(["design.sensitivity_epsilon", "roster.epsilons"]);
     expect(fields("verdict:H3")).toEqual(["design.claim", "design.sensitivity_epsilon"]);

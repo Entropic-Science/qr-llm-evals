@@ -23,6 +23,7 @@ from qr_llm_evals.api.schema import (
 )
 from qr_llm_evals.cards.estimates import EstimateAssumptions, estimate_selection
 from qr_llm_evals.cards.schema import EvalCard
+from qr_llm_evals.cards.token_limits import token_limit
 from qr_llm_evals.store.schema import ToldCondition
 
 router = APIRouter(tags=["cards"])
@@ -57,7 +58,7 @@ def card_view(state: AppState, card: EvalCard) -> CardView:
                 observer_hours_single=sel.observer_hours_single,
                 observer_hours_tiled=sel.observer_hours_tiled,
             )
-    return CardView(card=card, estimate=estimate)
+    return CardView(card=card, estimate=estimate, token_limit=token_limit(card))
 
 
 @router.get("/cards", response_model=CardsResponse)

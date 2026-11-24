@@ -63,6 +63,7 @@ from qr_llm_evals.cards.statistical_plan import (
     EndpointPlan,
     StatisticalPlan,
 )
+from qr_llm_evals.cards.token_limits import token_limit
 
 #: The tests a hypothesis can be registered on: the three the analysis resolves to a verdict.
 HYPOTHESIS_TESTS: tuple[str, ...] = get_args(HypothesisTest)
@@ -983,6 +984,19 @@ def problems(data: Mapping[str, Any], cards: Mapping[str, EvalCard]) -> list[Pro
                 "measure.out_of_bounds",
                 "error",
                 f"{card.title}: prompts must be between 1 and {card.dataset.items}.",
+                f"card:{card.id}",
+            )
+        max_tokens = overrides.get("max_tokens")
+        limit = token_limit(card)
+        if (
+            max_tokens is not None
+            and limit is not None
+            and not limit.min <= max_tokens <= limit.max
+        ):
+            add(
+                "measure.out_of_bounds",
+                "error",
+                f"{card.title}: the token limit must be between {limit.min} and {limit.max}.",
                 f"card:{card.id}",
             )
 

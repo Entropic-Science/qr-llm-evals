@@ -1,4 +1,5 @@
 import type { Problem } from "../../lib/problems";
+import { TOKEN_LIMIT_PATH } from "../../lib/token-limits";
 
 /**
  * The setting a problem is about, as the `data-path` of the field that edits it, or `undefined` for a problem
@@ -11,6 +12,8 @@ import type { Problem } from "../../lib/problems";
 export function problemPath(problem: Problem): string | undefined {
   const endpoint = problem.nodeId.startsWith("endpoint:") ? problem.nodeId.slice("endpoint:".length) : null;
   const card = problem.nodeId.startsWith("card:") ? problem.nodeId.slice("card:".length) : null;
+  // A token limit an eval cannot run with: the row of that eval in the token limits table.
+  if (card !== null && problem.path === TOKEN_LIMIT_PATH) return `cards.${card}.max_tokens`;
   switch (problem.code) {
     case "compare.no_cell": return "roster.cells";
     case "compare.too_few_seeds": return "roster.seeds";

@@ -61,6 +61,7 @@ import AdminUserUpdateJson from "../../schema/AdminUserUpdate.json";
 import SettleRequestJson from "../../schema/SettleRequest.json";
 import StorageResponseJson from "../../schema/StorageResponse.json";
 import EndpointMetaJson from "../../schema/EndpointMeta.json";
+import TokenLimitJson from "../../schema/TokenLimit.json";
 import CardItemsResponseJson from "../../schema/CardItemsResponse.json";
 import DecisionsTableJson from "../../schema/DecisionsTable.json";
 import ResultFlagJson from "../../schema/ResultFlag.json";
@@ -125,6 +126,7 @@ export const AdminUserUpdateSchema = z.fromJSONSchema(AdminUserUpdateJson as unk
 export const SettleRequestSchema = z.fromJSONSchema(SettleRequestJson as unknown as Schema) as unknown as z.ZodType<T.SettleRequest>;
 export const StorageResponseSchema = z.fromJSONSchema(StorageResponseJson as unknown as Schema) as unknown as z.ZodType<T.StorageResponse>;
 export const EndpointMetaSchema = z.fromJSONSchema(EndpointMetaJson as unknown as Schema) as unknown as z.ZodType<T.EndpointMeta>;
+export const TokenLimitSchema = z.fromJSONSchema(TokenLimitJson as unknown as Schema) as unknown as z.ZodType<T.TokenLimit>;
 export const CardItemsResponseSchema = z.fromJSONSchema(CardItemsResponseJson as unknown as Schema) as unknown as z.ZodType<T.CardItemsResponse>;
 export const DecisionsTableSchema = z.fromJSONSchema(DecisionsTableJson as unknown as Schema) as unknown as z.ZodType<T.DecisionsTable>;
 export const ResultFlagSchema = z.fromJSONSchema(ResultFlagJson as unknown as Schema) as unknown as z.ZodType<T.ResultFlag>;
@@ -189,6 +191,7 @@ export const schemas = {
   SettleRequest: SettleRequestSchema,
   StorageResponse: StorageResponseSchema,
   EndpointMeta: EndpointMetaSchema,
+  TokenLimit: TokenLimitSchema,
   CardItemsResponse: CardItemsResponseSchema,
   DecisionsTable: DecisionsTableSchema,
   ResultFlag: ResultFlagSchema,

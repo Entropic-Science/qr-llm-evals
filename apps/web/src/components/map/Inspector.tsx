@@ -3,6 +3,7 @@ import { STATIONS, TOKEN_AUDITS, type MapNode, type StationId, type StudyGraph }
 import type { MapNote } from "../../lib/map/notes";
 import type { Problem, StepId } from "../../lib/problems";
 import { recFor, type Rec, type RecState } from "../../lib/recommendations";
+import { tokenLimitFor } from "../../lib/token-limits";
 import {
   ArmTable, CellGridField, ControlSeedsField, CustomArmsNotice, DeterministicField, EpsilonArmsField, QuantumArmField,
   SeedValuesField, SupervisedToggleField, rosterOf,
@@ -17,6 +18,7 @@ import {
 } from "../../routes/configure/fields/instruments";
 import { CardKField, CardPromptsField, EvalChecklistField } from "../../routes/configure/fields/measure";
 import { AuthorsField, ContactField, TitleField } from "../../routes/configure/fields/study";
+import { CardTokenLimitField, CardTokenPresets } from "../../routes/configure/fields/token-limits";
 import { locateField } from "../../routes/configure/focus";
 import { useStudy } from "../../routes/configure/StudyContext";
 import { HypothesisCard, VerdictStamps } from "../study/design";
@@ -77,7 +79,8 @@ export function settingOfSubject(subject: Pick<Subject, "settings">): string | n
 /** Prompts and repetitions of one eval, each with its label and its rating: the two cells of the prompts table, on their own. */
 function CardSize({ cardId, props }: { cardId: string; props: FieldProps }) {
   const card = props.cards.find((candidate) => candidate.id === cardId);
-  if (card === undefined || !props.config.cards.some((selection) => selection.card_id === cardId)) return null;
+  const selection = props.config.cards.find((candidate) => candidate.card_id === cardId);
+  if (card === undefined || selection === undefined) return null;
   return <div className="map-fields__pair">
     <div className="field map-field" data-path={`cards.${cardId}.items`}>
       <span className="map-field__label">Prompts (N)</span>
@@ -90,6 +93,11 @@ function CardSize({ cardId, props }: { cardId: string; props: FieldProps }) {
       <FieldState rec={recFor(props.recs, `cards.${cardId}.k`)} {...props} />
     </div>
     <p className="field-note">Prompts are the unit of analysis. Repetitions sharpen each prompt's value, so fewer repetitions call for more prompts; they are never counted as prompts themselves.</p>
+    {tokenLimitFor(cardId) !== undefined || (selection.overrides?.max_tokens ?? null) !== null ? <div className="field map-field" data-path={`cards.${cardId}.max_tokens`}>
+      <span className="map-field__label">Token limit</span>
+      <CardTokenLimitField {...props} cardId={cardId} />
+      <CardTokenPresets {...props} cardId={cardId} />
+    </div> : null}
   </div>;
 }
 

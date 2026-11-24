@@ -63,6 +63,10 @@ Where the designed-study modules sit:
 ```
 cards/endpoint_meta.py      layer 0, pydantic only: what each headline endpoint is; outside the card
                             snapshot, so it never moves a cards_hash
+cards/token_limits.py       layer 0, card schema only: the standard and safe token limit of an eval and
+                            the bounds of a study's own (cards[].overrides.max_tokens); outside the
+                            card snapshot like endpoint_meta.py. TOKEN_LIMIT_MAX is repeated as
+                            MAX_TOKENS_CEILING in models/schema.py and a test compares the two
 cards/design_schema.py      layer 0, pydantic only: PlanDesign, HypothesisPlan, SampleSize, DecisionsTable
 cards/power.py              layer 0, stdlib + the two above: sample-size ratings
 cards/design.py             layer 0, cards only: eligible, recommend, recommend_k, project, plan_permutations,
@@ -175,7 +179,7 @@ package must be side-effect free (no network, no writes, no downloads).
    | Generated | Source | Regenerate with |
    |---|---|---|
    | `docs/evals.md` | `evals/*.yaml` | `python scripts/gen_evals_doc.py` |
-   | `packages/contracts/src/generated/` (types, zod, `endpoint-meta.json`) and `packages/contracts/schema/` | pydantic schemas, `cards/endpoint_meta.py` | `python scripts/export_schemas.py` |
+   | `packages/contracts/src/generated/` (types, zod, `endpoint-meta.json`, `token-limits.json`) and `packages/contracts/schema/` | pydantic schemas, `cards/endpoint_meta.py`, `cards/token_limits.py`, the registry | `python scripts/export_schemas.py` |
    | `packages/contracts/fixtures/study1.designed.json`, `power.json`, `design.json` and `backend/tests/fixtures/prereg/golden_designed.md` | `cards/power.py`, `cards/design.py`, `cards/endpoint_meta.py`, `cards/result_checks.py` (the "Result checks" section of the designed pre-registration is printed from it), `prereg/render.py`, `docs/prereg-design-template.md.j2`, the registry | `python scripts/gen_design_fixtures.py` |
    | `apps/web/src/components/run/checks-fixture.json` (the stops and health summaries the web tests read) | `cards/result_checks.py`, `store/health.py`, `store/schema.py` | `python scripts/gen_checks_fixture.py` |
    | `packages/contracts/fixtures/study1.study.yaml`, `study1.designed.study.yaml` | `apps/web/src/lib/study-file.ts` and the two JSON fixtures | `cd apps/web && UPDATE_STUDY_FIXTURES=1 pnpm exec vitest run src/lib/study-file.test.ts` |

@@ -1,5 +1,5 @@
 import { StudyConfigSchema, type Arm, type EvalCard, type ModelRef } from "@qr-evals/contracts";
-import { declareDesign, setCardK, setCardItems, setModels, setSeeds, toggleCard, toggleConfirmatory, useRecommended } from "./config-edits";
+import { declareDesign, setCardK, setCardItems, setCardMaxTokens, setModels, setSeeds, toggleCard, toggleConfirmatory, useRecommended } from "./config-edits";
 import { conditioningProblems } from "./conditioning";
 import type { WizardStudyConfig } from "./config-store";
 import {
@@ -10,6 +10,7 @@ import {
 import { needsStudyJudge } from "./judge";
 import { REFERENCE_EFFECT } from "./power";
 import { DEFAULT_SEEDS, EPSILON_LEVELS, rosterFromArms } from "./roster";
+import { TOKEN_LIMIT_PATH, tokenLimitFor } from "./token-limits";
 
 // What stops a draft from being registered, and what weakens it.
 //
@@ -241,17 +242,25 @@ export function problems(config: WizardStudyConfig, cards: readonly EvalCard[], 
     const noK = k !== null && (card.k === null || card.k === undefined);
     const badK = k !== null && !noK && !(lo <= k && k <= hi);
     const badItems = items !== null && !(1 <= items && items <= card.dataset.items);
+    const maxTokens = selection.overrides?.max_tokens ?? null;
+    const limit = tokenLimitFor(card.id);
+    const noLimit = maxTokens !== null && limit === undefined;
+    const badLimit = maxTokens !== null && limit !== undefined && !(limit.min <= maxTokens && maxTokens <= limit.max);
     // The way back from values the eval cannot run with is the eval's own: one press for whichever are off.
+    const off = [badK || noK, badItems, badLimit || noLimit].filter(Boolean).length;
     const own: ProblemFix = {
-      label: badK && badItems ? "Use the card's values" : "Use the card's value",
+      label: off > 1 ? "Use the card's values" : "Use the card's value",
       apply: (study) => {
         const withK = badK || noK ? setCardK(study, card.id, null) : study;
-        return badItems ? setCardItems(withK, card.id, null) : withK;
+        const withItems = badItems ? setCardItems(withK, card.id, null) : withK;
+        return badLimit || noLimit ? setCardMaxTokens(withItems, card.id, null) : withItems;
       },
     };
     if (badK) add("measure.out_of_bounds", "error", `${cardTitle(card)}: k must be between ${lo} and ${hi}.`, `card:${card.id}`, own);
     if (noK) add("measure.k_not_taken", "error", `${cardTitle(card)}: this eval takes no repetitions, so it cannot be given a k.`, `card:${card.id}`, own);
     if (badItems) add("measure.out_of_bounds", "error", `${cardTitle(card)}: prompts must be between 1 and ${card.dataset.items}.`, `card:${card.id}`, own);
+    if (badLimit) add("measure.out_of_bounds", "error", `${cardTitle(card)}: the token limit must be between ${limit.min} and ${limit.max}.`, `card:${card.id}`, own, undefined, TOKEN_LIMIT_PATH);
+    if (noLimit) add("measure.limit_not_taken", "error", `${cardTitle(card)}: this eval generates nothing, so it cannot be given a token limit.`, `card:${card.id}`, own, undefined, TOKEN_LIMIT_PATH);
   }
   for (const selection of config.cards) {
     if (registry.has(selection.card_id)) continue;

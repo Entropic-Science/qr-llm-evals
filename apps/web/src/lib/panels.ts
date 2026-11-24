@@ -3,7 +3,7 @@ import { armTablePanel, estimatesPanel, modelsPanel, pilotPanel, recordPanel, se
 import { comparisonPanel, conditioningPanel } from "../components/study/panels/arms";
 import { alphaPanel, claimPanel, expectationsPanel, marginsPanel, outcomesPanel, positiveControlPanel } from "../components/study/panels/design";
 import { judgePanel, narrativePanel } from "../components/study/panels/judge";
-import { evalsPanel, promptsPanel } from "../components/study/panels/measures";
+import { evalsPanel, promptsPanel, tokenLimitsPanel } from "../components/study/panels/measures";
 import { peoplePanel, titlePanel } from "../components/study/panels/study";
 import { displaySettingsPanel, sessionsPanel } from "../components/study/panels/supervised";
 import type { FieldProps } from "../routes/configure/fields/Field";
@@ -50,7 +50,7 @@ export const SECTIONS: readonly { id: SectionId; label: string }[] = [
 export const PANELS: readonly PanelDef[] = [
   titlePanel, peoplePanel,
   comparisonPanel, conditioningPanel,
-  evalsPanel, promptsPanel,
+  evalsPanel, promptsPanel, tokenLimitsPanel,
   claimPanel, outcomesPanel, alphaPanel, positiveControlPanel, marginsPanel, expectationsPanel,
   sessionsPanel, displaySettingsPanel,
   judgePanel, narrativePanel,
@@ -65,7 +65,7 @@ const within = (path: string, parent: string) => path === parent || path.startsW
 
 /** A study key path for the path of a recommendation (`cards.{id}.items`, `roster.seeds`, `design.margins.{card}/{endpoint}`) or of one list item. */
 function studyPath(path: string): string {
-  const override = /^cards\.[^.]+\.(k|items)$/.exec(path);
+  const override = /^cards\.[^.]+\.(k|items|max_tokens)$/.exec(path);
   if (override) return `cards[].overrides.${override[1]}`;
   if (path.startsWith("design.margins.")) return "design.margins[].margin";
   if (path.startsWith("roster.")) return "arms";

@@ -35,6 +35,17 @@ describe("locateField", () => {
     expect(locateField(root, "cards.unknown_eval.items")?.dataset.path).toBe("cards[].overrides");
   });
 
+  it("finds the row of one eval in the token limits table for the path of its token limit", () => {
+    const root = page(`${STEP}<fieldset id="panel-token-limits"><div class="field" data-path="cards[].overrides.max_tokens"><table><tbody>
+      <tr><th>First<small><code>novelty_bench</code></small></th><td><input id="limit-a" type="number"></td></tr>
+      <tr><th>Second<small><code>creative_diversity</code></small></th><td><input id="limit-b" type="number"></td></tr>
+    </tbody></table></div></fieldset>`);
+    expect(locateField(root, "cards.creative_diversity.max_tokens")?.querySelector("input")?.id).toBe("limit-b");
+    expect(locateField(root, "cards.unknown_eval.max_tokens")?.dataset.path).toBe("cards[].overrides.max_tokens");
+    // The prompts of the same eval are still found in the prompts table.
+    expect(locateField(root, "cards.creative_diversity.items")?.querySelector("input")?.id).toBe("prompts-b");
+  });
+
   it("falls back to the field of the block the setting sits in, then to the panel that edits it", () => {
     const root = page(STEP);
     expect(locateField(root, "design.margins.altered_state_meq/meq30_total")?.dataset.path).toBe("design.margins");

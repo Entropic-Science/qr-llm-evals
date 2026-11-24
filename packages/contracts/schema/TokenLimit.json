@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "TokenLimit.json",
+  "additionalProperties": false,
+  "description": "What a study may set as the token limit of one generating eval.",
+  "properties": {
+    "standard": {
+      "description": "The card's own max_tokens: the limit of a study that sets none.",
+      "minimum": 1,
+      "title": "Standard",
+      "type": "integer"
+    },
+    "safe": {
+      "description": "The recommended generous limit: 4 times the standard, at least 256 and at most 64000. A rule, not a measured bound.",
+      "minimum": 1,
+      "title": "Safe",
+      "type": "integer"
+    },
+    "min": {
+      "description": "The lowest limit a study may set: the usual length of a reply.",
+      "minimum": 1,
+      "title": "Min",
+      "type": "integer"
+    },
+    "max": {
+      "description": "The highest limit a study may set.",
+      "minimum": 1,
+      "title": "Max",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "standard",
+    "safe",
+    "min",
+    "max"
+  ],
+  "title": "TokenLimit",
+  "type": "object"
+}

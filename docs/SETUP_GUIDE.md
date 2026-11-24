@@ -492,7 +492,33 @@ the launch; a warning does not.
    controls, the observed arm and its session settings come back with it.
 2. **Measure.** The evals that run in every arm, and for each one the number
    of prompts and the repetitions per prompt (k). The token-level measures
-   always run.
+   always run. The step also holds the **token limit** of every eval that
+   generates replies, which is where a reply is cut off. Each eval has two
+   limits to pick from, or a number of your own between the usual length of
+   its replies and 64,000:
+   - **Standard** is the eval's own limit (`max_tokens` on its card) and
+     what a study that sets nothing runs with.
+   - **Safe** is four times the standard, at least 256 and at most 64,000.
+     Pick it when a cut reply costs you more than a long one, as on the
+     evals where the model thinks before it answers (`livecodebench`,
+     `gpqa_diamond`, `aime2026`). In the pilot of 23 November every finished
+     `livecodebench` reply on one hard problem reached the standard limit of
+     10,000 tokens while the model was still thinking, so none was scored.
+
+   The safe limit is a rule and not a measurement: nothing has checked that
+   no reply reaches it, and a reply that does is flagged as cut like any
+   other. A limit caps a reply and does not change the estimate, which rests
+   on the usual length of a reply; the table's last column is the most one
+   arm can generate on the eval if every reply runs to the limit. At about
+   15 tokens per second per stream, one reply of 40,000 tokens takes about
+   45 minutes, so look at that column before you take the safe limit on a
+   large eval. A limit is part of the study file
+   (`cards[].overrides.max_tokens`) and of its hash, so it is registered
+   with everything else and is the same for every arm. The engine on the
+   box serves 131,072 tokens of context, shared by the prompt and the reply;
+   a request whose prompt and limit together exceed what a model serves is
+   refused by that model, and a run of such refusals is stopped by the
+   check for failed generations.
 3. **Design.** What would count as a finding: the claim (a difference only,
    or a difference or its absence within a margin), the outcomes that decide
    the study, the false-finding rate (α), the positive control that must be

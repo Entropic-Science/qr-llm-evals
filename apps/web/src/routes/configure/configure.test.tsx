@@ -103,7 +103,7 @@ describe("setup steps", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(heading()).toHaveTextContent("What is measured");
     expect(heading()).toHaveFocus();
-    expect(panels(container)).toEqual(["evals", "prompts"]);
+    expect(panels(container)).toEqual(["evals", "prompts", "token-limits"]);
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(heading()).toHaveTextContent("What would count as a finding");
     expect(panels(container)).toEqual(["claim", "outcomes", "alpha", "prompts", "positive-control", "margins", "expectations"]);
@@ -1333,7 +1333,7 @@ describe("all settings over a step", () => {
     render(<Configure />);
     fireEvent.click(bar().getByRole("button", { name: "All settings" }));
     const shown = () => [...settings().querySelectorAll<HTMLElement>("[data-panel]")].filter((panel) => !panel.hidden && !panel.closest("section")?.hidden).map((panel) => panel.dataset.panel);
-    expect(shown()).toHaveLength(22);
+    expect(shown()).toHaveLength(23);
     fireEvent.change(within(settings()).getByRole("searchbox", { name: "Filter settings" }), { target: { value: "narrative" } });
     expect(shown()).toEqual(["narrative"]);
     fireEvent.change(within(settings()).getByRole("searchbox", { name: "Filter settings" }), { target: { value: "no such thing" } });

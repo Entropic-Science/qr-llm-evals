@@ -157,7 +157,7 @@ Each card is listed below with its title, the role each of its endpoints has in 
 
 - **Confirmatory endpoints:** {{ confirmatory_endpoints.get(row.card.id, 'none; every endpoint of this card is exploratory') | md }}
 - **Endpoints:** {{ card_endpoints[row.card.id] | md }}
-- **Generation:** max_tokens={{ row.card.max_tokens | md }}, thinking={{ row.card.thinking | md }}, told cells={{ row.card.told_cells | md }}.
+- **Generation:** max_tokens={{ row.card.max_tokens | md }}{% if row.max_tokens_note %}{{ row.max_tokens_note | md }}{% endif %}, thinking={{ row.card.thinking | md }}, told cells={{ row.card.told_cells | md }}.
 - **Exceptions:** {{ (row.card.exceptions | join('; ') or 'none') | md }}
 - **Task arguments:** {{ card_task_args[row.card.id] | md }}
 {% endfor %}

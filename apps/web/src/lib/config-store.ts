@@ -34,7 +34,15 @@ export function rejectedNote({ source, rejected }: LoadedConfig): string | null 
 /** The value as a study this page can hold, or null. */
 export function parseStudyConfig(value: unknown): WizardStudyConfig | null {
   const parsed = StudyConfigSchema.safeParse(value);
-  return parsed.success ? parsed.data as WizardStudyConfig : null;
+  if (!parsed.success) return null;
+  const config = parsed.data as WizardStudyConfig;
+  // The schema fills every key an override block leaves out with null. The server never writes a token limit
+  // as null (a study that sets none has no such key), so the page does not hold one either: a study that sets
+  // no limit is stored and shared with the bytes it had before the setting existed.
+  for (const selection of config.cards) {
+    if (selection.overrides && (selection.overrides.max_tokens ?? null) === null) delete selection.overrides.max_tokens;
+  }
+  return config;
 }
 
 function utf8ToBase64Url(value: string): string {

@@ -49,7 +49,7 @@ describe("the schema walk", () => {
     expect(new Set(leaves).size).toBe(leaves.length);
     for (const path of [
       "title", "authors[]", "seeds[]", "template", "models[].checkpoint", "arms[].study_seed", "arms[].unavailable_reason",
-      "cards[].card_id", "cards[].overrides.items", "design.alpha", "design.confirmatory[].endpoint", "design.margins[].margin",
+      "cards[].card_id", "cards[].overrides.items", "cards[].overrides.max_tokens", "design.alpha", "design.confirmatory[].endpoint", "design.margins[].margin",
       "judge.rubric_hash", "narrative_model.served_name", "supervised.settings_by_display.tiled.show_thinking",
       "supervised.questionnaires_hash", "estimates.tps_by_model.*", "pilot.prompts", "data_licence",
     ]) expect(leaves).toContain(path);
@@ -89,6 +89,8 @@ describe("PANELS", () => {
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
     for (const section of order) expect(panelsIn(section as SectionId).length, section).toBeGreaterThan(0);
+    expect(panelsIn("measures").map((panel) => panel.id)).toEqual(["evals", "prompts", "token-limits"]);
+    expect(PANELS.find((panel) => panel.id === "token-limits")).toMatchObject({ label: "Token limits", paths: ["cards[].overrides.max_tokens"] });
     for (const panel of PANELS) {
       expect(panel.label.length).toBeGreaterThan(0);
       expect(typeof panel.Component).toBe("function");
@@ -106,7 +108,7 @@ describe("PANELS", () => {
     for (const leaf of hidden) expect(advanced(leaf), leaf).toBe(true);
     for (const leaf of [
       "title", "authors[]", "contact", "expectations", "cards[].card_id", "cards[].overrides.k", "cards[].overrides.items",
-      "design.claim", "design.alpha", "design.sensitivity_epsilon", "design.confirmatory[].card_id", "design.margins[].margin",
+      "cards[].overrides.max_tokens", "design.claim", "design.alpha", "design.sensitivity_epsilon", "design.confirmatory[].card_id", "design.margins[].margin",
       "judge.model", "judge.max_tokens", "judge.thinking", "judge.temperature", "supervised.display", "supervised.group",
     ]) expect(advanced(leaf), leaf).toBe(false);
     expect(PANELS.filter((panel) => panel.section === "advanced").every((panel) => panel.advanced === true)).toBe(true);
@@ -142,6 +144,8 @@ describe("panelFor", () => {
   it("finds the panel of a recommendation", () => {
     expect(id("cards.self_referential_probe.items")).toBe("prompts");
     expect(id("cards.self_referential_probe.k")).toBe("prompts");
+    expect(id("cards.self_referential_probe.max_tokens")).toBe("token-limits");
+    expect(id("cards[].overrides.max_tokens")).toBe("token-limits");
     expect(id("roster.seeds")).toBe("comparison");
     expect(id("design.alpha")).toBe("alpha");
     expect(id("design.sensitivity_epsilon")).toBe("positive-control");

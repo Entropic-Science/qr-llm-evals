@@ -294,6 +294,7 @@ describe("run-time records", () => {
       "SettleRequest",
       "StorageResponse",
       "EndpointMeta",
+      "TokenLimit",
       "CardItemsResponse",
       "DecisionsTable",
       "ResultFlag",

@@ -96,6 +96,7 @@ from qr_llm_evals.runner.progress import ProgressTracker
 from qr_llm_evals.runner.tasks import (
     LoadedTask,
     effective_k,
+    effective_limit,
     load_task_module,
     messages_hash,
     prompt_preview,
@@ -573,6 +574,7 @@ class Orchestrator:
                 overrides,
             )
             k = effective_k(card, overrides)
+            max_tokens = effective_limit(card, overrides)
             tolds = told_conditions(card)
             total = len(items) * k * len(tolds)
             done = self.store.completed_refs(arm.id, card.id)
@@ -585,7 +587,7 @@ class Orchestrator:
                             card_id=card.id,
                             prompt_id=str(item["prompt_id"]),
                             epoch=epoch,
-                            max_tokens=card.max_tokens,
+                            max_tokens=max_tokens,
                             thinking=card.thinking,
                             told_condition=told,
                         )

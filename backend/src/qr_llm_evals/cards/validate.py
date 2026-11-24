@@ -36,6 +36,7 @@ from pathlib import Path
 from qr_llm_evals.cards.estimates import tokens_per_arm
 from qr_llm_evals.cards.loader import REPO_ROOT, CardLoadError, load_card, load_cards
 from qr_llm_evals.cards.schema import REVISION_REQUIRED_SCHEMES, EvalCard
+from qr_llm_evals.cards.token_limits import TOKEN_LIMIT_MAX
 
 MIN_K = 10
 #: Floor for a derived card that declares the exception below (rule 2).
@@ -131,6 +132,8 @@ def _check_estimates(card: EvalCard, out: list[str]) -> None:
             "est_tokens_per_sample: must not exceed max_tokens "
             f"({card.est_tokens_per_sample} > {card.max_tokens})"
         )
+    if card.max_tokens > TOKEN_LIMIT_MAX:
+        out.append(f"max_tokens: must not exceed {TOKEN_LIMIT_MAX} (got {card.max_tokens})")
 
 
 def _check_implementation(card: EvalCard, out: list[str], repo_root: Path) -> None:

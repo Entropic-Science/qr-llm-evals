@@ -119,6 +119,10 @@ SEED_MAX_EXCLUSIVE = 2**63
 SEEDED_SOURCES: frozenset[str] = frozenset({"prng_seeded", "prng_epsilon"})
 #: Significance levels a designed study may register.
 ALPHA_LEVELS: tuple[float, ...] = (0.05, 0.01, 0.005)
+#: The most a study may set as an eval's token limit. ``cards/token_limits.py``
+#: owns the number (``TOKEN_LIMIT_MAX``); it is repeated here because layer 0
+#: modules do not import each other, and ``test_token_limits.py`` compares them.
+MAX_TOKENS_CEILING = 64_000
 
 
 def _on_grid(value: float, levels: tuple[float, ...]) -> bool:
@@ -270,6 +274,23 @@ class CardOverrides(_Strict):
 
     k: int | None = Field(default=None, ge=1)
     items: int | None = Field(default=None, ge=1)
+    max_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_TOKENS_CEILING,
+        description=(
+            "Token limit of one reply of this eval; absent means the card's own max_tokens. "
+            "Never serialized as null, so a study that sets none keeps its bytes."
+        ),
+    )
+
+    # No return annotation, for the reason given at ``StudyConfig._omit_absent_design``.
+    @model_serializer(mode="wrap")
+    def _omit_absent_max_tokens(self, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if data.get("max_tokens") is None:
+            data.pop("max_tokens", None)
+        return data
 
 
 class CardSelection(_Strict):
@@ -648,6 +669,7 @@ __all__ = [
     "DEFAULT_SEEDS",
     "DRAFT_PROBLEMS",
     "EPSILON_LEVELS",
+    "MAX_TOKENS_CEILING",
     "SEED_MAX_EXCLUSIVE",
     "SEEDED_SOURCES",
     "SOURCE_LABELS",

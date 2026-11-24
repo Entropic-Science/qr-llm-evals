@@ -21,6 +21,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from qr_llm_evals.cards.estimates import SelectionEstimate
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.cards.statistical_plan import StatisticalPlan
+from qr_llm_evals.cards.token_limits import TokenLimit
 from qr_llm_evals.models.schema import JudgeSpec, StudyConfig
 from qr_llm_evals.runner.preview import CONTENT_LIMIT, ItemSource
 from qr_llm_evals.store.health import TaintKey
@@ -75,6 +76,14 @@ class CardEstimateSummary(_Strict):
 class CardView(_Strict):
     card: EvalCard
     estimate: CardEstimateSummary | None = None
+    token_limit: TokenLimit | None = Field(
+        default=None,
+        description=(
+            "What a study may set as this eval's token limit (cards[].overrides.max_tokens): "
+            "the standard, the recommended safe value and the bounds. Null for an eval that "
+            "generates nothing."
+        ),
+    )
 
 
 class CardsResponse(_Strict):
