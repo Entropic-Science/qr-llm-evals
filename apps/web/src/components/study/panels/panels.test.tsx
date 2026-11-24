@@ -1,4 +1,4 @@
-import { cards, type Arm, type ModelRef } from "@qr-evals/contracts";
+import { cards, tokenLimits, type Arm, type ModelRef } from "@qr-evals/contracts";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { vi } from "vitest";
@@ -452,6 +452,141 @@ describe("the measure panels", () => {
     expect(state.latest.cards.find((selection) => selection.card_id === "self_referential_probe")?.overrides).toMatchObject({ k: 25 });
     expect(screen.getByLabelText("Repetitions (k) for unpredictabench")).toBeDisabled();
     expect(screen.getByText("Prompts are the unit of analysis. Repetitions sharpen each prompt's value, so fewer repetitions call for more prompts; they are never counted as prompts themselves.")).toBeInTheDocument();
+  });
+});
+
+describe("the token limits panel", () => {
+  const PROBE = "self_referential_probe";
+  const table = () => within(screen.getByRole("table", { name: "Token limits of the selected evals" }));
+  const row = (id: string) => table().getAllByRole("row").find((candidate) => within(candidate).queryByText(id, { selector: "code" }))!;
+  const limitOf = (config: WizardStudyConfig, id: string) => config.cards.find((selection) => selection.card_id === id)?.overrides?.max_tokens;
+  const hasKey = (config: WizardStudyConfig, id: string) => Object.hasOwn(config.cards.find((selection) => selection.card_id === id)?.overrides ?? {}, "max_tokens");
+  const preset = (id: string, name: RegExp) => within(row(id)).getByRole("button", { name });
+
+  it("lists every selected eval that generates replies with its own limit, and says what a limit does and does not do", () => {
+    mount(["token-limits"]);
+    const template = studyOneTemplate();
+    const limited = template.cards.map((selection) => selection.card_id).filter((id) => tokenLimits[id] !== undefined);
+    expect(limited.length).toBeGreaterThan(5);
+    expect(table().getAllByRole("row")).toHaveLength(limited.length + 1);
+    expect(table().getAllByRole("columnheader").map((cell) => cell.textContent)).toEqual(["Eval", "Token limit", "Presets", "At most, per arm"]);
+    // An eval that generates nothing has no row.
+    expect(tokenLimits.target_hit_ranking).toBeUndefined();
+    expect(row("target_hit_ranking")).toBeUndefined();
+    const input = screen.getByLabelText(`Token limit for ${PROBE}`);
+    expect(input).toHaveValue(800);
+    expect(input).toHaveAttribute("min", "400");
+    expect(input).toHaveAttribute("max", "64000");
+    expect(preset(PROBE, /^Standard/)).toHaveTextContent("Standard · 800");
+    expect(preset(PROBE, /^Safe/)).toHaveTextContent("Safe · 3,200");
+    expect(preset(PROBE, /^Standard/)).toHaveAttribute("aria-pressed", "true");
+    expect(preset(PROBE, /^Safe/)).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Each reply ends when it reaches its eval's token limit, and a reply that does is flagged as cut. Standard is the eval's own limit. Safe is four times that, at least 256 and at most 64,000: a reply should rarely reach it, but nothing guarantees that, and a model that thinks before it answers can use all of it. The limit caps a reply. It does not change the estimate, which rests on the usual length of a reply, so the last column is the most an arm can generate on that eval.")).toBeInTheDocument();
+  });
+
+  it("sets the limit typed, and removes the override when the eval's own limit is typed", () => {
+    const { state } = mount(["token-limits"]);
+    const before = JSON.stringify(studyOneTemplate());
+    const input = screen.getByLabelText(`Token limit for ${PROBE}`);
+    fireEvent.change(input, { target: { value: "1000" } });
+    expect(limitOf(state.latest, PROBE)).toBe(1000);
+    expect(preset(PROBE, /^Standard/)).toHaveAttribute("aria-pressed", "false");
+    expect(preset(PROBE, /^Safe/)).toHaveAttribute("aria-pressed", "false");
+    fireEvent.change(input, { target: { value: "800" } });
+    expect(hasKey(state.latest, PROBE)).toBe(false);
+    expect(JSON.stringify(state.latest)).toBe(before);
+    expect(toStudyYaml(state.latest)).toBe(toStudyYaml(studyOneTemplate()));
+  });
+
+  it("sets an eval to its safe limit and back to its standard one, which deletes the key", () => {
+    const { state } = mount(["token-limits"]);
+    const before = JSON.stringify(studyOneTemplate());
+    fireEvent.click(preset(PROBE, /^Safe/));
+    expect(limitOf(state.latest, PROBE)).toBe(3200);
+    expect(screen.getByLabelText(`Token limit for ${PROBE}`)).toHaveValue(3200);
+    expect(preset(PROBE, /^Safe/)).toHaveAttribute("aria-pressed", "true");
+    expect(preset(PROBE, /^Standard/)).toHaveAttribute("aria-pressed", "false");
+    fireEvent.click(preset(PROBE, /^Standard/));
+    expect(hasKey(state.latest, PROBE)).toBe(false);
+    expect(JSON.stringify(state.latest)).toBe(before);
+    expect(preset(PROBE, /^Standard/)).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("sets all evals to safe and all back to standard, which leaves the study as it was", () => {
+    const { state } = mount(["token-limits"]);
+    const template = studyOneTemplate();
+    const limited = template.cards.map((selection) => selection.card_id).filter((id) => tokenLimits[id] !== undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Set all to safe" }));
+    expect(state.edits).toBe(1);
+    for (const id of limited) expect(limitOf(state.latest, id), id).toBe(tokenLimits[id]!.safe);
+    expect(state.latest.cards.filter((selection) => hasKey(state.latest, selection.card_id)).map((selection) => selection.card_id)).toEqual(limited);
+    expect(table().getAllByRole("button", { name: /^Safe/, pressed: true })).toHaveLength(limited.length);
+    fireEvent.click(screen.getByRole("button", { name: "Set all to standard" }));
+    expect(JSON.stringify(state.latest)).toBe(JSON.stringify(template));
+    expect(table().getAllByRole("button", { name: /^Standard/, pressed: true })).toHaveLength(limited.length);
+  });
+
+  it("states the most an arm can generate on an eval: prompts × repetitions × told cells × the limit", () => {
+    const { state } = mount(["token-limits"]);
+    // 30 prompts × k = 24 × three told cells × 800 tokens.
+    expect(within(row(PROBE)).getByRole("cell", { name: "1.73M tokens" })).toBeInTheDocument();
+    fireEvent.click(preset(PROBE, /^Safe/));
+    expect(within(row(PROBE)).getByRole("cell", { name: "6.91M tokens" })).toBeInTheDocument();
+    expect(limitOf(state.latest, PROBE)).toBe(3200);
+    cleanup();
+    // Fewer prompts and repetitions of the study count; an eval the study leaves alone counts with its card's own.
+    const fewer = studyOneTemplate();
+    mount(["token-limits"], { ...fewer, cards: fewer.cards.map((selection) => (selection.card_id === PROBE ? { ...selection, overrides: { k: 20, items: 10 } } : selection)) });
+    expect(within(row(PROBE)).getByRole("cell", { name: "480K tokens" })).toBeInTheDocument();
+    const guessing = cards.find((card) => card.id === "source_guessing")!;
+    const most = guessing.dataset.items * (guessing.k ?? 1) * (guessing.told_actual ? 3 : 1) * tokenLimits.source_guessing!.standard;
+    expect(within(row("source_guessing")).getByRole("cell", { name: `${new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 2 }).format(most)} tokens` })).toBeInTheDocument();
+  });
+
+  it("shows a limit the study carries for an eval that generates nothing, with the way back", () => {
+    const template = studyOneTemplate();
+    const { state } = mount(["token-limits"], { ...template, cards: template.cards.map((selection) => (selection.card_id === "target_hit_ranking" ? { ...selection, overrides: { max_tokens: 500 } } : selection)) });
+    expect(within(row("target_hit_ranking")).getByText(/set in this study, but this eval generates nothing and takes no token limit/)).toBeInTheDocument();
+    expect(within(row("target_hit_ranking")).queryByRole("spinbutton")).toBeNull();
+    // The buttons for all evals leave it alone: it has no standard and no safe limit.
+    fireEvent.click(screen.getByRole("button", { name: "Set all to safe" }));
+    expect(limitOf(state.latest, "target_hit_ranking")).toBe(500);
+    fireEvent.click(screen.getByRole("button", { name: "Set all to standard" }));
+    fireEvent.click(within(row("target_hit_ranking")).getByRole("button", { name: "Use the card's value" }));
+    expect(JSON.stringify(state.latest)).toBe(JSON.stringify(template));
+    expect(row("target_hit_ranking")).toBeUndefined();
+  });
+
+  it("says so when no selected eval generates replies", () => {
+    mount(["token-limits"], { ...legacy(), cards: [] });
+    expect(screen.getByText("No selected eval generates replies of its own, so there is no token limit to set.")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Set all to safe" })).toBeNull();
+  });
+});
+
+describe("the conditioning panel", () => {
+  it("cautions that a raw quantum arm has no matched control, and only while raw is chosen", () => {
+    const { state } = mount(["conditioning"]);
+    const caution = /differs from the pseudo-random arms by the device’s byte statistics as well as by the source, and the harness has no matched control for that/;
+    expect(screen.queryByText(caution)).toBeNull();
+    fireEvent.click(screen.getByLabelText("Raw: the device's measured bytes"));
+    expect(state.latest.conditioning?.mode).toBe("raw");
+    expect(screen.getByText(caution)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Hashed: uniform bytes"));
+    expect(screen.queryByText(caution)).toBeNull();
+  });
+
+  it("says before the study is submitted that more than half of a digest may not be served", () => {
+    const { state } = mount(["conditioning"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Bytes kept from each digest"), { target: { value: "17" } });
+    expect(state.latest.conditioning?.keep_bytes).toBe(17);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Serving more than half of each digest may compromise the integrity of the signal; keep at most 16 bytes of a SHA-256 digest.",
+    );
+    fireEvent.change(screen.getByLabelText("Bytes kept from each digest"), { target: { value: "16" } });
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 });
 

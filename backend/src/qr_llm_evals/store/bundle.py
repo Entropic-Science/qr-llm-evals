@@ -32,6 +32,7 @@ from pathlib import Path
 from typing import Any
 
 import zstandard
+from pydantic import ValidationError
 
 from qr_llm_evals.models.schema import StudyConfig, canonical_json, config_hash
 from qr_llm_evals.store.artifacts import read_json, write_json, write_text
@@ -254,10 +255,31 @@ def write_frozen_study(
     return study_dir
 
 
+class FrozenStudyUnreadableError(ValueError):
+    """A frozen ``study.json`` holds a config this version of the harness does not read.
+
+    That is a study frozen with a setting that was removed since (an arm
+    source, for one). Its files stay as they are and can still be read and
+    exported; nothing that needs the validated config (a resume, a session,
+    an analysis) runs on it.
+    """
+
+
 def load_frozen_study(study_dir: StudyDir) -> StudyConfig:
     """Parse ``study.json`` back into a validated :class:`StudyConfig` (hash re-checked)."""
     data = read_json(study_dir.study_json)
-    study = StudyConfig.model_validate(data["config"])
+    try:
+        study = StudyConfig.model_validate(data["config"])
+    except ValidationError as err:
+        # Field paths and rule texts only, never the values.
+        reasons = "; ".join(
+            f"{'.'.join(str(part) for part in e['loc']) or 'config'}: {e['msg']}"
+            for e in err.errors(include_input=False, include_url=False)[:5]
+        )
+        raise FrozenStudyUnreadableError(
+            f"study {study_dir.study_id!r} was frozen with a configuration this version of "
+            f"the harness no longer reads ({reasons}). Its stored files are unchanged."
+        ) from err
     if config_hash(study) != data["config_hash"]:
         raise ValueError(f"{study_dir.study_json}: config_hash does not match its config")
     return study
@@ -475,6 +497,7 @@ def read_bundle(source: Path | bytes | Iterable[bytes]) -> dict[str, bytes]:
 
 __all__ = [
     "BUNDLE_SCHEMA_VERSION",
+    "FrozenStudyUnreadableError",
     "STRIPPED_KEYS",
     "STRIPPED_PREFIXES",
     "ZSTD_LEVEL",

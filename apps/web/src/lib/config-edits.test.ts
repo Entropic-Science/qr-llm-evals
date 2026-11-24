@@ -1,7 +1,7 @@
 import { cards } from "@qr-evals/contracts";
 import studyOneJson from "../../../../packages/contracts/fixtures/study1.json";
 import {
-  declareDesign, recommendedRepetitions, removeDesign, setAlpha, setCardItems, setCardK, setClaim, setCreatedAt, setMargin, setModelField,
+  declareDesign, recommendedRepetitions, removeDesign, setAlpha, setCardItems, setCardK, setCardMaxTokens, setClaim, setCreatedAt, setMargin, setModelField,
   setSensitivityEpsilon, setSupervised, setTitle, toggleCard, toggleConfirmatory, useRecommended,
 } from "./config-edits";
 import { parseStudyConfig, studyOneTemplate, type WizardStudyConfig } from "./config-store";
@@ -56,6 +56,37 @@ describe("config edits", () => {
     expect(overrides(fewer, PROBE.card_id)).toEqual({ k: 24, items: 12 });
     expect(overrides(setCardItems(fewer, PROBE.card_id, null), PROBE.card_id)).toEqual({ k: 24, items: null });
     expect(overrides(setCardK(config, "tier0_pit_residuals", 3), "tier0_pit_residuals")).toEqual({ k: 3 });
+  });
+
+  it("set a token limit as a key of its own and take it back by removing the key, never by storing null", () => {
+    const config = studyOneTemplate();
+    const before = JSON.stringify(config);
+    // The template holds no token limit, not even an empty one.
+    expect(before).not.toContain("max_tokens\":null");
+    expect(overrides(config, PROBE.card_id)).toEqual({ k: 24, items: null });
+    const set = setCardMaxTokens(config, PROBE.card_id, 3200);
+    expect(overrides(set, PROBE.card_id)).toEqual({ k: 24, items: null, max_tokens: 3200 });
+    // The other edits keep it, and it keeps them.
+    expect(overrides(setCardK(set, PROBE.card_id, 25), PROBE.card_id)).toEqual({ k: 25, items: null, max_tokens: 3200 });
+    expect(overrides(setCardItems(set, PROBE.card_id, 12), PROBE.card_id)).toEqual({ k: 24, items: 12, max_tokens: 3200 });
+    const back = setCardMaxTokens(set, PROBE.card_id, null);
+    expect(Object.keys(overrides(back, PROBE.card_id)!)).toEqual(["k", "items"]);
+    expect(JSON.stringify(back)).toBe(before);
+    expect(toStudyYaml(back)).toBe(toStudyYaml(config));
+    expect(JSON.stringify(config)).toBe(before);
+
+    // An eval the study gives no override at all gets a block for the limit, and loses it with the limit.
+    expect(overrides(config, "source_guessing")).toBeUndefined();
+    const guessing = setCardMaxTokens(config, "source_guessing", 256);
+    expect(overrides(guessing, "source_guessing")).toEqual({ max_tokens: 256 });
+    const bare = setCardMaxTokens(guessing, "source_guessing", null);
+    expect(bare.cards.find((selection) => selection.card_id === "source_guessing")).toEqual({ card_id: "source_guessing" });
+    expect(JSON.stringify(bare)).toBe(before);
+
+    // An edit that changes nothing returns the study it was given.
+    expect(setCardMaxTokens(config, PROBE.card_id, null)).toBe(config);
+    expect(setCardMaxTokens(set, PROBE.card_id, 3200)).toBe(set);
+    expect(setCardMaxTokens(config, "no_such_eval", 500)).toBe(config);
   });
 
   it("deselect an eval without rewriting the design, and select it again", () => {

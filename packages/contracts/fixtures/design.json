@@ -8054,6 +8054,357 @@
       "plan_refused": "self_referential_probe: k=40 outside k_bounds [10, 30]"
     },
     {
+      "name": "token_limit_out_of_bounds",
+      "shows": "A draft whose token limit is below the usual length of the eval's replies.",
+      "config": {
+        "schema_version": 1,
+        "title": "Study 1 — quantum-random vs seeded pseudo-random token sampling",
+        "authors": [
+          "Entropic Science"
+        ],
+        "contact": "research@entropic.science",
+        "created_at": "2026-09-14T00:00:00Z",
+        "template": "study1",
+        "models": [
+          {
+            "id": "qr-llm",
+            "family": "qr_llm",
+            "provider": "qr_server",
+            "served_name": "qr-llm",
+            "checkpoint": null
+          }
+        ],
+        "arms": [
+          {
+            "id": "qrng_supervised",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "qrng",
+            "study_seed": null,
+            "epsilon": null,
+            "deterministic": true,
+            "observer_mode": "supervised",
+            "availability": "available",
+            "unavailable_reason": null
+          },
+          {
+            "id": "qrng_unsupervised",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "qrng",
+            "study_seed": null,
+            "epsilon": null,
+            "deterministic": true,
+            "observer_mode": "unsupervised",
+            "availability": "available",
+            "unavailable_reason": null
+          },
+          {
+            "id": "prng_seed_1",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "prng_seeded",
+            "study_seed": 1,
+            "epsilon": null,
+            "deterministic": true,
+            "observer_mode": "unsupervised",
+            "availability": "available",
+            "unavailable_reason": null
+          },
+          {
+            "id": "prng_seed_7",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "prng_seeded",
+            "study_seed": 7,
+            "epsilon": null,
+            "deterministic": true,
+            "observer_mode": "unsupervised",
+            "availability": "available",
+            "unavailable_reason": null
+          },
+          {
+            "id": "prng_seed_42",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "prng_seeded",
+            "study_seed": 42,
+            "epsilon": null,
+            "deterministic": true,
+            "observer_mode": "unsupervised",
+            "availability": "available",
+            "unavailable_reason": null
+          },
+          {
+            "id": "prng_epsilon_003",
+            "model": "qr-llm",
+            "sampling": "creative",
+            "source": "prng_epsilon",
+            "study_seed": 1001,
+            "epsilon": 0.03,
+            "deterministic": true,
+            "observer_mode": "unsupervised",
+            "availability": "unavailable",
+            "unavailable_reason": "qr_bias_epsilon is a proposed key; readiness has not seen it accepted"
+          }
+        ],
+        "cards": [
+          {
+            "card_id": "tier0_pit_residuals",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "tier0_mmd_hamming",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "tier0_logprob_endpoints",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "unpredictabench",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "novelty_bench",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "creative_diversity",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "semantic_entropy_sqa",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "self_referential_probe",
+            "overrides": {
+              "k": null,
+              "items": null,
+              "max_tokens": 5
+            }
+          },
+          {
+            "card_id": "sentience_statements",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "introspection_scales",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "altered_state_meq",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "source_guessing",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "moralchoice_consistency",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "thurstonian_self_outcomes",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "opinion_quantum_sampling",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "stream_deviation_windows",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "target_hit_ranking",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          },
+          {
+            "card_id": "self_reported_coincidence",
+            "overrides": {
+              "k": null,
+              "items": null
+            }
+          }
+        ],
+        "design": {
+          "version": 1,
+          "claim": "difference",
+          "confirmatory": [
+            {
+              "card_id": "tier0_pit_residuals",
+              "endpoint": "pit_ks_two_sample"
+            },
+            {
+              "card_id": "tier0_mmd_hamming",
+              "endpoint": "mmd_hamming"
+            },
+            {
+              "card_id": "self_referential_probe",
+              "endpoint": "experience_claim_rate"
+            }
+          ],
+          "alpha": 0.05,
+          "sensitivity_epsilon": null,
+          "margins": []
+        },
+        "judge": {
+          "provider": "anthropic",
+          "model": "claude-haiku-5-5",
+          "temperature": null,
+          "max_tokens": 1024,
+          "thinking": "disabled",
+          "rubric_hash": null
+        },
+        "narrative_model": {
+          "id": "qr-llm",
+          "family": "qr_llm",
+          "provider": "qr_server",
+          "served_name": "qr-llm",
+          "checkpoint": null
+        },
+        "supervised": {
+          "display": "single",
+          "settings_by_display": {
+            "single": {
+              "session_min": 30,
+              "break_min": 10,
+              "streams": 1,
+              "text_size": "md",
+              "show_thinking": true
+            },
+            "tiled": {
+              "session_min": 30,
+              "break_min": 10,
+              "streams": 4,
+              "text_size": "sm",
+              "show_thinking": false
+            }
+          },
+          "intention_timer_min": 3,
+          "refocus_s": 30,
+          "group": true,
+          "target_pool_hash": null,
+          "questionnaires_hash": null
+        },
+        "seeds": [
+          1,
+          7,
+          42,
+          1001
+        ],
+        "estimates": {
+          "tps_by_model": {
+            "qr-llm": 400.0
+          },
+          "reading_tps": 45.0,
+          "tiled_streams": 4,
+          "session_min": 30
+        },
+        "pilot": {
+          "enabled": true,
+          "prompts": 200
+        },
+        "expectations": "",
+        "data_licence": "CC-BY-4.0"
+      },
+      "config_valid": true,
+      "recommend": {
+        "version": 1,
+        "claim": "difference",
+        "confirmatory": [
+          {
+            "card_id": "tier0_pit_residuals",
+            "endpoint": "pit_ks_two_sample"
+          },
+          {
+            "card_id": "tier0_mmd_hamming",
+            "endpoint": "mmd_hamming"
+          },
+          {
+            "card_id": "self_referential_probe",
+            "endpoint": "experience_claim_rate"
+          }
+        ],
+        "alpha": 0.05,
+        "sensitivity_epsilon": null,
+        "margins": []
+      },
+      "recommend_k": {},
+      "hypotheses": [],
+      "families": null,
+      "permutations": null,
+      "reachable_verdicts": {},
+      "problems": [
+        {
+          "code": "measure.out_of_bounds",
+          "severity": "error",
+          "message": "T4-a Self-referential experience probe: the token limit must be between 400 and 64000.",
+          "step_id": "measure",
+          "node_id": "card:self_referential_probe"
+        },
+        {
+          "code": "design.no_expectations",
+          "severity": "warning",
+          "message": "No expectations recorded.",
+          "step_id": "design",
+          "node_id": "study"
+        }
+      ],
+      "plan_hash": null,
+      "plan_refused": "self_referential_probe: max_tokens=5 outside [400, 64000]"
+    },
+    {
       "name": "no_outcome",
       "shows": "A draft in which no outcome decides the study.",
       "config": {

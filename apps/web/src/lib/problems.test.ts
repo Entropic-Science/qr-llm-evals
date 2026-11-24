@@ -1,4 +1,4 @@
-import { cards, type Arm, type StudyDesign } from "@qr-evals/contracts";
+import { cards, tokenLimits, type Arm, type StudyDesign } from "@qr-evals/contracts";
 import fixture from "../../../../packages/contracts/fixtures/design.json";
 import studyOneJson from "../../../../packages/contracts/fixtures/study1.json";
 import { parseStudyConfig, studyOneTemplate, type WizardStudyConfig } from "./config-store";
@@ -662,6 +662,77 @@ describe("evals the study cannot be planned with", () => {
     const fixes = problems(both, cards).filter((problem) => problem.code === "measure.out_of_bounds");
     expect(fixes.map((problem) => problem.fix?.label)).toEqual(["Use the card's values", "Use the card's values"]);
     expect(codes(fixes[0]!.fix!.apply(both, cards))).toEqual([]);
+  });
+});
+
+describe("problems with a token limit", () => {
+  const limited = (cardId: string, overrides: { k?: number; items?: number; max_tokens?: number }) => (config: WizardStudyConfig): WizardStudyConfig => ({
+    ...config, cards: config.cards.map((selection) => (selection.card_id === cardId ? { ...selection, overrides: { ...selection.overrides, ...overrides } } : selection)),
+  });
+  const title = (cardId: string) => (cards.find((card) => card.id === cardId) as { title?: string }).title;
+  const selection = (config: WizardStudyConfig, cardId: string) => config.cards.find((candidate) => candidate.card_id === cardId)!;
+
+  it("finds nothing wrong with a limit within the bounds of its eval, the bounds included", () => {
+    const { min, max, safe } = tokenLimits.novelty_bench!;
+    for (const value of [min, safe, max]) expect(codes(study(limited("novelty_bench", { max_tokens: value })))).toEqual([]);
+  });
+
+  it("measure.out_of_bounds for a limit below or above the bounds, in the backend's words, with the way back", () => {
+    const { min, max } = tokenLimits.novelty_bench!;
+    for (const value of [min - 1, max + 1]) {
+      const config = study(limited("novelty_bench", { max_tokens: value }));
+      const problem = find(config, "measure.out_of_bounds");
+      expect(problem).toMatchObject({
+        severity: "error", stepId: "measure", nodeId: "card:novelty_bench", path: "cards[].overrides.max_tokens",
+        message: `${title("novelty_bench")}: the token limit must be between ${min} and ${max}.`,
+      });
+      expect(problem.fix?.label).toBe("Use the card's value");
+      const fixed = problem.fix!.apply(config, cards);
+      expect(codes(fixed)).toEqual([]);
+      // The key is gone, not null, and the eval's other settings are as they were.
+      expect(selection(fixed, "novelty_bench").overrides).toEqual(selection(study(), "novelty_bench").overrides);
+      expect(Object.hasOwn(selection(fixed, "novelty_bench").overrides ?? {}, "max_tokens")).toBe(false);
+    }
+  });
+
+  it("reports k, then prompts, then the token limit, and one press puts all three back", () => {
+    const config = study(limited("novelty_bench", { k: 500, items: 5000, max_tokens: 1 }));
+    const found = problems(config, cards).filter((problem) => problem.code === "measure.out_of_bounds");
+    expect(found.map((problem) => problem.message.slice(title("novelty_bench")!.length))).toEqual([
+      ": k must be between 10 and 50.", ": prompts must be between 1 and 100.", ": the token limit must be between 400 and 64000.",
+    ]);
+    expect(found.map((problem) => problem.fix?.label)).toEqual(["Use the card's values", "Use the card's values", "Use the card's values"]);
+    const fixed = found[2]!.fix!.apply(config, cards);
+    expect(codes(fixed)).toEqual([]);
+    expect(selection(fixed, "novelty_bench").overrides).toEqual({ k: null, items: null });
+  });
+
+  it("leaves a k and a prompt count that are in bounds alone when the limit is put back", () => {
+    const config = study(limited("novelty_bench", { k: 30, items: 50, max_tokens: 1 }));
+    const problem = find(config, "measure.out_of_bounds");
+    expect(problem.fix?.label).toBe("Use the card's value");
+    expect(selection(problem.fix!.apply(config, cards), "novelty_bench").overrides).toEqual({ k: 30, items: 50 });
+  });
+
+  it("measure.limit_not_taken for a limit on an eval that generates nothing, which only the page says", () => {
+    expect(tokenLimits.target_hit_ranking).toBeUndefined();
+    const config = study(limited("target_hit_ranking", { max_tokens: 500 }));
+    const problem = find(config, "measure.limit_not_taken");
+    expect(problem).toMatchObject({
+      severity: "error", stepId: "measure", nodeId: "card:target_hit_ranking", path: "cards[].overrides.max_tokens",
+      message: `${title("target_hit_ranking")}: this eval generates nothing, so it cannot be given a token limit.`,
+    });
+    expect(codes(config)).toEqual(["measure.limit_not_taken"]);
+    expect(REGISTRY_CODES).not.toContain("measure.limit_not_taken");
+    expect(problem.fix?.label).toBe("Use the card's value");
+    const fixed = problem.fix!.apply(config, cards);
+    expect(codes(fixed)).toEqual([]);
+    expect(selection(fixed, "target_hit_ranking")).toEqual({ card_id: "target_hit_ranking" });
+    // Together with a k the eval does not take: one press for both.
+    const both = study(limited("target_hit_ranking", { k: 5, max_tokens: 500 }));
+    expect(codes(both)).toEqual(["measure.k_not_taken", "measure.limit_not_taken"]);
+    expect(find(both, "measure.limit_not_taken").fix?.label).toBe("Use the card's values");
+    expect(codes(find(both, "measure.k_not_taken").fix!.apply(both, cards))).toEqual([]);
   });
 });
 

@@ -63,6 +63,10 @@ Where the designed-study modules sit:
 ```
 cards/endpoint_meta.py      layer 0, pydantic only: what each headline endpoint is; outside the card
                             snapshot, so it never moves a cards_hash
+cards/token_limits.py       layer 0, card schema only: the standard and safe token limit of an eval and
+                            the bounds of a study's own (cards[].overrides.max_tokens); outside the
+                            card snapshot like endpoint_meta.py. TOKEN_LIMIT_MAX is repeated as
+                            MAX_TOKENS_CEILING in models/schema.py and a test compares the two
 cards/design_schema.py      layer 0, pydantic only: PlanDesign, HypothesisPlan, SampleSize, DecisionsTable
 cards/power.py              layer 0, stdlib + the two above: sample-size ratings
 cards/design.py             layer 0, cards only: eligible, recommend, recommend_k, project, plan_permutations,
@@ -138,15 +142,19 @@ package must be side-effect free (no network, no writes, no downloads).
 1. **The harness owns the sampling envelope.** `qr_*` keys come from
    `models/envelope.py` per arm; never forward client-supplied `qr_*` from the
    browser. All arms pin the same amplifier (`zscore_mean`, calibration 0,
-   prefetch off); arms differ only in `qr_entropy_source_type` / `qr_seed` /
-   `qr_population_mean`. The last one is set only on a biased (ε) control arm:
+   prefetch off) and the same draw size (`qr_sample_count`, 10,000 bytes per
+   token), so no process default of the engine decides either; arms differ
+   only in `qr_entropy_source_type` / `qr_seed` / `qr_population_mean` and
+   the conditioning keys. `qr_population_mean` is set only on a biased (ε) control arm:
    it lowers the amplifier's reference mean by ε standard errors, so every
    `u` becomes `Φ(z + ε)`. No arm that is compared as quantum against
    pseudo-random may carry it. The study's entropy conditioning
-   (`StudyConfig.conditioning`, `qr_conditioning_*`) is sent only on arms that
-   draw from the entropy server (`qrng`, `prng_resample`) and is omitted for
-   `raw`; the field is never serialized when absent, so older studies keep
-   their hash.
+   (`StudyConfig.conditioning`) reaches only the arm that draws from the
+   entropy server (`qrng`), as the four `qr_conditioning_*` keys of a hashed
+   study. Every other arm, and every arm of a raw study or of a study without
+   the block, sends `qr_conditioning_mode: "raw"`, so no process default of
+   the engine decides the mode either. The field is never serialized when
+   absent, so older studies keep their config hash.
 2. **Never label PRNG output as quantum.** Provenance `quantum=true` only for
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge
@@ -175,7 +183,7 @@ package must be side-effect free (no network, no writes, no downloads).
    | Generated | Source | Regenerate with |
    |---|---|---|
    | `docs/evals.md` | `evals/*.yaml` | `python scripts/gen_evals_doc.py` |
-   | `packages/contracts/src/generated/` (types, zod, `endpoint-meta.json`) and `packages/contracts/schema/` | pydantic schemas, `cards/endpoint_meta.py` | `python scripts/export_schemas.py` |
+   | `packages/contracts/src/generated/` (types, zod, `endpoint-meta.json`, `token-limits.json`) and `packages/contracts/schema/` | pydantic schemas, `cards/endpoint_meta.py`, `cards/token_limits.py`, the registry | `python scripts/export_schemas.py` |
    | `packages/contracts/fixtures/study1.designed.json`, `power.json`, `design.json` and `backend/tests/fixtures/prereg/golden_designed.md` | `cards/power.py`, `cards/design.py`, `cards/endpoint_meta.py`, `cards/result_checks.py` (the "Result checks" section of the designed pre-registration is printed from it), `prereg/render.py`, `docs/prereg-design-template.md.j2`, the registry | `python scripts/gen_design_fixtures.py` |
    | `apps/web/src/components/run/checks-fixture.json` (the stops and health summaries the web tests read) | `cards/result_checks.py`, `store/health.py`, `store/schema.py` | `python scripts/gen_checks_fixture.py` |
    | `packages/contracts/fixtures/study1.study.yaml`, `study1.designed.study.yaml` | `apps/web/src/lib/study-file.ts` and the two JSON fixtures | `cd apps/web && UPDATE_STUDY_FIXTURES=1 pnpm exec vitest run src/lib/study-file.test.ts` |
@@ -195,7 +203,11 @@ package must be side-effect free (no network, no writes, no downloads).
    `golden.md` or the two bundles, and never edit `docs/prereg-template.md.j2`,
    `studies/study1.yaml` or `packages/contracts/fixtures/study1.json`.
    Anything new for designed studies goes behind `config.design is not None`
-   or `plan.design is not None`.
+   or `plan.design is not None`. The one exception so far: the envelope
+   printed in a pre-registration gained `qr_sample_count` and
+   `qr_conditioning_mode` when the harness began to send the draw size and
+   the conditioning mode with every request, which moved the envelope lines
+   of `golden.md` and the six pre-registration hashes, and nothing else.
 10. **Never promise what the harness does not do.** No UI copy, document or
     pre-registration text may describe a feature that does not exist. Today
     that means pilot subsampling, pilot-derived margins, grouped per-prompt

@@ -28,7 +28,13 @@ describe("entropy conditioning", () => {
 
   it("names what the server would refuse", () => {
     expect(conditioningProblems(HASHED_DEFAULT)).toEqual([]);
-    expect(conditioningProblems({ ...HASHED_DEFAULT, keep_bytes: 17 }).map((problem) => problem.path)).toEqual(["conditioning.keep_bytes"]);
+    expect(conditioningProblems({ ...HASHED_DEFAULT, keep_bytes: 17 })).toEqual([{
+      message: "Serving more than half of each digest may compromise the integrity of the signal; keep at most 16 bytes of a SHA-256 digest.",
+      path: "conditioning.keep_bytes",
+    }]);
+    expect(conditioningProblems({ ...HASHED_DEFAULT, hash: "sha512", in_bytes: 128, keep_bytes: 33 })[0]?.message).toContain("keep at most 32 bytes of a SHA-512 digest");
+    expect(conditioningProblems({ ...HASHED_DEFAULT, keep_bytes: 16 })).toEqual([]);
+    expect(conditioningProblems({ ...HASHED_DEFAULT, keep_bytes: 0 }).map((problem) => problem.path)).toEqual(["conditioning.keep_bytes"]);
     expect(conditioningProblems({ ...HASHED_DEFAULT, in_bytes: 31 }).map((problem) => problem.path)).toEqual(["conditioning.in_bytes"]);
     expect(conditioningProblems({ ...HASHED_DEFAULT, hash: "sha512", keep_bytes: 32, in_bytes: 64 })).toEqual([]);
     // Raw ignores the parameters.

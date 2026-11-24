@@ -1,0 +1,194 @@
+{
+  "aime2026": {
+    "standard": 16000,
+    "safe": 64000,
+    "min": 12000,
+    "max": 64000
+  },
+  "altered_state_meq": {
+    "standard": 1500,
+    "safe": 6000,
+    "min": 1000,
+    "max": 64000
+  },
+  "creative_diversity": {
+    "standard": 700,
+    "safe": 2800,
+    "min": 350,
+    "max": 64000
+  },
+  "darkbench": {
+    "standard": 600,
+    "safe": 2400,
+    "min": 300,
+    "max": 64000
+  },
+  "deception_bench": {
+    "standard": 800,
+    "safe": 3200,
+    "min": 400,
+    "max": 64000
+  },
+  "deception_bench_beliefs": {
+    "standard": 800,
+    "safe": 3200,
+    "min": 300,
+    "max": 64000
+  },
+  "eval_awareness": {
+    "standard": 300,
+    "safe": 1200,
+    "min": 150,
+    "max": 64000
+  },
+  "gpqa_diamond": {
+    "standard": 8000,
+    "safe": 32000,
+    "min": 5000,
+    "max": 64000
+  },
+  "guesser_warmup": {
+    "standard": 32,
+    "safe": 256,
+    "min": 20,
+    "max": 64000
+  },
+  "guesser_warmup_replies": {
+    "standard": 800,
+    "safe": 3200,
+    "min": 400,
+    "max": 64000
+  },
+  "ifbench": {
+    "standard": 1000,
+    "safe": 4000,
+    "min": 500,
+    "max": 64000
+  },
+  "introspection_scales": {
+    "standard": 32,
+    "safe": 256,
+    "min": 10,
+    "max": 64000
+  },
+  "livecodebench": {
+    "standard": 10000,
+    "safe": 40000,
+    "min": 4000,
+    "max": 64000
+  },
+  "mask": {
+    "standard": 600,
+    "safe": 2400,
+    "min": 300,
+    "max": 64000
+  },
+  "mask_beliefs": {
+    "standard": 600,
+    "safe": 2400,
+    "min": 150,
+    "max": 64000
+  },
+  "moralchoice_consistency": {
+    "standard": 64,
+    "safe": 256,
+    "min": 30,
+    "max": 64000
+  },
+  "novelty_bench": {
+    "standard": 600,
+    "safe": 2400,
+    "min": 400,
+    "max": 64000
+  },
+  "opinion_quantum_sampling": {
+    "standard": 500,
+    "safe": 2000,
+    "min": 250,
+    "max": 64000
+  },
+  "psychobench": {
+    "standard": 16,
+    "safe": 256,
+    "min": 10,
+    "max": 64000
+  },
+  "sage_consistency": {
+    "standard": 300,
+    "safe": 1200,
+    "min": 150,
+    "max": 64000
+  },
+  "self_referential_probe": {
+    "standard": 800,
+    "safe": 3200,
+    "min": 400,
+    "max": 64000
+  },
+  "self_reported_coincidence": {
+    "standard": 300,
+    "safe": 1200,
+    "min": 150,
+    "max": 64000
+  },
+  "semantic_entropy_sqa": {
+    "standard": 128,
+    "safe": 512,
+    "min": 60,
+    "max": 64000
+  },
+  "sentience_statements": {
+    "standard": 8,
+    "safe": 256,
+    "min": 5,
+    "max": 64000
+  },
+  "source_guessing": {
+    "standard": 32,
+    "safe": 256,
+    "min": 20,
+    "max": 64000
+  },
+  "source_guessing_self_report": {
+    "standard": 32,
+    "safe": 256,
+    "min": 20,
+    "max": 64000
+  },
+  "strong_reject": {
+    "standard": 600,
+    "safe": 2400,
+    "min": 300,
+    "max": 64000
+  },
+  "sycophancy_ays": {
+    "standard": 500,
+    "safe": 2000,
+    "min": 200,
+    "max": 64000
+  },
+  "sycophancy_ays_answers": {
+    "standard": 300,
+    "safe": 1200,
+    "min": 100,
+    "max": 64000
+  },
+  "thurstonian_self_outcomes": {
+    "standard": 8,
+    "safe": 256,
+    "min": 5,
+    "max": 64000
+  },
+  "unpredictabench": {
+    "standard": 128,
+    "safe": 512,
+    "min": 50,
+    "max": 64000
+  },
+  "xstest": {
+    "standard": 400,
+    "safe": 1600,
+    "min": 200,
+    "max": 64000
+  }
+}

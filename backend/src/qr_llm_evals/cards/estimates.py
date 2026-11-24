@@ -22,6 +22,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from qr_llm_evals.cards.schema import TOLD_CELLS, EvalCard
+from qr_llm_evals.cards.token_limits import effective_max_tokens
 
 #: Documented defaults until the readiness probe measures the box (spec §6).
 DEFAULT_TPS_BY_MODEL: dict[str, float] = {"qr-llm": 400.0}
@@ -53,6 +54,7 @@ class CardOverrides(BaseModel):
 
     k: int | None = None
     items: int | None = None
+    max_tokens: int | None = None
 
 
 class CardEstimate(BaseModel):
@@ -84,10 +86,16 @@ class SelectionEstimate(BaseModel):
 
 
 def _effective(card: EvalCard, overrides: CardOverrides | None) -> tuple[int | None, int]:
-    """Resolve (k, items) after overrides, enforcing the card's bounds."""
+    """Resolve (k, items) after overrides, enforcing the card's bounds.
+
+    A token limit the study sets is checked here too, so that every caller
+    that sizes a card refuses one the card cannot run with. It does not enter
+    the estimate: that rests on the usual length of a reply, not on its limit.
+    """
     k = card.k
     items = card.dataset.items
     if overrides is not None:
+        effective_max_tokens(card, overrides.max_tokens)
         if overrides.k is not None:
             if card.k is None:
                 raise ValueError(f"{card.id}: k cannot be overridden on a card that has k=null")

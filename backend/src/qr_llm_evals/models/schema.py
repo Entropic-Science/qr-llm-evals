@@ -59,7 +59,7 @@ Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 ModelFamily = Literal["qr_llm", "external"]
 Provider = Literal["qr_server", "openai", "anthropic_compat", "custom"]
 Sampling = Literal["creative", "t1_minp", "greedy"]
-Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "prng_resample", "provider"]
+Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "provider"]
 ObserverMode = Literal["supervised", "unsupervised"]
 Availability = Literal["available", "unavailable"]
 Display = Literal["single", "tiled"]
@@ -74,19 +74,13 @@ Tier0Source = Literal["engine_log", "api_logprobs"]
 #: Provenance labels per source (spec §2.2). ``quantum`` is the only label that
 #: may ever carry ``quantum=true`` (AGENTS.md invariant 2).
 SourceLabel = Literal[
-    "quantum",
-    "seeded_prng",
-    "system_prng",
-    "seeded_prng_biased",
-    "resampled_prng",
-    "provider_prng",
+    "quantum", "seeded_prng", "system_prng", "seeded_prng_biased", "provider_prng"
 ]
 SOURCE_LABELS: dict[str, str] = {
     "qrng": "quantum",
     "prng_seeded": "seeded_prng",
     "prng_system": "system_prng",
     "prng_epsilon": "seeded_prng_biased",
-    "prng_resample": "resampled_prng",
     "provider": "provider_prng",
 }
 
@@ -105,7 +99,7 @@ CONDITIONING_DIGEST_BYTES: dict[str, int] = {
 #: ``conditioning.max_in_bytes`` on the box).
 CONDITIONING_MAX_IN_BYTES = 4096
 #: Sources whose bytes come from the entropy server, so conditioning applies.
-CONDITIONED_SOURCES: frozenset[str] = frozenset({"qrng", "prng_resample"})
+CONDITIONED_SOURCES: frozenset[str] = frozenset({"qrng"})
 
 #: Study 1 seeds (PRD §7.1); each seed runs the full suite.
 DEFAULT_SEEDS: tuple[int, ...] = (1, 7, 42)
@@ -119,6 +113,10 @@ SEED_MAX_EXCLUSIVE = 2**63
 SEEDED_SOURCES: frozenset[str] = frozenset({"prng_seeded", "prng_epsilon"})
 #: Significance levels a designed study may register.
 ALPHA_LEVELS: tuple[float, ...] = (0.05, 0.01, 0.005)
+#: The most a study may set as an eval's token limit. ``cards/token_limits.py``
+#: owns the number (``TOKEN_LIMIT_MAX``); it is repeated here because layer 0
+#: modules do not import each other, and ``test_token_limits.py`` compares them.
+MAX_TOKENS_CEILING = 64_000
 
 
 def _on_grid(value: float, levels: tuple[float, ...]) -> bool:
@@ -238,31 +236,23 @@ class Conditioning(_Strict):
         half = CONDITIONING_DIGEST_BYTES[self.hash] // 2
         if self.keep_bytes > half:
             raise ValueError(
-                f"conditioning.keep_bytes must be at most {half} for {self.hash} "
-                f"(at least half of every digest is discarded), got {self.keep_bytes}"
+                "Serving more than half of each digest may compromise the integrity of the "
+                f"signal; keep at most {half} bytes of a {self.hash} digest "
+                f"(conditioning.keep_bytes is {self.keep_bytes})."
             )
         if self.in_bytes < 2 * self.keep_bytes:
             raise ValueError(
-                f"conditioning.in_bytes must be at least 2 * keep_bytes "
-                f"({2 * self.keep_bytes}), got {self.in_bytes}"
+                "Every hashed block must hold at least twice the bytes kept from it; "
+                f"conditioning.in_bytes must be at least {2 * self.keep_bytes}, "
+                f"got {self.in_bytes}."
             )
         return self
 
     def read_ratio(self) -> str:
-        """Raw device bytes read per byte served, as text (``8``, ``2.5``; ``1`` for raw).
-
-        A ratio and not a count per token: how many bytes a token draws is the
-        engine's ``sample_count``, which a deployment sets.
-        """
+        """Raw device bytes read per byte served, as text (``8``, ``2.5``; ``1`` for raw)."""
         if self.mode == "raw":
             return "1"
         return f"{self.in_bytes / self.keep_bytes:g}"
-
-    def raw_bytes_per_token(self, sample_count: int) -> int:
-        """Raw device bytes read to serve one token's ``sample_count`` bytes."""
-        if self.mode == "raw":
-            return sample_count
-        return -(-sample_count // self.keep_bytes) * self.in_bytes
 
 
 class CardOverrides(_Strict):
@@ -270,6 +260,23 @@ class CardOverrides(_Strict):
 
     k: int | None = Field(default=None, ge=1)
     items: int | None = Field(default=None, ge=1)
+    max_tokens: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_TOKENS_CEILING,
+        description=(
+            "Token limit of one reply of this eval; absent means the card's own max_tokens. "
+            "Never serialized as null, so a study that sets none keeps its bytes."
+        ),
+    )
+
+    # No return annotation, for the reason given at ``StudyConfig._omit_absent_design``.
+    @model_serializer(mode="wrap")
+    def _omit_absent_max_tokens(self, handler: SerializerFunctionWrapHandler):  # type: ignore[no-untyped-def]
+        data = handler(self)
+        if data.get("max_tokens") is None:
+            data.pop("max_tokens", None)
+        return data
 
 
 class CardSelection(_Strict):
@@ -648,6 +655,7 @@ __all__ = [
     "DEFAULT_SEEDS",
     "DRAFT_PROBLEMS",
     "EPSILON_LEVELS",
+    "MAX_TOKENS_CEILING",
     "SEED_MAX_EXCLUSIVE",
     "SEEDED_SOURCES",
     "SOURCE_LABELS",

@@ -51,7 +51,7 @@ from qr_llm_evals.runner.control import RunControl
 from qr_llm_evals.runner.events import EventSink
 from qr_llm_evals.runner.judge_phase import NeedsKeysError, judge_client
 from qr_llm_evals.runner.orchestrator import Orchestrator, RunnerConfig
-from qr_llm_evals.runner.tasks import effective_k
+from qr_llm_evals.runner.tasks import effective_k, effective_limit
 from qr_llm_evals.store.schema import Run
 from qr_llm_evals.store.store import RunStore, Store
 from qr_llm_evals.supervised.session import SessionRegistry
@@ -106,6 +106,7 @@ def default_orchestrator_factory(
         effective = card.model_copy(
             update={
                 "k": k,
+                "max_tokens": effective_limit(card, overrides),
                 "task_args": {**card.task_args, "num_generations": k},
                 "dataset": card.dataset.model_copy(update={"items": n}),
             }

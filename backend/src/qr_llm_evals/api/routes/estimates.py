@@ -51,7 +51,9 @@ def _assumptions(state: AppState, config: StudyConfig) -> EstimateAssumptions:
 def estimate_study(state: AppState, config: StudyConfig) -> EstimatesResponse:
     cards = _selected_cards(state, config)
     overrides = {
-        sel.card_id: CardOverrides(k=sel.overrides.k, items=sel.overrides.items)
+        sel.card_id: CardOverrides(
+            k=sel.overrides.k, items=sel.overrides.items, max_tokens=sel.overrides.max_tokens
+        )
         for sel in config.cards
     }
     assumptions = _assumptions(state, config)

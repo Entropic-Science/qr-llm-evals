@@ -64,6 +64,7 @@ export interface Contracts {
   SettleRequest: SettleRequest;
   StorageResponse: StorageResponse;
   EndpointMeta: EndpointMeta;
+  TokenLimit: TokenLimit;
   CardItemsResponse: CardItemsResponse;
   DecisionsTable: DecisionsTable;
   ResultFlag: ResultFlag;
@@ -149,7 +150,7 @@ export interface Arm {
    */
   model: string;
   sampling: "creative" | "t1_minp" | "greedy";
-  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "prng_resample" | "provider";
+  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "provider";
   /**
    * Required for prng_seeded / prng_epsilon; per-request qr_seed is derived from it.
    */
@@ -183,6 +184,10 @@ export interface CardSelection {
 export interface CardOverrides {
   k?: number | null;
   items?: number | null;
+  /**
+   * Token limit of one reply of this eval; absent means the card's own max_tokens. Never serialized as null, so a study that sets none keeps its bytes.
+   */
+  max_tokens?: number | null;
 }
 /**
  * What the study claims and tests, declared by the researcher before launch.
@@ -796,13 +801,7 @@ export interface Provenance {
    */
   preset?: string | null;
   envelope_hash: string;
-  source_label:
-    | "quantum"
-    | "seeded_prng"
-    | "system_prng"
-    | "seeded_prng_biased"
-    | "resampled_prng"
-    | "provider_prng";
+  source_label: "quantum" | "seeded_prng" | "system_prng" | "seeded_prng_biased" | "provider_prng";
   quantum: boolean;
   study_seed?: number | null;
   qr_seed?: number | null;
@@ -1028,6 +1027,10 @@ export interface EngineStatus {
 export interface CardView {
   card: EvalCard;
   estimate?: CardEstimateSummary | null;
+  /**
+   * What a study may set as this eval's token limit (cards[].overrides.max_tokens): the standard, the recommended safe value and the bounds. Null for an eval that generates nothing.
+   */
+  token_limit?: TokenLimit | null;
 }
 /**
  * A card's cost on the default qr-llm target at catalogue throughput.
@@ -1041,6 +1044,30 @@ export interface CardEstimateSummary {
   time_unsupervised_h: number;
   observer_hours_single: number;
   observer_hours_tiled: number;
+}
+/**
+ * What a study may set as the token limit of one generating eval.
+ *
+ * This interface was referenced by `Contracts`'s JSON-Schema
+ * via the `definition` "TokenLimit".
+ */
+export interface TokenLimit {
+  /**
+   * The card's own max_tokens: the limit of a study that sets none.
+   */
+  standard: number;
+  /**
+   * The recommended generous limit: 4 times the standard, at least 256 and at most 64000. A rule, not a measured bound.
+   */
+  safe: number;
+  /**
+   * The lowest limit a study may set: the usual length of a reply.
+   */
+  min: number;
+  /**
+   * The highest limit a study may set.
+   */
+  max: number;
 }
 /**
  * This interface was referenced by `Contracts`'s JSON-Schema

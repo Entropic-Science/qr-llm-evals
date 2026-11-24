@@ -9,14 +9,16 @@
  * - `zod.ts`    — `<Name>Schema` zod validators built from `schema/<Name>.json`.
  * - `cards.json` — the eval registry (`evals/*.yaml`) as the SPA consumes it.
  * - `endpoint-meta.json` — what each headline endpoint is (`cards/endpoint_meta.py`).
+ * - `token-limits.json` — the token limits a study may set per eval (`cards/token_limits.py`).
  */
 
 import { z } from "zod";
 
 import cardsJson from "./generated/cards.json";
 import endpointMetaJson from "./generated/endpoint-meta.json";
-import type { EndpointMeta, EvalCard } from "./generated/types";
-import { EndpointMetaSchema, EvalCardSchema } from "./generated/zod";
+import tokenLimitsJson from "./generated/token-limits.json";
+import type { EndpointMeta, EvalCard, TokenLimit } from "./generated/types";
+import { EndpointMetaSchema, EvalCardSchema, TokenLimitSchema } from "./generated/zod";
 
 export const CONTRACTS_VERSION = "0.1.0";
 
@@ -43,3 +45,12 @@ export function cardById(id: string): EvalCard | undefined {
 export const endpointMeta: Readonly<Record<string, EndpointMeta>> = z
   .record(z.string(), EndpointMetaSchema)
   .parse(endpointMetaJson);
+
+/**
+ * The token limits a study may set for each generating eval, keyed by card id:
+ * the standard (the card's own), the recommended safe value and the bounds.
+ * An eval that generates nothing has no entry.
+ */
+export const tokenLimits: Readonly<Record<string, TokenLimit>> = z
+  .record(z.string(), TokenLimitSchema)
+  .parse(tokenLimitsJson);

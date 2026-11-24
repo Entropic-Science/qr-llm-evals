@@ -7,6 +7,7 @@ Pipeline (one command, deterministic bytes)::
                     ──► packages/contracts/schema/_bundle.json      (all contracts, shared $defs)
     evals/*.yaml    ──► packages/contracts/src/generated/cards.json (the registry, for the SPA)
     ENDPOINT_META   ──► packages/contracts/src/generated/endpoint-meta.json (keys ``card/endpoint``)
+    token limits    ──► packages/contracts/src/generated/token-limits.json  (keys card id)
     _bundle.json    ──► packages/contracts/src/generated/types.ts   (json-schema-to-typescript)
     <Model>.json    ──► packages/contracts/src/generated/zod.ts     (z.fromJSONSchema wrappers)
 
@@ -84,6 +85,7 @@ from qr_llm_evals.api.schema import (
 from qr_llm_evals.cards import EvalCard, SelectionEstimate, load_cards
 from qr_llm_evals.cards.design_schema import DecisionsTable
 from qr_llm_evals.cards.endpoint_meta import EndpointMeta, endpoint_meta_export
+from qr_llm_evals.cards.token_limits import TokenLimit, token_limits_export
 from qr_llm_evals.models.schema import StudyConfig
 from qr_llm_evals.store.health import HealthSummary
 from qr_llm_evals.store.schema import (
@@ -106,6 +108,7 @@ GENERATOR = CONTRACTS_DIR / "scripts" / "generate.ts"
 BUNDLE_NAME = "_bundle.json"
 CARDS_NAME = "cards.json"
 ENDPOINT_META_NAME = "endpoint-meta.json"
+TOKEN_LIMITS_NAME = "token-limits.json"
 JSON_SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 #: The contracts, in the order they appear in ``_bundle.json`` / ``types.ts`` / ``zod.ts``.
@@ -170,6 +173,7 @@ EXPORTS: tuple[type[BaseModel], ...] = (
     StorageResponse,
     # designed studies
     EndpointMeta,
+    TokenLimit,
     CardItemsResponse,
     DecisionsTable,
     # result checks
@@ -237,6 +241,7 @@ def render_python_outputs() -> dict[Path, str]:
     out[Path(SCHEMA_SUBDIR) / BUNDLE_NAME] = _dump(bundle_schema())
     out[GENERATED_SUBDIR / CARDS_NAME] = _dump(cards_export())
     out[GENERATED_SUBDIR / ENDPOINT_META_NAME] = _dump(endpoint_meta_export())
+    out[GENERATED_SUBDIR / TOKEN_LIMITS_NAME] = _dump(token_limits_export(load_cards()))
     return out
 
 

@@ -6,6 +6,70 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- A study frozen with a setting that was removed since (an arm with the
+  source `prng_resample`, which existed for a day) still opens: its page, its
+  runs, their health summaries, its pre-registration, its bundle and its
+  analysis pages are served from the stored files, and the arm ledger lists
+  its rows under the label they were stored with (`resampled_prng`). What
+  needs the validated study (resume, analyse, a new session) answers `409`
+  and names the field, where it answered `500` before. Nothing of such a
+  study is changed or removed. A draft in the browser with such an arm is
+  set aside and replaced by the template, as any draft the page cannot read.
+- A resumed run says in the server log when an arm's envelope is not the one
+  the run's readiness check recorded, and names the keys. That is the case of
+  a run started before the harness sent the draw size and the conditioning
+  mode and resumed after. The run is not stopped; the `envelope_hash` of each
+  generation tells its two parts apart.
+- Every envelope states its conditioning mode. The quantum arm of a hashed
+  study sends the four `qr_conditioning_*` keys as before; every other arm
+  that samples through the amplifier (a seeded, system or biased arm, and
+  every arm of a raw study or of a study without a conditioning block) now
+  sends `qr_conditioning_mode: "raw"`. Before, those arms sent no conditioning
+  key and took the engine's default mode, so an engine started with a hashed
+  default would have hashed the bytes of a raw study and refused the
+  pseudo-random arms. Every study now needs a qr-sampler that knows the key.
+  Like the draw size below, the key changes every envelope, every envelope
+  hash and the envelope lines of every pre-registration, also for a study
+  without a design block: the six pinned legacy pre-registration hashes and
+  the envelope lines of `golden.md` moved for these two keys and for nothing
+  else, and no config, plan or cards hash moved.
+- The harness states how many entropy bytes a token draws. Every envelope of
+  an arm that samples through the amplifier now carries
+  `qr_sample_count: 10000` with the amplifier pins, so no process default of
+  the engine decides it; a card still cannot set the key. Before, the key was
+  not sent, and the engine on the box drew 6,000 bytes per token while
+  `SAMPLE_COUNT` and the bend of a biased arm (`bent_population_mean`) assumed
+  10,000. Every envelope, every envelope hash and the envelope lines of every
+  pre-registration change with the key, also for a study without a design
+  block: the pre-registration hashes pinned in
+  `backend/tests/test_legacy_bytes.py` and the envelope lines of
+  `backend/tests/fixtures/prereg/golden.md` were updated for this key and the one above,
+  and no config, plan or cards hash moved. Nothing renders a stored study
+  again or derives a stored envelope hash again to compare it, so a study
+  registered before this release keeps its document and its hash, and loads,
+  relaunches, analyses and reports as before. Its frozen document shows the
+  envelope without the key; a run made or resumed after this release sends
+  the key, and the `envelope_hash` of each generation records which envelope
+  that generation was sent with.
+- A study can set the token limit of an eval. `cards[].overrides.max_tokens`
+  replaces the card's own `max_tokens` for every request of that eval, in
+  every arm, on the thin runner and through Inspect. The value must lie
+  between the card's `est_tokens_per_sample` and 64,000; the plan, the
+  estimate, the pre-registration and the runner refuse one outside that or
+  on an eval that generates nothing. A study that sets no limit is not
+  changed: the key is not written, so its hashes stay what they were.
+- Each generating eval has two recommended limits: **standard** (the card's
+  own) and **safe** (four times that, at least 256, at most 64,000).
+  `GET /cards` returns them as `token_limit`, and the Measure step and
+  "All settings" have a "Token limits" table with both presets, "Set all to
+  safe" and the most an arm can generate at the chosen limit. The eval's
+  box on the study map has the same field. The safe limit is a rule, not a
+  measured bound, and a reply that reaches any limit is still flagged as
+  cut.
+- Both pre-registration templates print the limit in force for each eval,
+  and the designed one adds "set by this study; the card has N" where the
+  study set its own. The designed template's hash changed with that line.
+- An eval card may not ask for more than 64,000 tokens.
 - A study chooses how the bytes of the entropy server are conditioned
   (`StudyConfig.conditioning`, the "Entropy conditioning" panel of the Compare
   step and of the settings page). `hash_truncate`, the default of a new study,
@@ -13,17 +77,18 @@ All notable changes to this project are documented here. The format follows
   digest, so the quantum arm samples from uniform bytes whatever the device's
   own byte distribution is; the hash, the block size and the bytes kept per
   digest are settings (SHA-256, 128 and 16 by default, which reads 8 raw
-  bytes for every byte served). `raw` serves the measured bytes. The four
+  bytes for every byte served). `raw` serves the measured bytes; the panel and
+  the pre-registration then say that the quantum arm differs from the
+  pseudo-random arms by the device's byte statistics as well as by the source,
+  and that the harness has no matched control for that. Hashing always
+  discards at least half of every digest: a study that keeps more is refused
+  by the server and named in the panel before it is submitted, because
+  serving more than half of a digest may compromise the integrity of the
+  signal. The four
   `qr_conditioning_*` keys ride only the arms that draw from the entropy
-  server; a card cannot set them, and they count as entropy keys in the
+  server (every other arm says `raw`); a card cannot set them, and they count as entropy keys in the
   equivalence check. The field is left out of a study that does not carry it,
   so every study from before it keeps its bytes, its hash and its raw run.
-- New arm source `prng_resample` ("Resampled device pool", provenance label
-  `resampled_prng`): a seeded pseudo-random replay of windows of a recording of
-  the quantum device, served by the entropy server. It is the matched control
-  for a raw study, because it has the device's own byte statistics. It is never
-  labelled quantum. The designed analysis does not use it yet: such an arm is
-  run and reported, and no registered hypothesis compares against it.
 - The designed pre-registration states the study's conditioning under "Arms
   and equivalence". The legacy template is frozen; a legacy document shows the
   conditioning in its illustrative envelopes.

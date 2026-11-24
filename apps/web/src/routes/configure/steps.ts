@@ -3,7 +3,7 @@ import type { JSX } from "react";
 import { comparisonPanel, conditioningPanel } from "../../components/study/panels/arms";
 import { alphaPanel, claimPanel, expectationsPanel, marginsPanel, outcomesPanel, positiveControlPanel } from "../../components/study/panels/design";
 import { judgePanel } from "../../components/study/panels/judge";
-import { evalsPanel, promptsPanel } from "../../components/study/panels/measures";
+import { evalsPanel, promptsPanel, tokenLimitsPanel } from "../../components/study/panels/measures";
 import { peoplePanel } from "../../components/study/panels/study";
 import { sessionsPanel } from "../../components/study/panels/supervised";
 import type { WizardStudyConfig } from "../../lib/config-store";
@@ -61,7 +61,7 @@ export const STEPS: readonly StepDef[] = [
     label: "Measure",
     heading: "What is measured",
     intro: "Choose the evals that run in every arm, and how many prompts and repetitions each one gets. The token-level measures always run.",
-    panels: () => [evalsPanel, promptsPanel],
+    panels: () => [evalsPanel, promptsPanel, tokenLimitsPanel],
     shown: always,
     problems: (all) => problemsFor("measure", all),
     Component: Measure,

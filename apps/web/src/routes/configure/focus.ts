@@ -1,5 +1,6 @@
 import { panelId } from "../../components/study/panels/Panel";
 import { panelFor } from "../../lib/panels";
+import { TOKEN_LIMIT_PATH } from "../../lib/token-limits";
 
 // Finding the field of a setting on the page and putting the focus on it, for a link from a problem, a chip
 // or (later) a map node. Fields are found by the `data-path` every field carries, not by element id: an id is
@@ -8,14 +9,19 @@ import { panelFor } from "../../lib/panels";
 /** What can be typed into or chosen from, and failing that what can be pressed. A field's own control comes before its chip. */
 const EDITABLE = "input:not([disabled]):not([type='hidden']), select:not([disabled]), textarea:not([disabled])";
 const FOCUSABLE = `${EDITABLE}, button:not([disabled]), a[href], [tabindex]`;
-const CARD_SETTING = /^cards\.([^.]+)\.(k|items)$/;
+const CARD_SETTING = /^cards\.([^.]+)\.(k|items|max_tokens)$/;
 
-/** The `data-path` of the field that edits the setting a `Rec` path names. Study key paths pass through. */
+/**
+ * The `data-path` of the field that edits the setting a `Rec` path names: the prompts table for an eval's
+ * prompts and repetitions, the token limits table for its token limit. Study key paths pass through.
+ */
 function fieldPath(path: string): string {
-  return CARD_SETTING.test(path) ? "cards[].overrides" : path;
+  const setting = CARD_SETTING.exec(path)?.[2];
+  if (setting === undefined) return path;
+  return setting === "max_tokens" ? TOKEN_LIMIT_PATH : "cards[].overrides";
 }
 
-/** The row of one eval in the prompts table, which names each eval by its id in a `<code>`. */
+/** The row of one eval in the prompts table or the token limits table, which name each eval by its id in a `<code>`. */
 function cardRow(field: HTMLElement, path: string): HTMLElement | null {
   const cardId = CARD_SETTING.exec(path)?.[1];
   if (cardId === undefined) return null;

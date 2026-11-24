@@ -30,6 +30,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from qr_llm_evals.cards.loader import REPO_ROOT
 from qr_llm_evals.cards.schema import EvalCard
+from qr_llm_evals.cards.token_limits import effective_max_tokens
 from qr_llm_evals.models.schema import CardOverrides
 from qr_llm_evals.store.schema import ToldCondition
 
@@ -219,6 +220,14 @@ def message_problems(messages: Any) -> list[str]:
 # ── item selection ───────────────────────────────────────────────────────────
 
 
+def effective_limit(card: EvalCard, overrides: CardOverrides | None = None) -> int:
+    """The ``max_tokens`` of one request after the study's override, within the card's bounds."""
+    try:
+        return effective_max_tokens(card, overrides.max_tokens if overrides is not None else None)
+    except ValueError as exc:
+        raise TaskModuleError(f"card {card.id!r}: {exc}") from exc
+
+
 def effective_k(card: EvalCard, overrides: CardOverrides | None = None) -> int:
     """Samples per prompt after the study's override, clamped to ``k_bounds``."""
     k = card.k if card.k is not None else 1
@@ -334,6 +343,7 @@ __all__ = [
     "Told",
     "default_judge_prompt",
     "effective_k",
+    "effective_limit",
     "item_problems",
     "load_shared",
     "load_task_module",

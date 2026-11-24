@@ -23,6 +23,7 @@ from qr_llm_evals.cards.design_schema import StudyVerdict
 from qr_llm_evals.cards.endpoint_meta import ENDPOINT_META
 from qr_llm_evals.cards.loader import REPO_ROOT
 from qr_llm_evals.config import load_settings
+from qr_llm_evals.models.envelope import SAMPLE_COUNT
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.prereg import Renderer, load_renderer, prereg_hash, render
 from qr_llm_evals.prereg.render import _design_text
@@ -127,13 +128,18 @@ def test_a_legacy_document_shows_conditioning_in_its_envelopes_only() -> None:
         cards=load_cards(FIXTURES / "registry/evals"), repo_root=FIXTURES / "registry"
     )
     legacy = renderer.render(config)
-    assert "qr_conditioning" not in legacy
+    sampling = sum(a.source != "provider" and a.sampling != "greedy" for a in config.arms)
+    said_raw = '"qr_conditioning_mode":"raw"'
+    assert legacy.count(said_raw) == sampling > 0
+    assert "hash_truncate" not in legacy and "qr_conditioning_hash" not in legacy
     data = config.model_dump(mode="json")
     hashed = renderer.render(StudyConfig.model_validate({**data, "conditioning": {}}))
     quantum = sum(a.source == "qrng" for a in config.arms)
     assert hashed.count('"qr_conditioning_mode":"hash_truncate"') == quantum > 0
+    assert hashed.count(said_raw) == sampling - quantum
     raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
-    assert "qr_conditioning" not in raw
+    assert raw.count(said_raw) == sampling
+    assert "qr_conditioning_hash" not in raw
     assert len({prereg_hash(doc) for doc in (legacy, hashed, raw)}) == 3
 
 
@@ -927,6 +933,14 @@ def test_designed_document_says_when_a_hypothesis_plans_no_data() -> None:
     assert "plans no data" not in render(designed())
 
 
+def test_a_designed_document_states_the_draw_size_the_envelopes_send() -> None:
+    document = render(designed())
+    arms = _section(document, "Arms and equivalence")
+    assert f"draw size (`{SAMPLE_COUNT}` entropy bytes per token)" in arms
+    sampling = sum(a.source != "provider" and a.sampling != "greedy" for a in designed().arms)
+    assert document.count(f'"qr_sample_count":{SAMPLE_COUNT}') == sampling > 0
+
+
 def test_a_designed_document_states_the_conditioning_the_study_carries() -> None:
     renderer = load_renderer()
     data = designed_data()
@@ -942,4 +956,5 @@ def test_a_designed_document_states_the_conditioning_the_study_carries() -> None
 
     raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))
     assert "Entropy conditioning: raw." in _section(raw, "Arms and equivalence")
-    assert "qr_conditioning" not in raw
+    assert '"qr_conditioning_mode":"raw"' in raw
+    assert "qr_conditioning_hash" not in raw and '"qr_conditioning_mode":"hash_truncate"' not in raw

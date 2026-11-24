@@ -18,10 +18,7 @@ export const MODE_LABELS: Readonly<Record<ConditioningMode, string>> = {
 };
 /** The largest raw block one digest is computed over. */
 export const MAX_IN_BYTES = 4096;
-/**
- * Bytes the amplifier draws per token when the engine runs the sampler's own default. The harness does not
- * send the draw size, so a deployment may run another; what holds everywhere is `readRatio`.
- */
+/** Bytes the amplifier draws per token: `SAMPLE_COUNT` in `models/envelope.py`, which the harness sends with every request. */
 export const BYTES_PER_TOKEN = 10_000;
 
 /** What a new study starts with. */
@@ -52,11 +49,13 @@ export function conditioningProblems(conditioning: Conditioning | null | undefin
   if (mode === "raw") return [];
   const out: { message: string; path: string }[] = [];
   const half = (DIGEST_BYTES[hash] ?? 32) / 2;
-  if (!Number.isInteger(keep_bytes) || keep_bytes < 1 || keep_bytes > half) {
+  if (keep_bytes > half) {
     out.push({
-      message: `Hashed entropy keeps ${keep_bytes} bytes of each ${HASH_LABELS[hash] ?? hash} digest. It may keep 1 to ${half}: at least half of every digest is discarded.`,
+      message: `Serving more than half of each digest may compromise the integrity of the signal; keep at most ${half} bytes of a ${HASH_LABELS[hash] ?? hash} digest.`,
       path: "conditioning.keep_bytes",
     });
+  } else if (!Number.isInteger(keep_bytes) || keep_bytes < 1) {
+    out.push({ message: "Hashed entropy keeps at least 1 whole byte of each digest.", path: "conditioning.keep_bytes" });
   }
   if (!Number.isInteger(in_bytes) || in_bytes < 2 * keep_bytes || in_bytes > MAX_IN_BYTES) {
     out.push({

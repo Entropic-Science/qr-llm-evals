@@ -7,6 +7,13 @@ hash differs no longer loads. These vectors were computed on ``main`` before
 the design block existed. If one fails, the change under test is wrong: do not
 recompute the pin.
 
+The six ``prereg_hash`` pins are the one exception, and were recomputed once:
+the pre-registration prints each arm's envelope, and the envelope gained
+``qr_sample_count`` and ``qr_conditioning_mode`` when the harness began to send
+the draw size and the conditioning mode with every request. The config,
+plan and cards hashes did not move, and a study registered before that keeps
+the document and the hash it was registered with.
+
 ``bundle_mini`` pins the tables of three endpoints. ``bundle_wide`` is a second
 legacy run that reaches the rest of what a legacy analysis computes: the MMD
 permutation test, the paired permutation and paired binomial tests, the
@@ -43,14 +50,14 @@ STUDY1_FIXTURE = {
     "config_hash": "2d17abd8a998e06ffa95c3bba98d248a8b49f2cd886e03a270cdb55ee5d9c4e7",
     "plan_hash": "78e2a5f28d408adbdf9db5a1cf3ce0b22400d81e3dae77d497da1008d83a9882",
     "cards_hash": "85b017938c945b18f037dbfc25857fbc882b17c4387404db0be4ae1edbe947e3",
-    "prereg_hash": "2fd7b1770a75b5016184c5f53aaae5da36c1e1c8aa1e423272d2954d86c209a1",
+    "prereg_hash": "77c3de2afa0d9a4df168e6f5803ea0d4559210e7771a766b6f07dca27604f2be",
 }
 #: ``studies/study1.yaml`` (the operator's Study 1 file; it carries the ε arms).
 STUDY1_YAML = {
     "config_hash": "186751d3585d6fe4798bd1bca529e343fb84f92454c237ee418ed31982608178",
     "plan_hash": "c16c6e9ecf0aaa5cbb3d7be3bd7b3720e115dac2a75923ea82e4c45dfc27237a",
     "cards_hash": "85b017938c945b18f037dbfc25857fbc882b17c4387404db0be4ae1edbe947e3",
-    "prereg_hash": "2c5c05e69e3f22bb6e8c209b9c72e7a529aa51f3ec1c7dadfbdcac3a9f481502",
+    "prereg_hash": "14911dc7549cebd6ebf65ac3379eed894dea872ccd85ae8bdf0bc5dbcd392572",
 }
 #: ``studies/thesis_prompt_or_physics/study.yaml``, rendered without readiness
 #: as ``test_thesis_study.py`` renders it.
@@ -58,7 +65,7 @@ THESIS = {
     "config_hash": "54a89d70b3db8c4ec3a6f118f91e894d6e195d4a4f91f185762f0e1a4be82724",
     "plan_hash": "3d3ca5273b63e8900ed09aba5f9786618cc4b82a323c9b71c4468570146b789e",
     "cards_hash": "8d4fbae09028d24bc1940d4c296335e4097fdf1d0ff41100c547a7b4ba47094f",
-    "prereg_hash": "389c1ad97a3eec8535b8c44187fabd3f8906923f7baa9fd01f55aebae68b43a0",
+    "prereg_hash": "a719f0df2ec2bafb638a874a2f4717fa5a19aa21dc9a42687412376e24cd88be",
 }
 BUNDLE_MINI_PLAN_HASH = "c93ab9c741ab01fb6cf17c1ed3aca03bf28fa02f1267b28126559f65d36d12ae"
 BUNDLE_MINI_ANALYSIS_ID = "a_c93ab9c741ab01fb"
@@ -110,11 +117,11 @@ READINESS = {
 #: Hash of the pre-registration of each legacy study rendered with ``READINESS``.
 PREREG_WITH_READINESS = {
     "packages/contracts/fixtures/study1.json": (
-        "d9e9a3ef335232e7618eae4135648e963956b3080be25b21035108ac17178bba"
+        "aedc26ac1b1b6c628dcac11d6a5dc17843e5509dca5e75ff375ec3f6497c3aef"
     ),
-    "studies/study1.yaml": "b920226081570bf5a3c472099bdb290a1484db703fbcd04cd8bf59114fef8082",
+    "studies/study1.yaml": "64c8ea6726ec8c5f81936950a9d7744452de5988807bf21790ce69b6345b906b",
     "studies/thesis_prompt_or_physics/study.yaml": (
-        "92a97c483497c03cb371b54e8b685816d284e8f56036cc4f85a4144f69cab9f0"
+        "926d55ae9e589ebdf2c80709471bc4d6c34f1ea45225c77c9b6793f8a0d28a28"
     ),
 }
 #: sha256 of ``README.md`` of the Study 1 fixture frozen with the prereg text below.

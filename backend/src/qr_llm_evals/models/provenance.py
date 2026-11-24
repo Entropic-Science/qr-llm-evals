@@ -25,7 +25,6 @@ LABEL_TEXT: dict[SourceLabel, str] = {
     "seeded_prng": "seeded PRNG — not quantum",
     "system_prng": "system PRNG (os.urandom) — not quantum",
     "seeded_prng_biased": "seeded PRNG with bias ε — not quantum",
-    "resampled_prng": "seeded PRNG replaying windows of a recorded device pool — not quantum",
     "provider_prng": "external provider's own PRNG — not quantum",
 }
 

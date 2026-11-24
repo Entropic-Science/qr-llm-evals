@@ -43,6 +43,7 @@ from qr_llm_evals.cards.estimates import CardOverrides, EstimateAssumptions, est
 from qr_llm_evals.cards.loader import REPO_ROOT, load_cards
 from qr_llm_evals.cards.schema import EvalCard
 from qr_llm_evals.cards.statistical_plan import Contrast, StatisticalPlan
+from qr_llm_evals.cards.token_limits import effective_max_tokens
 from qr_llm_evals.models.envelope import SampleContext, build_envelope
 from qr_llm_evals.models.schema import StudyConfig, canonical_json, config_hash
 from qr_llm_evals.prereg.hashes import normalize_lf, prereg_hash
@@ -652,7 +653,10 @@ class Renderer:
                 )
         selected = [self.cards[s.card_id] for s in config.cards]
         overrides = {
-            s.card_id: CardOverrides(k=s.overrides.k, items=s.overrides.items) for s in config.cards
+            s.card_id: CardOverrides(
+                k=s.overrides.k, items=s.overrides.items, max_tokens=s.overrides.max_tokens
+            )
+            for s in config.cards
         }
         assumptions = EstimateAssumptions.model_validate(config.estimates.model_dump())
         card_rows = []
@@ -682,9 +686,18 @@ class Renderer:
                 endpoint_rows.append(
                     f"{endpoint}: {'available under supplied readiness' if available else 'unavailable'}"
                 )
+            # A study's own token limit is printed in place of the card's, by
+            # both templates; the designed one also says whose limit it is.
+            limit = effective_max_tokens(card, ov.max_tokens)
+            shown = (
+                card if limit == card.max_tokens else card.model_copy(update={"max_tokens": limit})
+            )
             card_rows.append(
                 {
-                    "card": card,
+                    "card": shown,
+                    "max_tokens_note": ""
+                    if limit == card.max_tokens
+                    else f" (set by this study; the card has {card.max_tokens})",
                     "k": ov.k if ov.k is not None else card.k,
                     "items": ov.items if ov.items is not None else card.dataset.items,
                     "revision": revision

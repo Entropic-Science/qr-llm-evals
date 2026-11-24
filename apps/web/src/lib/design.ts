@@ -3,6 +3,7 @@ import {
   type HypothesisPlan, type StudyConfig, type StudyDesign,
 } from "@qr-evals/contracts";
 import { MARGIN_CAP_FRACTION, MARGIN_FLOOR_FRACTION, PRECISION, mdeStandardized, rate, sdBound } from "./power";
+import { limitStands } from "./token-limits";
 
 // From a study's design block to its hypotheses, in the browser.
 //
@@ -389,7 +390,10 @@ function selectionsStand(config: StudyConfig, registry: ReadonlyMap<string, Eval
       if (!(lo <= k && k <= hi)) return false;
     }
     const items = selection.overrides?.items ?? null;
-    return items === null || (Number.isInteger(items) && 1 <= items && items <= card.dataset.items);
+    if (items !== null && !(Number.isInteger(items) && 1 <= items && items <= card.dataset.items)) return false;
+    // A token limit on an eval that generates nothing, or one outside the eval's bounds, is refused too.
+    const maxTokens = selection.overrides?.max_tokens ?? null;
+    return maxTokens === null || limitStands(card.id, maxTokens);
   });
 }
 

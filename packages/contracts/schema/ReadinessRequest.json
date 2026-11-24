@@ -35,7 +35,6 @@
             "prng_seeded",
             "prng_system",
             "prng_epsilon",
-            "prng_resample",
             "provider"
           ],
           "title": "Source",
@@ -144,6 +143,21 @@
           ],
           "default": null,
           "title": "Items"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "maximum": 64000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Token limit of one reply of this eval; absent means the card's own max_tokens. Never serialized as null, so a study that sets none keeps its bytes.",
+          "title": "Max Tokens"
         }
       },
       "title": "CardOverrides",

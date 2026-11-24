@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { vi } from "vitest";
 import studyOne from "../../../../packages/contracts/fixtures/study1.json";
 import { api, ApiError } from "./api";
+import { setCardMaxTokens } from "./config-edits";
 import { parseStudyConfig, studyOneTemplate, type WizardStudyConfig } from "./config-store";
 import { preregDownloadName } from "./prereg";
 import { mulberry32 } from "./prng";
@@ -479,6 +480,38 @@ describe("studyFileName", () => {
     for (const title of ["Study 1 — quantum randomness and supervised observation", "  Mixed CASE & symbols #7 ", "", "ünïcode títle", "a--b__c"]) {
       expect(studyFileName(title).replace(/\.study\.yaml$/, "")).toBe(preregDownloadName(title).replace(/-preregistration\.md$/, ""));
     }
+  });
+});
+
+describe("toStudyYaml: the token limit of an eval", () => {
+  const PROBE = "self_referential_probe";
+  const template = studyOneTemplate();
+
+  it("writes a limit under its eval and reads it back as the study it was written from", () => {
+    const set = setCardMaxTokens(template, PROBE, 3200);
+    const text = toStudyYaml(set);
+    expect(text).toContain(`  - card_id: "${PROBE}"\n    overrides:\n      k: 24\n      max_tokens: 3200\n`);
+    expect(parseStudyConfig(readStudyYaml(text))).toEqual(set);
+    // An eval the study gave no override before gets a block for it.
+    const guessing = setCardMaxTokens(template, "source_guessing", 256);
+    expect(toStudyYaml(guessing)).toContain('  - card_id: "source_guessing"\n    overrides:\n      max_tokens: 256\n');
+    // Read back, the block holds the keys the schema fills in (k and items as null) beside the limit, and writes the same file.
+    const read = parseStudyConfig(readStudyYaml(toStudyYaml(guessing)))!;
+    expect(read.cards.find((selection) => selection.card_id === "source_guessing")?.overrides).toEqual({ k: null, items: null, max_tokens: 256 });
+    expect(toStudyYaml(read)).toBe(toStudyYaml(guessing));
+    expect(fileStateOf(set, fileMarkOf("s.study.yaml", template))).toBe("changed");
+  });
+
+  it("writes a study that sets none, or took its limit back, as the file it was before", () => {
+    const before = toStudyYaml(template);
+    expect(before).not.toMatch(/^ {6}max_tokens:/m);
+    expect(toStudyYaml(setCardMaxTokens(setCardMaxTokens(template, PROBE, 3200), PROBE, null))).toBe(before);
+    expect(toStudyYaml(setCardMaxTokens(setCardMaxTokens(template, "source_guessing", 256), "source_guessing", null))).toBe(before);
+    expect(fileStateOf(setCardMaxTokens(setCardMaxTokens(template, PROBE, 3200), PROBE, null), fileMarkOf("s.study.yaml", template))).toBe("saved");
+    // Study 1 read by the page and written again is the committed file: reading adds no limit.
+    const golden = readFileSync(resolve(fixtures, "study1.study.yaml"), "utf8");
+    expect(toStudyYaml(parseStudyConfig(studyOne))).toBe(golden);
+    expect(toStudyYaml(parseStudyConfig(readStudyYaml(golden)))).toBe(golden);
   });
 });
 

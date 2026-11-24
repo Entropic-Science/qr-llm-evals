@@ -814,7 +814,10 @@ wording leaves open.
 - **ended at the token limit** (`truncated`, raised on the reply). The reply
   ended because it reached the token limit. The generation's finish reason is
   `length`. This kind is counted and shown and never raises a caution, because
-  on some evals most replies end at the token limit by design.
+  on some evals most replies end at the token limit by design. The limit is
+  the eval card's own, or the one the study set for the eval
+  (`cards[].overrides.max_tokens`); the flag is raised the same way for
+  either.
 - **ends in a loop** (`repetition`, raised on the reply). The reply ends in a
   loop: the same text of 1 to 200 characters repeated at least 8 times in a
   row over at least 240 characters. A last copy that is cut short counts as

@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from qr_llm_evals.models.envelope import (
     AMPLIFIER_PINS,
@@ -19,6 +20,7 @@ from qr_llm_evals.models.envelope import (
     EQUIVALENCE_KEYS,
     GREEDY_QRNG_REASON,
     REFUSED_QR_KEYS,
+    SAMPLE_COUNT,
     SAMPLE_MEAN_SE,
     SAMPLING_TABLE,
     SOURCE_TYPES,
@@ -28,7 +30,6 @@ from qr_llm_evals.models.envelope import (
     bent_population_mean,
     build_envelope,
     build_request_body,
-    conditioning_xargs,
     envelope_hash,
     envelope_json,
     equivalence_violations,
@@ -62,12 +63,14 @@ STUDY1_ARMS: dict[str, Arm] = {
 
 _PINS = (
     '"qr_signal_amplifier_type":"zscore_mean","qr_entropy_prefetch":false,'
-    '"qr_zscore_calibration_samples":0'
+    '"qr_zscore_calibration_samples":0,"qr_sample_count":10000'
+    # Study 1 has no conditioning block: every arm says raw itself.
+    ',"qr_conditioning_mode":"raw"'
 )
 _CREATIVE = '"qr_preset":"creative_sampling","qr_top_p":0.95'
 
 #: Byte-pinned wire form (insertion order preserved, like qr-llm-api's lanes tests).
-#: Changing any byte here changes the prereg — bump the schema version.
+#: Changing any byte here changes the envelope lines of every pre-registration.
 PINNED: dict[str, str] = {
     "qrng_supervised": (
         '{"qr_entropy_source_type":"quantum_grpc",' + _CREATIVE + "," + _PINS + "}"
@@ -114,7 +117,9 @@ def test_copied_constants_match_qr_llm_api_lanes() -> None:
         "qr_entropy_prefetch": False,
         "qr_zscore_calibration_samples": 0,
     }
-    assert AMPLIFIER_PINS == DETERMINISTIC_ENVELOPE
+    # The harness adds the draw size, so no engine default decides it.
+    assert AMPLIFIER_PINS == {**DETERMINISTIC_ENVELOPE, "qr_sample_count": SAMPLE_COUNT}
+    assert SAMPLE_COUNT == 10_000
 
 
 def test_refused_keys_mirror_qr_llm_research_and_owned_keys() -> None:
@@ -186,13 +191,28 @@ def test_seed_varies_with_prompt_and_epoch_but_not_observer_mode() -> None:
 # ── other sampling / source rows of the §2.2 tables ──────────────────────────
 
 
+def test_every_sampling_arm_sends_its_draw_size_and_no_card_can_change_it() -> None:
+    """The engine's process default never decides how many bytes a token draws."""
+    arms = [
+        *STUDY1_ARMS.values(),
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("t1", sampling="t1_minp"),
+    ]
+    for arm in arms:
+        assert build_envelope(arm, CTX)["qr_sample_count"] == SAMPLE_COUNT
+    greedy = _arm("greedy", sampling="greedy", source="prng_system")
+    assert "qr_sample_count" not in build_envelope(greedy, CTX)
+    with pytest.raises(EnvelopeError):
+        validate_overrides({"qr_sample_count": 1})
+
+
 def test_source_type_table() -> None:
     assert SOURCE_TYPES == {
         "qrng": "quantum_grpc",
         "prng_seeded": "seeded_prng",
         "prng_system": "system",
         "prng_epsilon": "seeded_prng",
-        "prng_resample": "qbert_prng_resample",
     }
 
 
@@ -209,16 +229,6 @@ def test_system_prng_row() -> None:
     assert "qr_seed" not in env
 
 
-def test_resample_row_is_the_named_grpc_lane() -> None:
-    env = build_envelope(_arm("res", source="prng_resample"), CTX)
-    assert env["qr_entropy_source_type"] == "qbert_prng_resample"
-    assert "qr_seed" not in env
-    assert env == {
-        **build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX),
-        **{"qr_entropy_source_type": "qbert_prng_resample"},
-    }
-
-
 # ── entropy conditioning ─────────────────────────────────────────────────────
 
 HASHED = Conditioning()
@@ -228,6 +238,7 @@ _HASH_KEYS = {
     "qr_conditioning_in_bytes": 128,
     "qr_conditioning_keep_bytes": 16,
 }
+_RAW_KEY = {"qr_conditioning_mode": "raw"}
 
 
 def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
@@ -237,13 +248,10 @@ def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
         "in_bytes": 128,
         "keep_bytes": 16,
     }
-    # 8 raw device bytes per byte served: 80,000 for a 10,000-byte token, 48,000 for 6,000.
+    # 8 raw device bytes are read for every byte served.
     assert HASHED.read_ratio() == "8"
     assert Conditioning(in_bytes=40).read_ratio() == "2.5"
     assert Conditioning(mode="raw").read_ratio() == "1"
-    assert HASHED.raw_bytes_per_token(10_000) == 80_000
-    assert HASHED.raw_bytes_per_token(6_000) == 48_000
-    assert Conditioning(mode="raw").raw_bytes_per_token(10_000) == 10_000
 
 
 @pytest.mark.parametrize(
@@ -262,20 +270,65 @@ def test_conditioning_rules_are_refused(bad: dict[str, Any]) -> None:
         Conditioning.model_validate(bad)
 
 
+@pytest.mark.parametrize(
+    ("hash_name", "half"), [("sha256", 16), ("sha512", 32), ("sha3_256", 16), ("blake2b", 32)]
+)
+def test_hashing_always_discards_at_least_half_of_every_digest(hash_name: str, half: int) -> None:
+    block = {"hash": hash_name, "in_bytes": 256}
+    assert Conditioning.model_validate({**block, "keep_bytes": half}).keep_bytes == half
+    with pytest.raises(ValidationError) as refused:
+        Conditioning.model_validate({**block, "keep_bytes": half + 1})
+    assert (
+        "Serving more than half of each digest may compromise the integrity of the signal; "
+        f"keep at most {half} bytes of a {hash_name} digest"
+    ) in str(refused.value)
+
+
+def test_a_hashed_block_holds_at_least_twice_the_bytes_kept() -> None:
+    assert Conditioning.model_validate({"in_bytes": 32, "keep_bytes": 16}).in_bytes == 32
+    with pytest.raises(ValidationError, match="at least twice the bytes kept"):
+        Conditioning.model_validate({"in_bytes": 31, "keep_bytes": 16})
+
+
 def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:
     quantum = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX, conditioning=HASHED)
     raw = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX)
     assert quantum == {**raw, **_HASH_KEYS}
-    resample = _arm("res", source="prng_resample")
-    assert conditioning_xargs(resample, HASHED) == _HASH_KEYS
-    for arm in (STUDY1_ARMS["prng_seed_1"], _arm("sys", source="prng_system")):
-        assert build_envelope(arm, CTX, conditioning=HASHED) == build_envelope(arm, CTX)
+    assert list(quantum)[-4:] == list(_HASH_KEYS)
+    others = (
+        STUDY1_ARMS["prng_seed_1"],
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+    )
+    for arm in others:
+        hashed = build_envelope(arm, CTX, conditioning=HASHED)
+        assert hashed == build_envelope(arm, CTX)
+        assert {k: v for k, v in hashed.items() if k.startswith("qr_conditioning_")} == _RAW_KEY
 
 
-def test_raw_conditioning_leaves_the_envelope_of_an_older_study() -> None:
+def test_every_sampling_arm_states_its_conditioning_mode() -> None:
+    """The engine's process default never decides whether an arm's bytes are hashed."""
+    arms = [
+        *STUDY1_ARMS.values(),
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("t1", sampling="t1_minp"),
+    ]
+    for arm in arms:
+        for conditioning in (None, Conditioning(mode="raw"), HASHED):
+            env = build_envelope(arm, CTX, conditioning=conditioning)
+            hashed = conditioning is HASHED and arm.source == "qrng"
+            assert env["qr_conditioning_mode"] == ("hash_truncate" if hashed else "raw")
+    greedy = _arm("greedy", sampling="greedy", source="prng_system")
+    assert "qr_conditioning_mode" not in build_envelope(greedy, CTX, conditioning=HASHED)
+
+
+def test_a_raw_study_and_a_study_without_the_block_send_the_same_envelope() -> None:
     for arm in STUDY1_ARMS.values():
         raw = build_envelope(arm, CTX, conditioning=Conditioning(mode="raw"))
         assert envelope_json(raw) == envelope_json(build_envelope(arm, CTX))
+        assert list(raw)[-1] == "qr_conditioning_mode"
+        assert not {"qr_conditioning_hash", "qr_conditioning_in_bytes"} & set(raw)
 
 
 def test_a_hashed_study_is_still_one_pipeline() -> None:
@@ -383,11 +436,13 @@ def test_envelope_hash_is_order_independent_and_pinned() -> None:
     reordered = dict(reversed(list(env.items())))
     assert envelope_hash(env) == envelope_hash(reordered)
     assert envelope_json(env) == (
-        '{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc",'
-        '"qr_preset":"creative_sampling","qr_signal_amplifier_type":"zscore_mean",'
-        '"qr_top_p":0.95,"qr_zscore_calibration_samples":0}'
+        '{"qr_conditioning_mode":"raw","qr_entropy_prefetch":false,'
+        '"qr_entropy_source_type":"quantum_grpc",'
+        '"qr_preset":"creative_sampling","qr_sample_count":10000,'
+        '"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,'
+        '"qr_zscore_calibration_samples":0}'
     )
-    assert envelope_hash(env) == "7e7696a6d36017ba469b6e4e6879b643a2792f8b1ef14cd09f7b806a9f58c549"
+    assert envelope_hash(env) == "88031fe1760464d2f18f648ef346236b5d3b0b441a4ca06b5312a0056ab08c89"
 
 
 # ── full request body ────────────────────────────────────────────────────────

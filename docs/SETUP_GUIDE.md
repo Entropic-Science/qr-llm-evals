@@ -492,7 +492,33 @@ the launch; a warning does not.
    controls, the observed arm and its session settings come back with it.
 2. **Measure.** The evals that run in every arm, and for each one the number
    of prompts and the repetitions per prompt (k). The token-level measures
-   always run.
+   always run. The step also holds the **token limit** of every eval that
+   generates replies, which is where a reply is cut off. Each eval has two
+   limits to pick from, or a number of your own between the usual length of
+   its replies and 64,000:
+   - **Standard** is the eval's own limit (`max_tokens` on its card) and
+     what a study that sets nothing runs with.
+   - **Safe** is four times the standard, at least 256 and at most 64,000.
+     Pick it when a cut reply costs you more than a long one, as on the
+     evals where the model thinks before it answers (`livecodebench`,
+     `gpqa_diamond`, `aime2026`). In the pilot of 23 November every finished
+     `livecodebench` reply on one hard problem reached the standard limit of
+     10,000 tokens while the model was still thinking, so none was scored.
+
+   The safe limit is a rule and not a measurement: nothing has checked that
+   no reply reaches it, and a reply that does is flagged as cut like any
+   other. A limit caps a reply and does not change the estimate, which rests
+   on the usual length of a reply; the table's last column is the most one
+   arm can generate on the eval if every reply runs to the limit. At about
+   15 tokens per second per stream, one reply of 40,000 tokens takes about
+   45 minutes, so look at that column before you take the safe limit on a
+   large eval. A limit is part of the study file
+   (`cards[].overrides.max_tokens`) and of its hash, so it is registered
+   with everything else and is the same for every arm. The engine on the
+   box serves 131,072 tokens of context, shared by the prompt and the reply;
+   a request whose prompt and limit together exceed what a model serves is
+   refused by that model, and a run of such refusals is stopped by the
+   check for failed generations.
 3. **Design.** What would count as a finding: the claim (a difference only,
    or a difference or its absence within a margin), the outcomes that decide
    the study, the false-finding rate (α), the positive control that must be
@@ -1053,22 +1079,21 @@ apply to it.
   discards the result. The harness keeps the rows for the reply's tokens.
 - **DEP-2**: epsilon-biased seeded PRNG also belongs in qr-sampler. Unsupported
   arms remain unavailable; record the missing positive control in the prereg.
-- **DEP-3**: entropy conditioning and the resampled control are served by
-  Qbert0G and requested through qr-sampler. A study with
-  `conditioning.mode: hash_truncate` needs `conditioning.allow_request: true`
-  in `/etc/qbert0g/qbert0g.config.yaml` and a qr-sampler that knows the
-  `qr_conditioning_*` keys. An arm with the source `prng_resample` needs the
-  `prng_resample` control in the same file (with its recorded pool) and the
-  `qbert_prng_resample` instance in `QR_ENTROPY_SOURCE_INSTANCES` and
-  `QR_PREINIT_ENTROPY_SOURCES` of `/etc/qr-server/qr-server.env`; both are
-  described in qr-sampler's `deployments/qr-server/README.md`. Readiness sends
-  every arm's real envelope, so an engine that lacks either refuses the arm
-  there and not in the run. A hashed token reads eight times the raw bytes of
+- **DEP-3**: entropy conditioning is served by Qbert0G and requested through
+  qr-sampler. A study with `conditioning.mode: hash_truncate` needs
+  `conditioning.allow_request: true` in `/etc/qbert0g/qbert0g.config.yaml` and
+  a qr-sampler that knows the `qr_conditioning_*` keys; qr-sampler's
+  `deployments/qr-server/README.md` describes both. Every envelope carries
+  `qr_conditioning_mode` (`raw` on every arm that is not the quantum arm of a
+  hashed study), so the engine's own default mode decides nothing, and every
+  study, raw ones included, needs a qr-sampler that knows the key. Readiness
+  sends every arm's real envelope, so an engine that lacks either refuses the
+  arm there and not in the run. A hashed token reads eight times the raw bytes of
   a raw one at the default parameters; the request must stay within the
-  entropy key's `max_bytes_per_request`. How many bytes a token draws is the
-  engine's `sample_count`, which the harness does not send: on this box the
-  process default (`QR_PRESET=qthought_think`) makes it 6,000, not the
-  sampler's own default of 10,000.
+  entropy key's `max_bytes_per_request`. The harness sends the draw size
+  itself: every envelope carries `qr_sample_count: 10000`, so a token draws
+  10,000 bytes whatever the engine's process defaults are, and the engine's
+  environment no longer carries `QR_PRESET`.
 - **Stop/go**: absent primary measurements or required dependencies require a
   documented protocol decision before preregistration. Never silently count
   missing tests as evidence for a null effect. Do not claim consciousness

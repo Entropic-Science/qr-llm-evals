@@ -173,6 +173,9 @@
     "EndpointMeta": {
       "$ref": "#/$defs/EndpointMeta"
     },
+    "TokenLimit": {
+      "$ref": "#/$defs/TokenLimit"
+    },
     "CardItemsResponse": {
       "$ref": "#/$defs/CardItemsResponse"
     },
@@ -246,6 +249,7 @@
     "SettleRequest",
     "StorageResponse",
     "EndpointMeta",
+    "TokenLimit",
     "CardItemsResponse",
     "DecisionsTable",
     "ResultFlag",
@@ -454,7 +458,6 @@
             "prng_seeded",
             "prng_system",
             "prng_epsilon",
-            "prng_resample",
             "provider"
           ],
           "title": "Source",
@@ -894,6 +897,21 @@
           ],
           "default": null,
           "title": "Items"
+        },
+        "max_tokens": {
+          "anyOf": [
+            {
+              "maximum": 64000,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Token limit of one reply of this eval; absent means the card's own max_tokens. Never serialized as null, so a study that sets none keeps its bytes.",
+          "title": "Max Tokens"
         }
       },
       "title": "CardOverrides",
@@ -960,6 +978,18 @@
             }
           ],
           "default": null
+        },
+        "token_limit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TokenLimit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What a study may set as this eval's token limit (cards[].overrides.max_tokens): the standard, the recommended safe value and the bounds. Null for an eval that generates nothing."
         }
       },
       "required": [
@@ -4317,7 +4347,6 @@
             "seeded_prng",
             "system_prng",
             "seeded_prng_biased",
-            "resampled_prng",
             "provider_prng"
           ],
           "title": "Source Label",
@@ -6928,6 +6957,44 @@
         "started"
       ],
       "title": "Timing",
+      "type": "object"
+    },
+    "TokenLimit": {
+      "additionalProperties": false,
+      "description": "What a study may set as the token limit of one generating eval.",
+      "properties": {
+        "standard": {
+          "description": "The card's own max_tokens: the limit of a study that sets none.",
+          "minimum": 1,
+          "title": "Standard",
+          "type": "integer"
+        },
+        "safe": {
+          "description": "The recommended generous limit: 4 times the standard, at least 256 and at most 64000. A rule, not a measured bound.",
+          "minimum": 1,
+          "title": "Safe",
+          "type": "integer"
+        },
+        "min": {
+          "description": "The lowest limit a study may set: the usual length of a reply.",
+          "minimum": 1,
+          "title": "Min",
+          "type": "integer"
+        },
+        "max": {
+          "description": "The highest limit a study may set.",
+          "minimum": 1,
+          "title": "Max",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "standard",
+        "safe",
+        "min",
+        "max"
+      ],
+      "title": "TokenLimit",
       "type": "object"
     },
     "Usage": {

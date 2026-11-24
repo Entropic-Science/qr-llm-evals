@@ -1,5 +1,6 @@
 import type {
-  Arm, Conditioning, DisplaySettings, EndpointRef, EstimateAssumptions, EvalCard, JudgeSpec, ModelRef, PilotConfig, StudyDesign,
+  Arm, CardOverrides, CardSelection, Conditioning, DisplaySettings, EndpointRef, EstimateAssumptions, EvalCard, JudgeSpec, ModelRef,
+  PilotConfig, StudyDesign,
   SupervisedConfig,
 } from "@qr-evals/contracts";
 import { resolveConditioning } from "./conditioning";
@@ -71,6 +72,24 @@ export function setCardK(config: WizardStudyConfig, cardId: string, k: number | 
 /** Prompts for one eval, taken from the start of its file; `null` is all of them. */
 export function setCardItems(config: WizardStudyConfig, cardId: string, items: number | null): WizardStudyConfig {
   return setOverride(config, cardId, "items", items);
+}
+
+/**
+ * The token limit of one eval's replies; `null` is the card's own.
+ *
+ * The card's own limit is stored as no key at all, never as `null`, and a selection left with no override
+ * loses its `overrides` block: the server writes a study that sets no limit without the key, so a study whose
+ * limit was set and taken back is the study it was before.
+ */
+export function setCardMaxTokens(config: WizardStudyConfig, cardId: string, maxTokens: number | null): WizardStudyConfig {
+  const current = config.cards.find((selection) => selection.card_id === cardId);
+  if (current === undefined || (current.overrides?.max_tokens ?? null) === maxTokens) return config;
+  const without = <T extends object>(map: T, key: string) => Object.fromEntries(Object.entries(map).filter(([name]) => name !== key));
+  const others: CardOverrides = without(current.overrides ?? {}, "max_tokens");
+  const next: CardSelection = maxTokens !== null ? { ...current, overrides: { ...others, max_tokens: maxTokens } }
+    : Object.keys(others).length > 0 ? { ...current, overrides: others }
+      : without(current, "overrides") as unknown as CardSelection;
+  return { ...config, cards: config.cards.map((selection) => (selection === current ? next : selection)) };
 }
 
 // ── design ───────────────────────────────────────────────────────────────────

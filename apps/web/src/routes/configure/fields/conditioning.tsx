@@ -20,7 +20,7 @@ export function ConditioningModeField({ config, updateConfig }: FieldProps) {
     note={mode === "hash_truncate"
       ? "The entropy server hashes its raw read block by block and serves only part of each digest. The bytes are uniform whatever the device's own byte distribution is, so the quantum arm and the seeded controls start from the same distribution."
       : <>
-        The quantum arm samples from the bytes exactly as the device measured them. A device whose bytes are not uniform then gives a skewed draw, and a seeded control is no fair comparison for it. Add an arm with the source &ldquo;Resampled device pool&rdquo; in the arm table: it replays windows of a recording of the same device, so it has the same byte statistics.
+        The quantum arm samples from the bytes exactly as the device measured them. Raw device bytes are not uniform, so a raw quantum arm differs from the pseudo-random arms by the device&rsquo;s byte statistics as well as by the source, and the harness has no matched control for that.
         {absent ? " This study has no conditioning block: it is from before the setting, and it runs on raw bytes." : ""}
       </>}
   >
@@ -50,7 +50,7 @@ export function ConditioningInBytesField({ config, updateConfig }: FieldProps) {
 export function ConditioningKeepBytesField({ config, updateConfig }: FieldProps) {
   const { mode, hash, keep_bytes } = resolveConditioning(config.conditioning);
   const half = DIGEST_BYTES[hash] / 2;
-  return <Field path="conditioning.keep_bytes" label="Bytes kept from each digest" note={mode === "raw" ? UNUSED : `1 to ${half}: at least half of every digest is discarded.`}>
+  return <Field path="conditioning.keep_bytes" label="Bytes kept from each digest" note={mode === "raw" ? UNUSED : `1 to ${half}. Serving more than half of each digest may compromise the integrity of the signal.`}>
     <NumberInput value={keep_bytes} min={1} max={half} disabled={mode === "raw"} onCommit={(value) => { if (value !== null) updateConfig(setConditioning(config, { keep_bytes: value })); }} />
   </Field>;
 }
@@ -60,12 +60,12 @@ export function ConditioningSummary({ config }: FieldProps) {
   const resolved = resolveConditioning(config.conditioning);
   const problems = conditioningProblems(config.conditioning);
   if (resolved.mode === "raw") {
-    return <p className="field-note">Each token uses the bytes it draws from the device as they are.</p>;
+    return <p className="field-note">Each token draws {count(BYTES_PER_TOKEN)} bytes from the device and uses them as they are.</p>;
   }
   return <>
     <p className="field-note">
       {resolved.keep_bytes} of every {resolved.in_bytes} bytes read from the device are served, so each byte a token uses costs {Number(readRatio(config.conditioning).toFixed(2))} raw bytes:
-      {" "}{count(rawBytesPerToken(config.conditioning))} for a token of {count(BYTES_PER_TOKEN)} bytes, the sampler&apos;s default draw. The seeded and system pseudo-random arms are uniform already and are not hashed.
+      {" "}{count(rawBytesPerToken(config.conditioning))} for a token, which draws {count(BYTES_PER_TOKEN)} bytes. The seeded and system pseudo-random arms are uniform already and are not hashed.
     </p>
     {problems.map((problem) => <p className="field-note" role="alert" key={problem.path}>{problem.message}</p>)}
   </>;

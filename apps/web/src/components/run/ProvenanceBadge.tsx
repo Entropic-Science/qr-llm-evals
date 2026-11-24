@@ -7,7 +7,6 @@ const labels: Record<SourceLabel, string> = {
   seeded_prng: "Seeded PRNG",
   system_prng: "System PRNG",
   seeded_prng_biased: "Biased seeded PRNG",
-  resampled_prng: "Resampled device-pool PRNG",
   provider_prng: "Provider PRNG",
 };
 
