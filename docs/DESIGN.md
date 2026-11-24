@@ -60,7 +60,7 @@ comparisons and cannot promise the identical pinned local pipeline.
 | D-4 | SQLite index plus append-only JSONL artifacts; no Postgres. | [Storage and secrets](#storage-and-secrets) |
 | D-5 | Thin runner primary; custom Inspect `qrllm` provider for Inspect cards. | [Execution](#execution) |
 | D-6 | Per-request derived seed `H(study_seed, card_id, prompt_id, epoch)`; study seeds 1, 7, 42. | [Equivalence](#equivalence-and-provenance) |
-| D-7 | Identical stateless `zscore_mean`, calibration 0, prefetch off; creative sampling with top-p 0.95. | [Equivalence](#equivalence-and-provenance) |
+| D-7 | Identical stateless `zscore_mean`, calibration 0, prefetch off, 10,000 entropy bytes per token; creative sampling with top-p 0.95. | [Equivalence](#equivalence-and-provenance) |
 | D-8 | Engine token-log Tier 0 when available; explicit degraded API-logprob path otherwise, T0-a unavailable. | [Dependencies](#serving-contract) |
 | D-9 | Native Anthropic Messages judge with BYO key; OpenAI-compatible external targets via httpx, no OpenAI SDK. | [Execution](#execution) |
 | D-10 | Script-generated matplotlib SVG figures and JSON tables, not LLM-generated numbers. | [Analysis](#preregistration-and-analysis) |
@@ -118,7 +118,9 @@ response proves neither experimental readiness nor deterministic replay.
 The harness owns `.\backend\src\qr_llm_evals\models\envelope.py`; browser-supplied
 `qr_*` parameters are never forwarded. Study 1 compares QRNG supervised,
 QRNG unsupervised, and three seeded PRNG arms, with the same model, prompts,
-sampling, amplifier, and acquisition path. Derived per-request seeds prevent
+sampling, amplifier, draw size, and acquisition path. The envelope states how
+many entropy bytes a token draws (`qr_sample_count`, 10,000), so no default of
+the engine decides it. Derived per-request seeds prevent
 restarting the same PRNG uniform stream for every prompt. The arms differ only
 in entropy source, derived seed, and optional epsilon; exceptions are explicit
 in cards and frozen in preregistration.

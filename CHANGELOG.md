@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- The harness states how many entropy bytes a token draws. Every envelope of
+  an arm that samples through the amplifier now carries
+  `qr_sample_count: 10000` with the amplifier pins, so no process default of
+  the engine decides it; a card still cannot set the key. Before, the key was
+  not sent, and the engine on the box drew 6,000 bytes per token while
+  `SAMPLE_COUNT` and the bend of a biased arm (`bent_population_mean`) assumed
+  10,000. Every envelope, every envelope hash and the envelope lines of every
+  pre-registration change with the key, also for a study without a design
+  block: the pre-registration hashes pinned in
+  `backend/tests/test_legacy_bytes.py` and the envelope lines of
+  `backend/tests/fixtures/prereg/golden.md` were updated for this one reason,
+  and no config, plan or cards hash moved. Nothing renders a stored study
+  again or derives a stored envelope hash again to compare it, so a study
+  registered before this release keeps its document and its hash, and loads,
+  relaunches, analyses and reports as before. Its frozen document shows the
+  envelope without the key; a run made or resumed after this release sends
+  the key, and the `envelope_hash` of each generation records which envelope
+  that generation was sent with.
 - A study can set the token limit of an eval. `cards[].overrides.max_tokens`
   replaces the card's own `max_tokens` for every request of that eval, in
   every arm, on the thin runner and through Inspect. The value must lie

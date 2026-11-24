@@ -249,11 +249,7 @@ class Conditioning(_Strict):
         return self
 
     def read_ratio(self) -> str:
-        """Raw device bytes read per byte served, as text (``8``, ``2.5``; ``1`` for raw).
-
-        A ratio and not a count per token: how many bytes a token draws is the
-        engine's ``sample_count``, which a deployment sets.
-        """
+        """Raw device bytes read per byte served, as text (``8``, ``2.5``; ``1`` for raw)."""
         if self.mode == "raw":
             return "1"
         return f"{self.in_bytes / self.keep_bytes:g}"

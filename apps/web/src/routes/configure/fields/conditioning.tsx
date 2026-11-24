@@ -60,12 +60,12 @@ export function ConditioningSummary({ config }: FieldProps) {
   const resolved = resolveConditioning(config.conditioning);
   const problems = conditioningProblems(config.conditioning);
   if (resolved.mode === "raw") {
-    return <p className="field-note">Each token uses the bytes it draws from the device as they are.</p>;
+    return <p className="field-note">Each token draws {count(BYTES_PER_TOKEN)} bytes from the device and uses them as they are.</p>;
   }
   return <>
     <p className="field-note">
       {resolved.keep_bytes} of every {resolved.in_bytes} bytes read from the device are served, so each byte a token uses costs {Number(readRatio(config.conditioning).toFixed(2))} raw bytes:
-      {" "}{count(rawBytesPerToken(config.conditioning))} for a token of {count(BYTES_PER_TOKEN)} bytes, the sampler&apos;s default draw. The seeded and system pseudo-random arms are uniform already and are not hashed.
+      {" "}{count(rawBytesPerToken(config.conditioning))} for a token, which draws {count(BYTES_PER_TOKEN)} bytes. The seeded and system pseudo-random arms are uniform already and are not hashed.
     </p>
     {problems.map((problem) => <p className="field-note" role="alert" key={problem.path}>{problem.message}</p>)}
   </>;

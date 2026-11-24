@@ -871,9 +871,9 @@ describe("study graph: what is said of tokens and of the sampling envelope", () 
 
   it("says of each arm what holds of its own envelope", () => {
     const last = (id: string, from: StudyGraph = graph) => node(from, id).facts.detail.at(-1);
-    expect(last("arm:qrng_unsupervised")).toBe("Its sampling envelope is the one every compared arm has: amplifier zscore_mean, calibration 0, prefetch off.");
-    expect(last("arm:prng_seed_7")).toBe("Its sampling envelope is the one every compared arm has: amplifier zscore_mean, calibration 0, prefetch off.");
-    expect(last("arm:prng_epsilon_010")).toBe("It has the sampling envelope of the compared arms (amplifier zscore_mean, calibration 0, prefetch off), with one change: the amplifier's reference mean is lowered by ε standard errors. That is the bias.");
+    expect(last("arm:qrng_unsupervised")).toBe("Its sampling envelope is the one every compared arm has: amplifier zscore_mean, calibration 0, prefetch off, 10,000 entropy bytes per token.");
+    expect(last("arm:prng_seed_7")).toBe("Its sampling envelope is the one every compared arm has: amplifier zscore_mean, calibration 0, prefetch off, 10,000 entropy bytes per token.");
+    expect(last("arm:prng_epsilon_010")).toBe("It has the sampling envelope of the compared arms (amplifier zscore_mean, calibration 0, prefetch off, 10,000 entropy bytes per token), with one change: the amplifier's reference mean is lowered by ε standard errors. That is the bias.");
     for (const item of graph.nodes) expect(item.facts.detail.join(" "), item.id).not.toContain("same in every arm");
 
     // An arm a provider samples itself, and a greedy arm, are outside the envelope: the pinned setting is not put on them.

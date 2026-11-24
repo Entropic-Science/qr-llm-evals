@@ -11,10 +11,10 @@ Invariants enforced here (AGENTS.md invariant 1):
 * **The harness owns the envelope.** Nothing from the browser or a card can
   set an infrastructure key (:data:`REFUSED_QR_KEYS`), the entropy source, the
   preset or the seed; :func:`validate_overrides` refuses them up front.
-* **All arms pin the same amplifier** (:data:`AMPLIFIER_PINS`, D-7). The box's
-  process default is the ``server`` amplifier via ``QR_PRESET=qthought_think``;
-  without the pin the QRNG arm and the seeded arm would sample through
-  different pipelines and the study would compare amplifiers, not entropy.
+* **All arms pin the same amplifier and draw size** (:data:`AMPLIFIER_PINS`,
+  D-7), so nothing is left to the engine's process defaults: without the pins
+  the QRNG arm and the seeded arm could sample through different pipelines,
+  and a token could draw another number of bytes than the study states.
 * **Arms differ only in the entropy keys** (:data:`EQUIVALENCE_KEYS`);
   :func:`equivalence_violations` is what the readiness check asserts.
 * **Conditioning belongs to the study, and to the bytes of the entropy
@@ -73,19 +73,25 @@ DETERMINISTIC_ENVELOPE: Final[dict[str, Any]] = {
     "qr_zscore_calibration_samples": 0,
 }
 
-#: D-7: every qr-llm arm pins the deterministic envelope's amplifier triple,
-#: including the QRNG arm, so all arms share one pipeline up to the source.
-AMPLIFIER_PINS: Final[dict[str, Any]] = dict(DETERMINISTIC_ENVELOPE)
-
 #: SOURCE: qr-sampler ``src/qr_sampler/config/model.py`` defaults
 #: (``population_mean``, ``population_std``, ``sample_count``): the z-score
 #: amplifier's reference mean and standard deviation of one byte, and the bytes
-#: drawn per token. The harness never sends them except to bend an epsilon arm.
+#: drawn per token. The harness sends the draw size with every request, and the
+#: reference mean only to bend an epsilon arm.
 POPULATION_MEAN: Final[float] = 127.5
 POPULATION_STD: Final[float] = 73.61215932167728
 SAMPLE_COUNT: Final[int] = 10_000
 #: Standard error of one token's byte mean, ``POPULATION_STD / sqrt(SAMPLE_COUNT)``.
 SAMPLE_MEAN_SE: Final[float] = POPULATION_STD / SAMPLE_COUNT**0.5
+
+#: D-7: every qr-llm arm pins the deterministic envelope's amplifier triple and
+#: the draw size, including the QRNG arm, so all arms share one pipeline up to
+#: the source and :func:`bent_population_mean` bends by the standard error the
+#: engine really has.
+AMPLIFIER_PINS: Final[dict[str, Any]] = {
+    **DETERMINISTIC_ENVELOPE,
+    "qr_sample_count": SAMPLE_COUNT,
+}
 
 
 def bent_population_mean(epsilon: float) -> float:
@@ -269,8 +275,8 @@ def build_envelope(
 ) -> dict[str, Any]:
     """The ``vllm_xargs`` dict for one generation on a qr-llm target.
 
-    Key order is fixed (source, preset, sampling pins, seed, amplifier pins,
-    bent reference mean, conditioning, card overrides) so the JSON bytes are
+    Key order is fixed (source, preset, sampling pins, seed, amplifier pins
+    ending with the draw size, bent reference mean, conditioning, card overrides) so the JSON bytes are
     reproducible; tests pin them. ``conditioning`` is the study's
     (:func:`conditioning_xargs`).
     """

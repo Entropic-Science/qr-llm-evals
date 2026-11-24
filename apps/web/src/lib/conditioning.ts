@@ -18,10 +18,7 @@ export const MODE_LABELS: Readonly<Record<ConditioningMode, string>> = {
 };
 /** The largest raw block one digest is computed over. */
 export const MAX_IN_BYTES = 4096;
-/**
- * Bytes the amplifier draws per token when the engine runs the sampler's own default. The harness does not
- * send the draw size, so a deployment may run another; what holds everywhere is `readRatio`.
- */
+/** Bytes the amplifier draws per token: `SAMPLE_COUNT` in `models/envelope.py`, which the harness sends with every request. */
 export const BYTES_PER_TOKEN = 10_000;
 
 /** What a new study starts with. */

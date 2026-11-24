@@ -60,6 +60,7 @@ ALLOWED_QR_KEYS: frozenset[str] = frozenset(
         "qr_signal_amplifier_type",
         "qr_zscore_calibration_samples",
         "qr_entropy_prefetch",
+        "qr_sample_count",
         "qr_conditioning_mode",
         "qr_conditioning_hash",
         "qr_conditioning_in_bytes",

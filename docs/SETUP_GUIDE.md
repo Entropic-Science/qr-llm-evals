@@ -1087,10 +1087,10 @@ apply to it.
   arm's real envelope, so an engine that lacks either refuses the arm there
   and not in the run. A hashed token reads eight times the raw bytes of
   a raw one at the default parameters; the request must stay within the
-  entropy key's `max_bytes_per_request`. How many bytes a token draws is the
-  engine's `sample_count`, which the harness does not send: on this box the
-  process default (`QR_PRESET=qthought_think`) makes it 6,000, not the
-  sampler's own default of 10,000.
+  entropy key's `max_bytes_per_request`. The harness sends the draw size
+  itself: every envelope carries `qr_sample_count: 10000`, so a token draws
+  10,000 bytes whatever the engine's process defaults are, and the engine's
+  environment no longer carries `QR_PRESET`.
 - **Stop/go**: absent primary measurements or required dependencies require a
   documented protocol decision before preregistration. Never silently count
   missing tests as evidence for a null effect. Do not claim consciousness

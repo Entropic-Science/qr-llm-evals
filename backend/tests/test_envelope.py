@@ -20,6 +20,7 @@ from qr_llm_evals.models.envelope import (
     EQUIVALENCE_KEYS,
     GREEDY_QRNG_REASON,
     REFUSED_QR_KEYS,
+    SAMPLE_COUNT,
     SAMPLE_MEAN_SE,
     SAMPLING_TABLE,
     SOURCE_TYPES,
@@ -62,12 +63,12 @@ STUDY1_ARMS: dict[str, Arm] = {
 
 _PINS = (
     '"qr_signal_amplifier_type":"zscore_mean","qr_entropy_prefetch":false,'
-    '"qr_zscore_calibration_samples":0'
+    '"qr_zscore_calibration_samples":0,"qr_sample_count":10000'
 )
 _CREATIVE = '"qr_preset":"creative_sampling","qr_top_p":0.95'
 
 #: Byte-pinned wire form (insertion order preserved, like qr-llm-api's lanes tests).
-#: Changing any byte here changes the prereg — bump the schema version.
+#: Changing any byte here changes the envelope lines of every pre-registration.
 PINNED: dict[str, str] = {
     "qrng_supervised": (
         '{"qr_entropy_source_type":"quantum_grpc",' + _CREATIVE + "," + _PINS + "}"
@@ -114,7 +115,9 @@ def test_copied_constants_match_qr_llm_api_lanes() -> None:
         "qr_entropy_prefetch": False,
         "qr_zscore_calibration_samples": 0,
     }
-    assert AMPLIFIER_PINS == DETERMINISTIC_ENVELOPE
+    # The harness adds the draw size, so no engine default decides it.
+    assert AMPLIFIER_PINS == {**DETERMINISTIC_ENVELOPE, "qr_sample_count": SAMPLE_COUNT}
+    assert SAMPLE_COUNT == 10_000
 
 
 def test_refused_keys_mirror_qr_llm_research_and_owned_keys() -> None:
@@ -186,6 +189,22 @@ def test_seed_varies_with_prompt_and_epoch_but_not_observer_mode() -> None:
 # ── other sampling / source rows of the §2.2 tables ──────────────────────────
 
 
+def test_every_sampling_arm_sends_its_draw_size_and_no_card_can_change_it() -> None:
+    """The engine's process default never decides how many bytes a token draws."""
+    arms = [
+        *STUDY1_ARMS.values(),
+        _arm("sys", source="prng_system"),
+        _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("t1", sampling="t1_minp"),
+    ]
+    for arm in arms:
+        assert build_envelope(arm, CTX)["qr_sample_count"] == SAMPLE_COUNT
+    greedy = _arm("greedy", sampling="greedy", source="prng_system")
+    assert "qr_sample_count" not in build_envelope(greedy, CTX)
+    with pytest.raises(EnvelopeError):
+        validate_overrides({"qr_sample_count": 1})
+
+
 def test_source_type_table() -> None:
     assert SOURCE_TYPES == {
         "qrng": "quantum_grpc",
@@ -226,12 +245,11 @@ def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
         "in_bytes": 128,
         "keep_bytes": 16,
     }
-    # 8 raw device bytes per byte served: 80,000 for a 10,000-byte token, 48,000 for 6,000.
+    # 8 raw device bytes per byte served: 80,000 for a 10,000-byte token.
     assert HASHED.read_ratio() == "8"
     assert Conditioning(in_bytes=40).read_ratio() == "2.5"
     assert Conditioning(mode="raw").read_ratio() == "1"
     assert HASHED.raw_bytes_per_token(10_000) == 80_000
-    assert HASHED.raw_bytes_per_token(6_000) == 48_000
     assert Conditioning(mode="raw").raw_bytes_per_token(10_000) == 10_000
 
 
@@ -391,10 +409,11 @@ def test_envelope_hash_is_order_independent_and_pinned() -> None:
     assert envelope_hash(env) == envelope_hash(reordered)
     assert envelope_json(env) == (
         '{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc",'
-        '"qr_preset":"creative_sampling","qr_signal_amplifier_type":"zscore_mean",'
-        '"qr_top_p":0.95,"qr_zscore_calibration_samples":0}'
+        '"qr_preset":"creative_sampling","qr_sample_count":10000,'
+        '"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,'
+        '"qr_zscore_calibration_samples":0}'
     )
-    assert envelope_hash(env) == "7e7696a6d36017ba469b6e4e6879b643a2792f8b1ef14cd09f7b806a9f58c549"
+    assert envelope_hash(env) == "777c2922a9fdb2187dfb46ef1ce53e230823e6c033d4e54b8d5590ccbdd6f3df"
 
 
 # ── full request body ────────────────────────────────────────────────────────

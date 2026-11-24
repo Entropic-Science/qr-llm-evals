@@ -65,27 +65,27 @@ The following are illustrative envelopes for the stated example pairing key, not
 
 **qrng\_supervised**
 ```json
-{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc","qr_preset":"creative_sampling","qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
+{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc","qr_preset":"creative_sampling","qr_sample_count":10000,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
 ```
 
 **qrng\_unsupervised**
 ```json
-{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc","qr_preset":"creative_sampling","qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
+{"qr_entropy_prefetch":false,"qr_entropy_source_type":"quantum_grpc","qr_preset":"creative_sampling","qr_sample_count":10000,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
 ```
 
 **prng\_seed\_1**
 ```json
-{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_seed":5663963813624075852,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
+{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_sample_count":10000,"qr_seed":5663963813624075852,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
 ```
 
 **prng\_seed\_7**
 ```json
-{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_seed":8984480507681840741,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
+{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_sample_count":10000,"qr_seed":8984480507681840741,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
 ```
 
 **prng\_seed\_42**
 ```json
-{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_seed":4296680071048873519,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
+{"qr_entropy_prefetch":false,"qr_entropy_source_type":"seeded_prng","qr_preset":"creative_sampling","qr_sample_count":10000,"qr_seed":4296680071048873519,"qr_signal_amplifier_type":"zscore_mean","qr_top_p":0.95,"qr_zscore_calibration_samples":0}
 ```
 
 

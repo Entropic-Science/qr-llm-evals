@@ -142,8 +142,9 @@ package must be side-effect free (no network, no writes, no downloads).
 1. **The harness owns the sampling envelope.** `qr_*` keys come from
    `models/envelope.py` per arm; never forward client-supplied `qr_*` from the
    browser. All arms pin the same amplifier (`zscore_mean`, calibration 0,
-   prefetch off); arms differ only in `qr_entropy_source_type` / `qr_seed` /
-   `qr_population_mean`. The last one is set only on a biased (ε) control arm:
+   prefetch off) and the same draw size (`qr_sample_count`, 10,000 bytes per
+   token), so no process default of the engine decides either; arms differ
+   only in `qr_entropy_source_type` / `qr_seed` / `qr_population_mean`. The last one is set only on a biased (ε) control arm:
    it lowers the amplifier's reference mean by ε standard errors, so every
    `u` becomes `Φ(z + ε)`. No arm that is compared as quantum against
    pseudo-random may carry it. The study's entropy conditioning
@@ -198,7 +199,10 @@ package must be side-effect free (no network, no writes, no downloads).
    `golden.md` or the two bundles, and never edit `docs/prereg-template.md.j2`,
    `studies/study1.yaml` or `packages/contracts/fixtures/study1.json`.
    Anything new for designed studies goes behind `config.design is not None`
-   or `plan.design is not None`.
+   or `plan.design is not None`. The one exception so far: the envelope
+   printed in a pre-registration gained `qr_sample_count` when the harness
+   began to send the draw size, which moved the envelope lines of `golden.md`
+   and the six pre-registration hashes, and nothing else.
 10. **Never promise what the harness does not do.** No UI copy, document or
     pre-registration text may describe a feature that does not exist. Today
     that means pilot subsampling, pilot-derived margins, grouped per-prompt

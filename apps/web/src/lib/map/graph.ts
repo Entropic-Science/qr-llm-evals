@@ -234,7 +234,7 @@ const CLAIM_STORY: Readonly<Record<string, string>> = {
   difference: "Does quantum sampling differ from seeded pseudo-random sampling?",
   difference_or_equivalence: "Does quantum sampling differ from seeded pseudo-random sampling, or is any difference smaller than a stated margin?",
 };
-const ENVELOPE_PINS = "amplifier zscore_mean, calibration 0, prefetch off";
+const ENVELOPE_PINS = "amplifier zscore_mean, calibration 0, prefetch off, 10,000 entropy bytes per token";
 /** Whether an arm samples through the amplifier the harness pins (`models/envelope.py`): not a provider's own sampling, not greedy. */
 const throughAmplifier = (arm: Arm) => arm.source !== "provider" && arm.sampling !== "greedy";
 /** What holds of one arm's sampling envelope. Only the arms that are compared share it. */
