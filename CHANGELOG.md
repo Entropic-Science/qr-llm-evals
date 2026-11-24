@@ -35,7 +35,11 @@ All notable changes to this project are documented here. The format follows
   bytes for every byte served). `raw` serves the measured bytes; the panel and
   the pre-registration then say that the quantum arm differs from the
   pseudo-random arms by the device's byte statistics as well as by the source,
-  and that the harness has no matched control for that. The four
+  and that the harness has no matched control for that. Hashing always
+  discards at least half of every digest: a study that keeps more is refused
+  by the server and named in the panel before it is submitted, because
+  serving more than half of a digest may compromise the integrity of the
+  signal. The four
   `qr_conditioning_*` keys ride only the arms that draw from the entropy
   server; a card cannot set them, and they count as entropy keys in the
   equivalence check. The field is left out of a study that does not carry it,

@@ -720,5 +720,5 @@ def test_a_study_without_conditioning_keeps_its_bytes_and_hash(study1_raw: dict[
     }
     assert config_hash(hashed) != config_hash(study)
     assert StudyConfig.model_validate_json(hashed.model_dump_json()) == hashed
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError, match="may compromise the integrity of the signal"):
         StudyConfig.model_validate({**study1_raw, "conditioning": {"keep_bytes": 17}})

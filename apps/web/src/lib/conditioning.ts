@@ -52,11 +52,13 @@ export function conditioningProblems(conditioning: Conditioning | null | undefin
   if (mode === "raw") return [];
   const out: { message: string; path: string }[] = [];
   const half = (DIGEST_BYTES[hash] ?? 32) / 2;
-  if (!Number.isInteger(keep_bytes) || keep_bytes < 1 || keep_bytes > half) {
+  if (keep_bytes > half) {
     out.push({
-      message: `Hashed entropy keeps ${keep_bytes} bytes of each ${HASH_LABELS[hash] ?? hash} digest. It may keep 1 to ${half}: at least half of every digest is discarded.`,
+      message: `Serving more than half of each digest may compromise the integrity of the signal; keep at most ${half} bytes of a ${HASH_LABELS[hash] ?? hash} digest.`,
       path: "conditioning.keep_bytes",
     });
+  } else if (!Number.isInteger(keep_bytes) || keep_bytes < 1) {
+    out.push({ message: "Hashed entropy keeps at least 1 whole byte of each digest.", path: "conditioning.keep_bytes" });
   }
   if (!Number.isInteger(in_bytes) || in_bytes < 2 * keep_bytes || in_bytes > MAX_IN_BYTES) {
     out.push({

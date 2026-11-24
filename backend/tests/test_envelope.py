@@ -11,6 +11,7 @@ import os
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 
 from qr_llm_evals.models.envelope import (
     AMPLIFIER_PINS,
@@ -248,6 +249,26 @@ def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
 def test_conditioning_rules_are_refused(bad: dict[str, Any]) -> None:
     with pytest.raises(ValueError):
         Conditioning.model_validate(bad)
+
+
+@pytest.mark.parametrize(
+    ("hash_name", "half"), [("sha256", 16), ("sha512", 32), ("sha3_256", 16), ("blake2b", 32)]
+)
+def test_hashing_always_discards_at_least_half_of_every_digest(hash_name: str, half: int) -> None:
+    block = {"hash": hash_name, "in_bytes": 256}
+    assert Conditioning.model_validate({**block, "keep_bytes": half}).keep_bytes == half
+    with pytest.raises(ValidationError) as refused:
+        Conditioning.model_validate({**block, "keep_bytes": half + 1})
+    assert (
+        "Serving more than half of each digest may compromise the integrity of the signal; "
+        f"keep at most {half} bytes of a {hash_name} digest"
+    ) in str(refused.value)
+
+
+def test_a_hashed_block_holds_at_least_twice_the_bytes_kept() -> None:
+    assert Conditioning.model_validate({"in_bytes": 32, "keep_bytes": 16}).in_bytes == 32
+    with pytest.raises(ValidationError, match="at least twice the bytes kept"):
+        Conditioning.model_validate({"in_bytes": 31, "keep_bytes": 16})
 
 
 def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:

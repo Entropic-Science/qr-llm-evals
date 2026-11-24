@@ -50,7 +50,7 @@ export function ConditioningInBytesField({ config, updateConfig }: FieldProps) {
 export function ConditioningKeepBytesField({ config, updateConfig }: FieldProps) {
   const { mode, hash, keep_bytes } = resolveConditioning(config.conditioning);
   const half = DIGEST_BYTES[hash] / 2;
-  return <Field path="conditioning.keep_bytes" label="Bytes kept from each digest" note={mode === "raw" ? UNUSED : `1 to ${half}: at least half of every digest is discarded.`}>
+  return <Field path="conditioning.keep_bytes" label="Bytes kept from each digest" note={mode === "raw" ? UNUSED : `1 to ${half}. Serving more than half of each digest may compromise the integrity of the signal.`}>
     <NumberInput value={keep_bytes} min={1} max={half} disabled={mode === "raw"} onCommit={(value) => { if (value !== null) updateConfig(setConditioning(config, { keep_bytes: value })); }} />
   </Field>;
 }

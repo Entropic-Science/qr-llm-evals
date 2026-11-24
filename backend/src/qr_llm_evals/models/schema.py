@@ -236,13 +236,15 @@ class Conditioning(_Strict):
         half = CONDITIONING_DIGEST_BYTES[self.hash] // 2
         if self.keep_bytes > half:
             raise ValueError(
-                f"conditioning.keep_bytes must be at most {half} for {self.hash} "
-                f"(at least half of every digest is discarded), got {self.keep_bytes}"
+                "Serving more than half of each digest may compromise the integrity of the "
+                f"signal; keep at most {half} bytes of a {self.hash} digest "
+                f"(conditioning.keep_bytes is {self.keep_bytes})."
             )
         if self.in_bytes < 2 * self.keep_bytes:
             raise ValueError(
-                f"conditioning.in_bytes must be at least 2 * keep_bytes "
-                f"({2 * self.keep_bytes}), got {self.in_bytes}"
+                "Every hashed block must hold at least twice the bytes kept from it; "
+                f"conditioning.in_bytes must be at least {2 * self.keep_bytes}, "
+                f"got {self.in_bytes}."
             )
         return self
 

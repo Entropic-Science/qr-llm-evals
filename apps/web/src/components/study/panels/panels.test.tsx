@@ -576,6 +576,18 @@ describe("the conditioning panel", () => {
     fireEvent.click(screen.getByLabelText("Hashed: uniform bytes"));
     expect(screen.queryByText(caution)).toBeNull();
   });
+
+  it("says before the study is submitted that more than half of a digest may not be served", () => {
+    const { state } = mount(["conditioning"]);
+    expect(screen.queryByRole("alert")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Bytes kept from each digest"), { target: { value: "17" } });
+    expect(state.latest.conditioning?.keep_bytes).toBe(17);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Serving more than half of each digest may compromise the integrity of the signal; keep at most 16 bytes of a SHA-256 digest.",
+    );
+    fireEvent.change(screen.getByLabelText("Bytes kept from each digest"), { target: { value: "16" } });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });
 
 describe("the design panels", () => {
