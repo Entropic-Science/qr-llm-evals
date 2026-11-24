@@ -237,8 +237,12 @@ def test_a_new_conditioning_is_hashed_with_the_standard_parameters() -> None:
         "in_bytes": 128,
         "keep_bytes": 16,
     }
-    # 10,000 served bytes per token cost 80,000 raw device bytes.
+    # 8 raw device bytes per byte served: 80,000 for a 10,000-byte token, 48,000 for 6,000.
+    assert HASHED.read_ratio() == "8"
+    assert Conditioning(in_bytes=40).read_ratio() == "2.5"
+    assert Conditioning(mode="raw").read_ratio() == "1"
     assert HASHED.raw_bytes_per_token(10_000) == 80_000
+    assert HASHED.raw_bytes_per_token(6_000) == 48_000
     assert Conditioning(mode="raw").raw_bytes_per_token(10_000) == 10_000
 
 

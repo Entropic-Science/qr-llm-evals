@@ -936,7 +936,8 @@ def test_a_designed_document_states_the_conditioning_the_study_carries() -> None
     arms = _section(hashed, "Arms and equivalence")
     assert "Entropy conditioning: hashed." in arms
     assert "blocks of 128 bytes" in arms and "`sha256`" in arms
-    assert "first 16 bytes of each digest" in arms and "80000 raw device bytes" in arms
+    assert "first 16 bytes of each digest" in arms
+    assert "so 8 raw device bytes are read for every byte served" in arms
     assert '"qr_conditioning_keep_bytes":16' in hashed
 
     raw = renderer.render(StudyConfig.model_validate({**data, "conditioning": {"mode": "raw"}}))

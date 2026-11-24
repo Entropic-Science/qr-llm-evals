@@ -18,7 +18,10 @@ export const MODE_LABELS: Readonly<Record<ConditioningMode, string>> = {
 };
 /** The largest raw block one digest is computed over. */
 export const MAX_IN_BYTES = 4096;
-/** Bytes the amplifier draws per token (`SAMPLE_COUNT` in `models/envelope.py`). */
+/**
+ * Bytes the amplifier draws per token when the engine runs the sampler's own default. The harness does not
+ * send the draw size, so a deployment may run another; what holds everywhere is `readRatio`.
+ */
 export const BYTES_PER_TOKEN = 10_000;
 
 /** What a new study starts with. */
@@ -30,7 +33,13 @@ export function resolveConditioning(conditioning: Conditioning | null | undefine
   return { ...HASHED_DEFAULT, ...conditioning };
 }
 
-/** Raw device bytes read for one token. */
+/** Raw device bytes read per byte served: 8 at the standard parameters, 1 for raw. */
+export function readRatio(conditioning: Conditioning | null | undefined): number {
+  const { mode, in_bytes, keep_bytes } = resolveConditioning(conditioning);
+  return mode === "raw" || !(keep_bytes >= 1) ? 1 : in_bytes / keep_bytes;
+}
+
+/** Raw device bytes read for one token of `BYTES_PER_TOKEN` bytes. */
 export function rawBytesPerToken(conditioning: Conditioning | null | undefined): number {
   const { mode, in_bytes, keep_bytes } = resolveConditioning(conditioning);
   if (mode === "raw" || !(keep_bytes >= 1)) return BYTES_PER_TOKEN;

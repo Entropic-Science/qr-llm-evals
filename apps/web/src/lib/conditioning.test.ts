@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { setConditioning } from "./config-edits";
-import { HASHED_DEFAULT, conditioningProblems, rawBytesPerToken, resolveConditioning } from "./conditioning";
+import { HASHED_DEFAULT, conditioningProblems, rawBytesPerToken, readRatio, resolveConditioning } from "./conditioning";
 import { studyOneTemplate } from "./config-store";
 import { problems } from "./problems";
 
@@ -18,6 +18,9 @@ describe("entropy conditioning", () => {
   });
 
   it("reads 80,000 raw bytes for a hashed token at the standard parameters", () => {
+    expect(readRatio(HASHED_DEFAULT)).toBe(8);
+    expect(readRatio({ ...HASHED_DEFAULT, in_bytes: 40 })).toBe(2.5);
+    expect(readRatio(undefined)).toBe(1);
     expect(rawBytesPerToken(HASHED_DEFAULT)).toBe(80_000);
     expect(rawBytesPerToken({ ...HASHED_DEFAULT, in_bytes: 64, keep_bytes: 8 })).toBe(80_000);
     expect(rawBytesPerToken({ ...HASHED_DEFAULT, hash: "sha512", in_bytes: 256, keep_bytes: 32 })).toBe(80_128);

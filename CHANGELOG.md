@@ -12,8 +12,8 @@ All notable changes to this project are documented here. The format follows
   asks the server to hash its raw read block by block and to serve part of each
   digest, so the quantum arm samples from uniform bytes whatever the device's
   own byte distribution is; the hash, the block size and the bytes kept per
-  digest are settings (SHA-256, 128 and 16 by default, which reads 80,000 raw
-  bytes per token). `raw` serves the measured bytes. The four
+  digest are settings (SHA-256, 128 and 16 by default, which reads 8 raw
+  bytes for every byte served). `raw` serves the measured bytes. The four
   `qr_conditioning_*` keys ride only the arms that draw from the entropy
   server; a card cannot set them, and they count as entropy keys in the
   equivalence check. The field is left out of a study that does not carry it,

@@ -1,6 +1,6 @@
 import { setConditioning } from "../../../lib/config-edits";
 import {
-  BYTES_PER_TOKEN, DIGEST_BYTES, HASH_LABELS, MAX_IN_BYTES, MODE_LABELS, conditioningProblems, rawBytesPerToken, resolveConditioning,
+  BYTES_PER_TOKEN, DIGEST_BYTES, HASH_LABELS, MAX_IN_BYTES, MODE_LABELS, conditioningProblems, rawBytesPerToken, readRatio, resolveConditioning,
   type ConditioningHash, type ConditioningMode,
 } from "../../../lib/conditioning";
 import { Field, FieldGroup, NumberInput, type FieldProps } from "./Field";
@@ -60,12 +60,12 @@ export function ConditioningSummary({ config }: FieldProps) {
   const resolved = resolveConditioning(config.conditioning);
   const problems = conditioningProblems(config.conditioning);
   if (resolved.mode === "raw") {
-    return <p className="field-note">Each token draws {count(BYTES_PER_TOKEN)} bytes from the device and uses them as they are.</p>;
+    return <p className="field-note">Each token uses the bytes it draws from the device as they are.</p>;
   }
   return <>
     <p className="field-note">
-      Each token uses {count(BYTES_PER_TOKEN)} hashed bytes, for which the device is read for {count(rawBytesPerToken(config.conditioning))} raw bytes:
-      {" "}{resolved.keep_bytes} of every {resolved.in_bytes} bytes read are served. The seeded and system pseudo-random arms are uniform already and are not hashed.
+      {resolved.keep_bytes} of every {resolved.in_bytes} bytes read from the device are served, so each byte a token uses costs {Number(readRatio(config.conditioning).toFixed(2))} raw bytes:
+      {" "}{count(rawBytesPerToken(config.conditioning))} for a token of {count(BYTES_PER_TOKEN)} bytes, the sampler&apos;s default draw. The seeded and system pseudo-random arms are uniform already and are not hashed.
     </p>
     {problems.map((problem) => <p className="field-note" role="alert" key={problem.path}>{problem.message}</p>)}
   </>;
