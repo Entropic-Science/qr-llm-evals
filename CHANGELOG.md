@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- A study frozen with a setting that was removed since (an arm with the
+  source `prng_resample`, which existed for a day) still opens: its page, its
+  runs, their health summaries, its pre-registration, its bundle and its
+  analysis pages are served from the stored files, and the arm ledger lists
+  its rows under the label they were stored with (`resampled_prng`). What
+  needs the validated study (resume, analyse, a new session) answers `409`
+  and names the field, where it answered `500` before. Nothing of such a
+  study is changed or removed. A draft in the browser with such an arm is
+  set aside and replaced by the template, as any draft the page cannot read.
 - Every envelope states its conditioning mode. The quantum arm of a hashed
   study sends the four `qr_conditioning_*` keys as before; every other arm
   that samples through the amplifier (a seeded, system or biased arm, and

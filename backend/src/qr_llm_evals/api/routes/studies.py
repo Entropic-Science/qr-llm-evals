@@ -73,8 +73,18 @@ def _analysis(study_dir: StudyDir, analysis_id: str, run_id: str | None = None) 
     return existing[0]
 
 
+#: Labels the ledger prints as recorded. ``resampled_prng`` is the label of an
+#: arm source that was removed: no new row carries it, and the rows of a run
+#: made while it existed are still listed under the label they were stored with.
 SOURCE_LABELS = frozenset(
-    {"quantum", "seeded_prng", "system_prng", "seeded_prng_biased", "provider_prng"}
+    {
+        "quantum",
+        "seeded_prng",
+        "system_prng",
+        "seeded_prng_biased",
+        "provider_prng",
+        "resampled_prng",
+    }
 )
 
 

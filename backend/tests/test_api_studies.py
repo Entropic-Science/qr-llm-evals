@@ -238,3 +238,66 @@ async def test_analysis_selection_and_actual_provenance(tmp_path: Path) -> None:
         assert rows["unverified"]["tainted_samples"] == 1
         assert rows["unverified"]["quantum"] is False
         assert rows["seeded_prng"]["quantum"] is False
+
+
+async def test_a_study_frozen_with_a_removed_arm_source_is_listed_and_clearly_refused(
+    tmp_path: Path,
+) -> None:
+    """A study frozen while ``prng_resample`` existed: its pages still read, its host routes refuse."""
+    store, run, app = _setup(tmp_path)
+    study_dir = store.study(run.study_id)
+    frozen = json.loads(study_dir.study_json.read_text(encoding="utf-8"))
+    frozen["config"]["arms"].append(
+        {"id": "pool", "model": "qr-llm", "sampling": "creative", "source": "prng_resample"}
+    )
+    study_dir.study_json.write_text(json.dumps(frozen), encoding="utf-8")
+    directory = store.run(run.study_id, run.run_id).run_dir
+    output = directory.analysis_dir("a_old")
+    (output / "tables").mkdir(parents=True)
+    (output / "plan.json").write_text("{}", encoding="utf-8")
+    (output / "manifest.json").write_text("{}", encoding="utf-8")
+    rows = directory.arm_card("pool", "unpredictabench").generations_jsonl
+    rows.parent.mkdir(parents=True)
+    rows.write_text(
+        json.dumps(
+            {
+                "sample_ref": "pool/unpredictabench/p/0",
+                "finish_reason": "stop",
+                "provenance": {"source_label": "resampled_prng", "quantum": False},
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    host = {"X-Host-Token": HOST_TOKEN}
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        study = await client.get(f"/api/studies/{run.study_id}")
+        assert study.status_code == 200, study.text
+        assert study.json()["study"]["config"]["arms"][-1]["source"] == "prng_resample"
+        assert [r["run_id"] for r in study.json()["runs"]] == [run.run_id]
+        assert (await client.get(f"/api/runs/{run.run_id}")).status_code == 200
+        health = await client.get(f"/api/runs/{run.run_id}/health")
+        assert health.status_code == 200, health.text
+        assert (await client.get(f"/api/studies/{run.study_id}/prereg.md")).status_code == 200
+        assert (await client.get(f"/api/studies/{run.study_id}/bundle.tar.zst")).status_code == 200
+        index = await client.get(f"/api/studies/{run.study_id}/analysis/a_old/index")
+        assert index.status_code == 200, index.text
+        ledger = [row for row in index.json()["provenance"] if row["arm_id"] == "pool"]
+        assert [(row["source_label"], row["quantum"]) for row in ledger] == [
+            ("resampled_prng", False)
+        ]
+
+        for path, body in (
+            (f"/api/runs/{run.run_id}/analyse", None),
+            (f"/api/runs/{run.run_id}/control", {"action": "resume"}),
+        ):
+            refused = await client.post(path, json=body, headers=host)
+            assert refused.status_code == 409, refused.text
+            message = refused.json()["error"]["message"]
+            assert "no longer reads" in message and "arms.8.source" in message
+            assert "prng_resample" not in message  # field paths and rules, never values
+    # Nothing was changed or removed by the refusals.
+    assert json.loads(study_dir.study_json.read_text(encoding="utf-8")) == frozen
+    assert store.run(run.study_id, run.run_id).read_run().state == "complete"
