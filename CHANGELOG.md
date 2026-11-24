@@ -15,6 +15,11 @@ All notable changes to this project are documented here. The format follows
   and names the field, where it answered `500` before. Nothing of such a
   study is changed or removed. A draft in the browser with such an arm is
   set aside and replaced by the template, as any draft the page cannot read.
+- A resumed run says in the server log when an arm's envelope is not the one
+  the run's readiness check recorded, and names the keys. That is the case of
+  a run started before the harness sent the draw size and the conditioning
+  mode and resumed after. The run is not stopped; the `envelope_hash` of each
+  generation tells its two parts apart.
 - Every envelope states its conditioning mode. The quantum arm of a hashed
   study sends the four `qr_conditioning_*` keys as before; every other arm
   that samples through the amplifier (a seeded, system or biased arm, and

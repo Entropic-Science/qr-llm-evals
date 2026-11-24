@@ -19,6 +19,7 @@ import pytest
 
 from qr_llm_evals.cards import EvalCard, load_cards
 from qr_llm_evals.keys.secrets import SecretBag
+from qr_llm_evals.models.envelope import SampleContext, build_envelope
 from qr_llm_evals.models.schema import CardOverrides, StudyConfig, config_hash
 from qr_llm_evals.runner import (
     ListEventSink,
@@ -39,6 +40,7 @@ from qr_llm_evals.runner.tasks import (
     told_preamble,
 )
 from qr_llm_evals.store import Run, RunStore, Store
+from qr_llm_evals.store.schema import ReadinessReport
 from stub_engine import StubEngine, StubJudge
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "registry"
@@ -295,6 +297,66 @@ def test_kill_and_resume_skips_completed_refs(tmp_path: Path) -> None:
     # the aborted ref was re-run and now has a completed row too
     for row in aborted_rows:
         assert row.sample_ref in regenerated
+
+
+def _readiness(rs: RunStore, envelopes: dict[str, dict[str, object]]) -> None:
+    rs.write_readiness(
+        ReadinessReport.model_validate(
+            {
+                "at": NOW.isoformat(),
+                "entropy": {"rpc_ok": True, "currently_degraded": False, "fallback_count": 0},
+                "arms": {
+                    arm: {"available": True, "resolved_qr_args": envelope}
+                    for arm, envelope in envelopes.items()
+                },
+                "equivalence_ok": True,
+                "determinism_tier": "none",
+                "tier0_source": "api_logprobs",
+                "epsilon_supported": False,
+            }
+        )
+    )
+
+
+def test_a_resume_says_when_the_envelope_is_not_the_one_readiness_recorded(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A run started before the harness sent a key and resumed after: logged, never blocked."""
+    rs = _run_store(tmp_path)
+    ctx = SampleContext("dry_run", "dry_run", 0, 1)
+    current = {arm.id: build_envelope(arm, ctx) for arm in _study().arms}
+    older = {
+        arm: {k: v for k, v in env.items() if k not in ("qr_sample_count", "qr_conditioning_mode")}
+        for arm, env in current.items()
+    }
+    _readiness(rs, older)
+
+    def kill_at_once(body: dict[str, object]) -> None:
+        control.abort("simulated kill")
+
+    control = RunControl()
+    with caplog.at_level("WARNING", logger="qr_llm_evals.runner"):
+        first = _orchestrator(rs, StubEngine(on_request=kill_at_once), control=control)
+        assert first.run().state == "aborted"
+        assert "sampling envelope differs" not in caplog.text  # a first start compares nothing
+
+        resumed = _orchestrator(Store(tmp_path).run(rs.study_id, rs.run_id), StubEngine())
+        assert resumed.run().state == "complete"
+    said = [r.getMessage() for r in caplog.records if "sampling envelope differs" in r.getMessage()]
+    assert len(said) == len(ARMS)
+    assert all("['qr_conditioning_mode', 'qr_sample_count']" in message for message in said)
+
+    # The envelope readiness recorded is the one sent now: nothing to say.
+    caplog.clear()
+    again = _run_store(tmp_path / "same")
+    _readiness(again, current)
+    control = RunControl()
+    with caplog.at_level("WARNING", logger="qr_llm_evals.runner"):
+        _orchestrator(again, StubEngine(on_request=kill_at_once), control=control).run()
+        _orchestrator(
+            Store(tmp_path / "same").run(again.study_id, again.run_id), StubEngine()
+        ).run()
+    assert "sampling envelope differs" not in caplog.text
 
 
 def test_taints_are_scoped_to_the_affected_samples(tmp_path: Path) -> None:

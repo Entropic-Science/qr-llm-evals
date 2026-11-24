@@ -74,6 +74,7 @@ from qr_llm_evals.client.sse import ChatChunk, MalformedFrameError
 from qr_llm_evals.keys.secrets import SecretBag
 from qr_llm_evals.models.envelope import (
     TOP_LOGPROBS,
+    EnvelopeError,
     SampleContext,
     build_envelope,
     build_request_body,
@@ -744,6 +745,49 @@ class Orchestrator:
                 depth = recorded
         self._top_logprobs = depth
 
+    def _note_envelope_change(self, arms: list[Arm]) -> None:
+        """On a resume, say in the log when an arm's envelope is not the one readiness accepted.
+
+        The harness builds the envelope, not the frozen study, so a run that
+        started under one version of the harness and is resumed under another
+        can send a different one (a pin the harness began to send, for one).
+        The run goes on. Each generation row holds the hash of the envelope it
+        was sent with, and that is what tells the two parts of such a run apart.
+        """
+        if self._first_start:
+            return
+        try:
+            report = self.store.read_readiness()
+        except (OSError, ValueError):
+            return
+        if report is None:
+            return
+        ctx = SampleContext("dry_run", "dry_run", 0, 1)
+        for arm in arms:
+            recorded = report.arms[arm.id].resolved_qr_args if arm.id in report.arms else {}
+            if not recorded:
+                continue  # a provider arm, or an arm readiness built no envelope for
+            try:
+                current = build_envelope(arm, ctx, conditioning=self.study.conditioning)
+            except EnvelopeError:
+                continue
+            # The seed is derived for each request; every other key is the arm's.
+            changed = sorted(
+                key
+                for key in (set(current) | set(recorded)) - {"qr_seed"}
+                if key not in current or key not in recorded or current[key] != recorded[key]
+            )
+            if changed:
+                logger.warning(
+                    "run %s, arm %s: the sampling envelope differs from the one this run's "
+                    "readiness check recorded, on %s; the run goes on with the current "
+                    "envelope, and each generation row records the hash of the one it was "
+                    "sent with",
+                    self.store.run_id,
+                    arm.id,
+                    changed,
+                )
+
     def _start_fields(self) -> dict[str, Any]:
         """What a starting orchestrator records beside the state ``running``.
 
@@ -802,6 +846,7 @@ class Orchestrator:
         base_cards = [card for card in cards if card.dataset.scheme != "derived"]
         derived_cards = [card for card in cards if card.dataset.scheme == "derived"]
         self._record_request_settings()
+        self._note_envelope_change(arms)
         self._set_state("running", **self._start_fields())
         if not self._wait_while_paused():
             return self._finish_generation()
