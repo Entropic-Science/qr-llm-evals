@@ -240,7 +240,7 @@ def test_the_designed_pre_registration_prints_the_study_limit_and_whose_it_is() 
     )
     own = load_cards()["novelty_bench"].max_tokens
     # The document escapes Markdown, so the brackets are written with a backslash.
-    line = f"max_tokens=2400 \(set by this study; the card has {own}\), thinking="
+    line = rf"max_tokens=2400 \(set by this study; the card has {own}\), thinking="
     assert line in limited
     changed = [
         after
