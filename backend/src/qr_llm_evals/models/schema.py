@@ -59,7 +59,7 @@ Sha256Hex = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 ModelFamily = Literal["qr_llm", "external"]
 Provider = Literal["qr_server", "openai", "anthropic_compat", "custom"]
 Sampling = Literal["creative", "t1_minp", "greedy"]
-Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "provider"]
+Source = Literal["qrng", "prng_seeded", "prng_system", "prng_epsilon", "prng_resample", "provider"]
 ObserverMode = Literal["supervised", "unsupervised"]
 Availability = Literal["available", "unavailable"]
 Display = Literal["single", "tiled"]
@@ -74,13 +74,19 @@ Tier0Source = Literal["engine_log", "api_logprobs"]
 #: Provenance labels per source (spec §2.2). ``quantum`` is the only label that
 #: may ever carry ``quantum=true`` (AGENTS.md invariant 2).
 SourceLabel = Literal[
-    "quantum", "seeded_prng", "system_prng", "seeded_prng_biased", "provider_prng"
+    "quantum",
+    "seeded_prng",
+    "system_prng",
+    "seeded_prng_biased",
+    "resampled_prng",
+    "provider_prng",
 ]
 SOURCE_LABELS: dict[str, str] = {
     "qrng": "quantum",
     "prng_seeded": "seeded_prng",
     "prng_system": "system_prng",
     "prng_epsilon": "seeded_prng_biased",
+    "prng_resample": "resampled_prng",
     "provider": "provider_prng",
 }
 
@@ -99,7 +105,7 @@ CONDITIONING_DIGEST_BYTES: dict[str, int] = {
 #: ``conditioning.max_in_bytes`` on the box).
 CONDITIONING_MAX_IN_BYTES = 4096
 #: Sources whose bytes come from the entropy server, so conditioning applies.
-CONDITIONED_SOURCES: frozenset[str] = frozenset({"qrng"})
+CONDITIONED_SOURCES: frozenset[str] = frozenset({"qrng", "prng_resample"})
 
 #: Study 1 seeds (PRD §7.1); each seed runs the full suite.
 DEFAULT_SEEDS: tuple[int, ...] = (1, 7, 42)

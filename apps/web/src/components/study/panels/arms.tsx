@@ -32,7 +32,8 @@ export const comparisonPanel = definePanel(
 );
 
 /**
- * How the entropy server's bytes reach the arms that draw from it: hashed and truncated (uniform), or raw.
+ * How the entropy server's bytes reach the arms that draw from it. The page edits the parameters of hashed
+ * entropy and states the mode: raw is written in a study file, never chosen here.
  * It belongs with the comparison because it decides what the quantum arm is compared on.
  */
 export const conditioningPanel = definePanel(

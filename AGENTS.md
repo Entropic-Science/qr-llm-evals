@@ -149,12 +149,22 @@ package must be side-effect free (no network, no writes, no downloads).
    it lowers the amplifier's reference mean by ε standard errors, so every
    `u` becomes `Φ(z + ε)`. No arm that is compared as quantum against
    pseudo-random may carry it. The study's entropy conditioning
-   (`StudyConfig.conditioning`) reaches only the arm that draws from the
-   entropy server (`qrng`), as the four `qr_conditioning_*` keys of a hashed
-   study. Every other arm, and every arm of a raw study or of a study without
-   the block, sends `qr_conditioning_mode: "raw"`, so no process default of
-   the engine decides the mode either. The field is never serialized when
-   absent, so older studies keep their config hash.
+   (`StudyConfig.conditioning`) reaches only the arms that draw from the
+   entropy server (`qrng`, `prng_resample`), as the four `qr_conditioning_*`
+   keys of a hashed study. Every other arm, and every arm of a raw study or
+   of a study without the block, sends `qr_conditioning_mode: "raw"`, so no
+   process default of the engine decides the mode either. The field is never
+   serialized when absent, so older studies keep their config hash.
+   **Raw conditioning and the `prng_resample` arm are study-file-only.** The
+   backend, the schema, the envelope and the pre-registration support both,
+   and they are kept for future experiments. The web app makes hashed
+   studies only: it has no control that sets `conditioning.mode: raw` and no
+   picker that offers `prng_resample` (`FILE_ONLY_SOURCES` in
+   `apps/web/src/routes/configure/fields/compare.tsx`). It must still load,
+   show and run a study file that names either, and must never turn a raw
+   study (or a study without the block) into a hashed one unless the user
+   presses "Use hashed entropy". Do not add a way from hashed to raw to the
+   page, and do not remove either option from the backend.
 2. **Never label PRNG output as quantum.** Provenance `quantum=true` only for
    the `qrng` source with zero engine fallbacks; any fallback taints the sample.
 3. **Never persist keys.** The launch bearer key only gates; BYO provider/judge

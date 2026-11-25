@@ -22,8 +22,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from qr_llm_evals.store.bundle import FrozenStudyUnreadableError
-
 log = logging.getLogger("qr_llm_evals.api")
 
 #: ``type`` values on the wire (OpenAI vocabulary plus the harness's own).
@@ -135,11 +133,6 @@ def install_handlers(app: FastAPI) -> None:
     async def _validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         # 400, not FastAPI's 422: the SPA and curl users expect the OpenAI status.
         return error_response(400, _validation_message(exc), param=_validation_param(exc))
-
-    @app.exception_handler(FrozenStudyUnreadableError)
-    async def _unreadable_study(request: Request, exc: FrozenStudyUnreadableError) -> JSONResponse:
-        # The message is built from field paths and rule texts of the study config, no values.
-        return error_response(409, str(exc))
 
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:

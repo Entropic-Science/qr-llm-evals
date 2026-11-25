@@ -458,6 +458,7 @@
             "prng_seeded",
             "prng_system",
             "prng_epsilon",
+            "prng_resample",
             "provider"
           ],
           "title": "Source",
@@ -4347,6 +4348,7 @@
             "seeded_prng",
             "system_prng",
             "seeded_prng_biased",
+            "resampled_prng",
             "provider_prng"
           ],
           "title": "Source Label",

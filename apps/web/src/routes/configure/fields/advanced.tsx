@@ -2,7 +2,7 @@ import type { Arm, ModelRef } from "@qr-evals/contracts";
 import { setArms, setCreatedAt, setEstimates, setModelField, setModels, setPilot, setSeeds } from "../../../lib/config-edits";
 import { formatG } from "../../../lib/design";
 import { EPSILON_LEVELS } from "../../../lib/roster";
-import { SAMPLING_LABELS, SOURCE_LABELS } from "./compare";
+import { SAMPLING_LABELS, SOURCE_LABELS, sourceOptions } from "./compare";
 import { Field, FieldGroup, ListInput, NumberInput, ReadOnlyField, useFieldId, type FieldProps } from "./Field";
 
 // The fields only the settings page shows: the arms, models and seeds as they are written, the assumptions
@@ -46,7 +46,7 @@ export function ArmTableField({ config, updateConfig }: FieldProps) {
             {Object.entries(SAMPLING_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select></label>
           <label data-path="arms[].source">Source<select value={arm.source} onChange={(event) => change(index, { source: event.target.value as Arm["source"] })}>
-            {Object.entries(SOURCE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            {sourceOptions(arm.source).map((value) => <option key={value} value={value}>{SOURCE_LABELS[value]}</option>)}
           </select></label>
           <label data-path="arms[].study_seed">Seed<NumberInput value={arm.study_seed ?? null} nullable min={0} onCommit={(value) => change(index, { study_seed: value })} /></label>
           <label data-path="arms[].epsilon">Bias ε<select value={arm.epsilon === null || arm.epsilon === undefined ? "" : String(arm.epsilon)} onChange={(event) => change(index, { epsilon: event.target.value === "" ? null : Number(event.target.value) })}>

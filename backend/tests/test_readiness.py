@@ -142,6 +142,21 @@ def test_entropy_health_unreachable_is_degraded() -> None:
 # ── happy path: the Study 1 arms on a fully capable engine ───────────────────
 
 
+def test_a_resampled_control_arm_is_probed_and_accepted() -> None:
+    pool = {"id": "pool", "model": "qr-llm", "sampling": "creative", "source": "prng_resample"}
+    engine = StubEngine(n_tokens=8)
+    report = _run(_study([QRNG, SEED7, pool]), engine)
+    assert set(report.arms) == {"qrng", "prng_seed_7", "pool"}
+    assert report.arms["pool"].available
+    sent = report.arms["pool"].resolved_qr_args
+    assert sent["qr_entropy_source_type"] == "qbert_prng_resample"
+    assert sent["qr_conditioning_mode"] == "raw"
+    assert sent["qr_sample_count"] == 10_000
+    assert sent["qr_signal_amplifier_type"] == "zscore_mean"
+    assert "qr_seed" not in sent
+    assert report.equivalence_ok
+
+
 def test_study1_report_all_green(tmp_path: Path) -> None:
     engine = StubEngine(n_tokens=8)
     log_dir = tmp_path / "token-log"

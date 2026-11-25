@@ -30,6 +30,7 @@ from qr_llm_evals.models.envelope import (
     bent_population_mean,
     build_envelope,
     build_request_body,
+    conditioning_xargs,
     envelope_hash,
     envelope_json,
     equivalence_violations,
@@ -197,6 +198,7 @@ def test_every_sampling_arm_sends_its_draw_size_and_no_card_can_change_it() -> N
         *STUDY1_ARMS.values(),
         _arm("sys", source="prng_system"),
         _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("res", source="prng_resample"),
         _arm("t1", sampling="t1_minp"),
     ]
     for arm in arms:
@@ -213,6 +215,7 @@ def test_source_type_table() -> None:
         "prng_seeded": "seeded_prng",
         "prng_system": "system",
         "prng_epsilon": "seeded_prng",
+        "prng_resample": "qbert_prng_resample",
     }
 
 
@@ -227,6 +230,31 @@ def test_system_prng_row() -> None:
     env = build_envelope(_arm("sys", source="prng_system"), CTX)
     assert env["qr_entropy_source_type"] == "system"
     assert "qr_seed" not in env
+
+
+def test_resample_row_is_the_named_grpc_lane() -> None:
+    """The resampled control differs from the quantum arm in the source type and nothing else."""
+    env = build_envelope(_arm("res", source="prng_resample"), CTX)
+    assert env["qr_entropy_source_type"] == "qbert_prng_resample"
+    assert "qr_seed" not in env
+    assert "qr_population_mean" not in env
+    assert env == {
+        **build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX),
+        **{"qr_entropy_source_type": "qbert_prng_resample"},
+    }
+    # Like every arm that samples through the amplifier: the pins, the draw size, the mode.
+    assert {k: env[k] for k in AMPLIFIER_PINS} == AMPLIFIER_PINS
+    assert env["qr_sample_count"] == SAMPLE_COUNT
+    assert env["qr_conditioning_mode"] == "raw"
+
+
+def test_a_raw_study_with_its_resampled_control_is_one_pipeline() -> None:
+    raw = Conditioning(mode="raw")
+    arms = {**STUDY1_ARMS, "pool": _arm("pool", source="prng_resample")}
+    envelopes = {k: build_envelope(a, CTX, conditioning=raw) for k, a in arms.items()}
+    assert equivalence_violations(envelopes) == []
+    assert all(env["qr_conditioning_mode"] == "raw" for env in envelopes.values())
+    assert not {"qr_conditioning_hash", "qr_conditioning_in_bytes"} & set(envelopes["pool"])
 
 
 # ── entropy conditioning ─────────────────────────────────────────────────────
@@ -295,6 +323,13 @@ def test_hashed_conditioning_rides_only_entropy_server_arms() -> None:
     raw = build_envelope(STUDY1_ARMS["qrng_unsupervised"], CTX)
     assert quantum == {**raw, **_HASH_KEYS}
     assert list(quantum)[-4:] == list(_HASH_KEYS)
+    # The resampled pool is served by the entropy server too, so a hashed study hashes it as well.
+    resample = _arm("res", source="prng_resample")
+    assert conditioning_xargs(resample, HASHED) == _HASH_KEYS
+    assert build_envelope(resample, CTX, conditioning=HASHED) == {
+        **build_envelope(resample, CTX),
+        **_HASH_KEYS,
+    }
     others = (
         STUDY1_ARMS["prng_seed_1"],
         _arm("sys", source="prng_system"),
@@ -312,12 +347,13 @@ def test_every_sampling_arm_states_its_conditioning_mode() -> None:
         *STUDY1_ARMS.values(),
         _arm("sys", source="prng_system"),
         _arm("eps", source="prng_epsilon", study_seed=1, epsilon=0.03),
+        _arm("res", source="prng_resample"),
         _arm("t1", sampling="t1_minp"),
     ]
     for arm in arms:
         for conditioning in (None, Conditioning(mode="raw"), HASHED):
             env = build_envelope(arm, CTX, conditioning=conditioning)
-            hashed = conditioning is HASHED and arm.source == "qrng"
+            hashed = conditioning is HASHED and arm.source in {"qrng", "prng_resample"}
             assert env["qr_conditioning_mode"] == ("hash_truncate" if hashed else "raw")
     greedy = _arm("greedy", sampling="greedy", source="prng_system")
     assert "qr_conditioning_mode" not in build_envelope(greedy, CTX, conditioning=HASHED)

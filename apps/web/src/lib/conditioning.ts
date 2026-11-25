@@ -12,6 +12,7 @@ export type ResolvedConditioning = Required<Conditioning>;
 /** Digest size of each hash, in bytes. */
 export const DIGEST_BYTES: Readonly<Record<ConditioningHash, number>> = { sha256: 32, sha512: 64, sha3_256: 32, blake2b: 64 };
 export const HASH_LABELS: Readonly<Record<ConditioningHash, string>> = { sha256: "SHA-256", sha512: "SHA-512", sha3_256: "SHA3-256", blake2b: "BLAKE2b" };
+/** What a study's mode is called. The page shows it and offers no choice: raw comes from a study file only. */
 export const MODE_LABELS: Readonly<Record<ConditioningMode, string>> = {
   hash_truncate: "Hashed: uniform bytes",
   raw: "Raw: the device's measured bytes",

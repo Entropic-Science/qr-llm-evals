@@ -23,8 +23,18 @@ export const SOURCE_LABELS: Record<Arm["source"], string> = {
   prng_seeded: "Seeded pseudo-random · control",
   prng_system: "System pseudo-random · control",
   prng_epsilon: "Biased pseudo-random · positive control",
+  prng_resample: "Resampled device pool · matched control for raw bytes",
   provider: "Provider's own (opaque)",
 };
+/**
+ * Sources that only a study file names. They are shown wherever an arm has one and offered in no picker:
+ * the resampled device pool is the control matched to raw entropy, which the page does not make either.
+ */
+export const FILE_ONLY_SOURCES: ReadonlySet<Arm["source"]> = new Set<Arm["source"]>(["prng_resample"]);
+/** The sources the arm table offers for an arm: every source of the page, and the arm's own if its file named another. */
+export function sourceOptions(current: Arm["source"]): Arm["source"][] {
+  return (Object.keys(SOURCE_LABELS) as Arm["source"][]).filter((source) => !FILE_ONLY_SOURCES.has(source) || source === current);
+}
 const EPSILON_STATE_TEXT: Record<EpsilonState, string> = { absent: "absent", off: "planned, off", on: "on" };
 const NEXT_EPSILON_STATE: Record<EpsilonState, EpsilonState> = { absent: "off", off: "on", on: "absent" };
 

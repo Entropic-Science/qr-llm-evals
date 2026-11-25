@@ -11,6 +11,7 @@ const SOURCE_LABELS: Record<string, string> = {
   seeded_prng: "Seeded PRNG",
   system_prng: "System PRNG",
   seeded_prng_biased: "Seeded PRNG, biased",
+  resampled_prng: "Resampled device-pool PRNG",
   provider_prng: "External provider",
   unlabelled: "Unlabelled",
 };
