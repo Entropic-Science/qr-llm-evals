@@ -1,34 +1,42 @@
 import { setConditioning } from "../../../lib/config-edits";
 import {
   BYTES_PER_TOKEN, DIGEST_BYTES, HASH_LABELS, MAX_IN_BYTES, MODE_LABELS, conditioningProblems, rawBytesPerToken, readRatio, resolveConditioning,
-  type ConditioningHash, type ConditioningMode,
+  type ConditioningHash,
 } from "../../../lib/conditioning";
-import { Field, FieldGroup, NumberInput, type FieldProps } from "./Field";
+import { Field, NumberInput, ReadOnlyField, type FieldProps } from "./Field";
 
 // How the bytes of the entropy server reach the arms that draw from it: hashed, or as the device measured them.
 
 const count = (value: number) => value.toLocaleString("en-US");
 const UNUSED = "Not used for raw bytes.";
+/** What the page says of a raw study. It has no control: the mode of a raw study is written in its file. */
+export const RAW_STATEMENT = "This study runs on raw entropy: the quantum arm samples from the bytes exactly as the device measured them. Raw device bytes are not uniform, so a raw quantum arm differs from the pseudo-random arms by the device’s byte statistics as well as by the source. Raw entropy is set in the study file only; this page makes hashed studies and has no setting for it.";
+export const RAW_ABSENT = "This study has no conditioning block: it is from before the setting, and it runs on raw bytes.";
 
-/** Hashed or raw. A study from before the setting has no block and is shown as raw, which is how it ran. */
+/**
+ * What the quantum arm is served, as a statement. The page makes hashed studies only and has no control that
+ * sets raw: a raw study comes from a study file (or from before the setting, without the block). It is shown
+ * as what it is and stays raw through every other edit; the one change offered is to hashed.
+ */
 export function ConditioningModeField({ config, updateConfig }: FieldProps) {
   const { mode } = resolveConditioning(config.conditioning);
   const absent = config.conditioning === null || config.conditioning === undefined;
-  return <FieldGroup
-    path="conditioning.mode"
-    label="Entropy served to the quantum arm"
-    note={mode === "hash_truncate"
-      ? "The entropy server hashes its raw read block by block and serves only part of each digest. The bytes are uniform whatever the device's own byte distribution is, so the quantum arm and the seeded controls start from the same distribution."
-      : <>
-        The quantum arm samples from the bytes exactly as the device measured them. Raw device bytes are not uniform, so a raw quantum arm differs from the pseudo-random arms by the device&rsquo;s byte statistics as well as by the source, and the harness has no matched control for that.
-        {absent ? " This study has no conditioning block: it is from before the setting, and it runs on raw bytes." : ""}
-      </>}
-  >
-    {(Object.keys(MODE_LABELS) as ConditioningMode[]).map((option) => <label className="toggle-line" key={option}>
-      <input type="radio" name="conditioning-mode" checked={mode === option} onChange={() => updateConfig(setConditioning(config, { mode: option }))} />
-      {MODE_LABELS[option]}
-    </label>)}
-  </FieldGroup>;
+  if (mode === "hash_truncate") {
+    return <ReadOnlyField
+      path="conditioning.mode"
+      label="Entropy served to the quantum arm"
+      value={MODE_LABELS.hash_truncate}
+      note="The entropy server hashes its raw read block by block and serves only part of each digest. The bytes are uniform whatever the device's own byte distribution is, so the quantum arm and the seeded controls start from the same distribution."
+    />;
+  }
+  return <>
+    <ReadOnlyField path="conditioning.mode" label="Entropy served to the quantum arm" value={MODE_LABELS.raw} />
+    <p className="validation-note" role="note">{RAW_STATEMENT}{absent ? ` ${RAW_ABSENT}` : ""}</p>
+    <div className="field">
+      <button type="button" className="button button--secondary" onClick={() => updateConfig(setConditioning(config, { mode: "hash_truncate" }))}>Use hashed entropy</button>
+      <p className="field-note">This changes the study to hashed entropy. The page has no way back to raw.</p>
+    </div>
+  </>;
 }
 
 export function ConditioningHashField({ config, updateConfig }: FieldProps) {

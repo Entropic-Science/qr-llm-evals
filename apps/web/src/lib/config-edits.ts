@@ -255,7 +255,10 @@ export function setDisplaySettings(config: WizardStudyConfig, mode: "single" | "
 
 // ── advanced ─────────────────────────────────────────────────────────────────
 
-/** Changes the entropy conditioning. A study without the block gets one: what it ran under (raw), with the change. */
+/**
+ * Changes the entropy conditioning. A study without the block gets one: what it ran under (raw), with the change.
+ * No field of the page passes `mode: "raw"`: the page takes a raw study to hashed and never the other way.
+ */
 export function setConditioning(config: WizardStudyConfig, patch: Partial<Conditioning>): WizardStudyConfig {
   return { ...config, conditioning: { ...resolveConditioning(config.conditioning), ...patch } };
 }

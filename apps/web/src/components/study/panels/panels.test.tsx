@@ -36,6 +36,16 @@ function byHand(): WizardStudyConfig {
   return { ...config, arms: [...config.arms, { id: "system", model: "qr-llm", sampling: "creative", source: "prng_system" }] };
 }
 
+/** A raw study from a study file, with the control matched to raw bytes: an arm on the resampled device pool. */
+function withPool(): WizardStudyConfig {
+  const config = studyOneTemplate();
+  return {
+    ...config,
+    conditioning: { mode: "raw", hash: "sha256", in_bytes: 128, keep_bytes: 16 },
+    arms: [...config.arms, { id: "pool", model: "qr-llm", sampling: "creative", source: "prng_resample" }],
+  };
+}
+
 /** The panels over one study held in state, as the setup shell holds it. `latest` is the study after the last edit. */
 function mount(ids: readonly string[], initial: WizardStudyConfig = studyOneTemplate()) {
   const state = { latest: initial, edits: 0 };
@@ -56,6 +66,7 @@ describe("every panel", () => {
     ["the Study 1 template", studyOneTemplate],
     ["a legacy study without a design block", legacy],
     ["a study with hand-written arms", byHand],
+    ["a raw study with a resampled device pool arm", withPool],
     ["a study with no evals, no comparison and no supervised sessions", (): WizardStudyConfig => ({ ...legacy(), arms: [], cards: [], supervised: null })],
   ])("renders for %s as a fieldset with its legend", (_name, make) => {
     const { container } = mount(PANELS.map((item) => item.id), make());
@@ -98,6 +109,7 @@ describe("every key a panel claims", () => {
     template: "the file the study started from",
     data_licence: "one licence for every study on the harness",
     "design.version": "the version of the design block, set by the harness",
+    "conditioning.mode": "the page makes hashed studies; raw is written in a study file, and a raw study is only offered hashed",
     "judge.provider": "the judge is always a Claude model",
     "judge.rubric_hash": "each eval's rubric has its own hash, recorded with every judgement",
     "supervised.target_pool_hash": "the server's asset hashes are not offered to the page",
@@ -257,6 +269,26 @@ describe("the comparisons panel", () => {
 
 describe("the arm table", () => {
   const row = (name: string) => group(name);
+
+  it("does not offer the resampled device pool as a source", () => {
+    mount(["arm-table"]);
+    const picker = within(row("prng_seed_1")).getByLabelText("Source") as HTMLSelectElement;
+    expect(Array.from(picker.options).map((option) => option.value)).toEqual(["qrng", "prng_seeded", "prng_system", "prng_epsilon", "provider"]);
+    for (const select of screen.getAllByLabelText("Source")) expect(within(select).queryByText(/Resampled/)).toBeNull();
+  });
+
+  it("shows a resampled arm from a study file as what it is, and offers the source to no other arm", () => {
+    const initial = withPool();
+    const { state } = mount(["arm-table"], initial);
+    const own = within(row("pool")).getByLabelText("Source") as HTMLSelectElement;
+    expect(own.value).toBe("prng_resample");
+    expect(own.selectedOptions[0]?.textContent).toBe("Resampled device pool · matched control for raw bytes");
+    const other = within(row("prng_seed_1")).getByLabelText("Source") as HTMLSelectElement;
+    expect(Array.from(other.options).map((option) => option.value)).not.toContain("prng_resample");
+    // An edit of another arm leaves the resampled arm as the object it was.
+    fireEvent.change(within(row("prng_seed_1")).getByLabelText("Seed"), { target: { value: "77" } });
+    expect(state.latest.arms.at(-1)).toBe(initial.arms.at(-1));
+  });
 
   it("edits every field of an arm", () => {
     const initial = studyOneTemplate();
@@ -566,15 +598,61 @@ describe("the token limits panel", () => {
 });
 
 describe("the conditioning panel", () => {
-  it("cautions that a raw quantum arm has no matched control, and only while raw is chosen", () => {
-    const { state } = mount(["conditioning"]);
-    const caution = /differs from the pseudo-random arms by the device’s byte statistics as well as by the source, and the harness has no matched control for that/;
-    expect(screen.queryByText(caution)).toBeNull();
-    fireEvent.click(screen.getByLabelText("Raw: the device's measured bytes"));
-    expect(state.latest.conditioning?.mode).toBe("raw");
-    expect(screen.getByText(caution)).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Hashed: uniform bytes"));
-    expect(screen.queryByText(caution)).toBeNull();
+  const RAW = /This study runs on raw entropy: the quantum arm samples from the bytes exactly as the device measured them\. Raw device bytes are not uniform, so a raw quantum arm differs from the pseudo-random arms by the device’s byte statistics as well as by the source\. Raw entropy is set in the study file only; this page makes hashed studies and has no setting for it\./;
+  const raw = (): WizardStudyConfig => ({ ...studyOneTemplate(), conditioning: { mode: "raw", hash: "sha256", in_bytes: 128, keep_bytes: 16 } });
+
+  it("has no control that sets raw on a hashed study", () => {
+    const { state, container } = mount(["conditioning"]);
+    expect(screen.getByText("Hashed: uniform bytes")).toBeInTheDocument();
+    expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(0);
+    expect(screen.queryByText(/Raw: the device's measured bytes/)).toBeNull();
+    expect(screen.queryByText(RAW)).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    // Every control the panel has, used once: none of them leaves hashed.
+    fireEvent.change(screen.getByLabelText("Hash"), { target: { value: "sha512" } });
+    fireEvent.change(screen.getByLabelText("Raw bytes hashed per block"), { target: { value: "256" } });
+    fireEvent.change(screen.getByLabelText("Bytes kept from each digest"), { target: { value: "8" } });
+    expect(state.latest.conditioning).toEqual({ mode: "hash_truncate", hash: "sha512", in_bytes: 256, keep_bytes: 8 });
+    for (const option of Array.from(container.querySelectorAll("option"))) expect(option.value).not.toBe("raw");
+  });
+
+  it("states that a raw study runs on raw bytes, with no way to edit its parameters", () => {
+    const { state } = mount(["conditioning"], raw());
+    expect(screen.getByText("Raw: the device's measured bytes")).toBeInTheDocument();
+    expect(screen.getByRole("note")).toHaveTextContent(RAW);
+    expect(screen.getByRole("note")).not.toHaveTextContent("no conditioning block");
+    expect(screen.getByLabelText("Hash")).toBeDisabled();
+    expect(screen.getByLabelText("Raw bytes hashed per block")).toBeDisabled();
+    expect(screen.getByLabelText("Bytes kept from each digest")).toBeDisabled();
+    expect(state.edits).toBe(0);
+  });
+
+  it("says of a study without the block that it is from before the setting, and leaves it without one", () => {
+    const { state } = mount(["conditioning", "title"], legacy());
+    expect(screen.getByRole("note")).toHaveTextContent(RAW);
+    expect(screen.getByRole("note")).toHaveTextContent("This study has no conditioning block: it is from before the setting, and it runs on raw bytes.");
+    fireEvent.change(screen.getByLabelText("Study title"), { target: { value: "Edited" } });
+    expect(state.latest.title).toBe("Edited");
+    expect(state.latest.conditioning ?? null).toBeNull();
+  });
+
+  it("keeps a raw study raw through an edit of another field", () => {
+    const initial = raw();
+    const { state } = mount(["conditioning", "title"], initial);
+    fireEvent.change(screen.getByLabelText("Study title"), { target: { value: "Edited" } });
+    expect(state.latest.title).toBe("Edited");
+    expect(state.latest.conditioning).toEqual(initial.conditioning);
+    expect(screen.getByRole("note")).toHaveTextContent(RAW);
+  });
+
+  it("takes a raw study to hashed only when asked, and offers no way back", () => {
+    const { state, container } = mount(["conditioning"], raw());
+    fireEvent.click(screen.getByRole("button", { name: "Use hashed entropy" }));
+    expect(state.latest.conditioning).toEqual({ mode: "hash_truncate", hash: "sha256", in_bytes: 128, keep_bytes: 16 });
+    expect(screen.queryByRole("note")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(container.querySelectorAll('input[type="radio"]')).toHaveLength(0);
+    expect(screen.getByLabelText("Hash")).toBeEnabled();
   });
 
   it("says before the study is submitted that more than half of a digest may not be served", () => {
