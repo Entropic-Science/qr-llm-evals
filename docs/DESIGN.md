@@ -133,14 +133,29 @@ block by block and serves only part of each digest, so the quantum arm samples
 from uniform bytes like the seeded controls do. The hash, the block size and
 the bytes kept are frozen with the study, and the server records them and the
 sha256 of the raw block with every request. With `raw` the quantum arm samples
-from the measured bytes. It then differs from the pseudo-random arms by the
-device's byte statistics as well as by the source, and the harness has no
-matched control for that. A seeded or system PRNG arm is never hashed, so the
-`qr_conditioning_*` keys are among the keys on which arms may differ. A study
-without the block is from before the setting and runs on raw bytes. Every
-envelope states its mode: the quantum arm of a hashed study sends the four
-keys, and every other arm of any study sends `qr_conditioning_mode: "raw"`,
-so no default of the engine decides whether an arm's bytes are hashed.
+from the measured bytes. It then differs from the seeded and system
+pseudo-random arms by the device's byte statistics as well as by the source.
+The control that matches it is a `prng_resample` arm (provenance label
+`resampled_prng`, never quantum): a seeded replay of windows of a recording
+of the same device, served by the entropy server, so it has the device's
+byte statistics and none of its fresh measurements. A seeded or system PRNG
+arm is never hashed, so the `qr_conditioning_*` keys are among the keys on
+which arms may differ. A study without the block is from before the setting
+and runs on raw bytes. Every envelope states its mode: in a hashed study the
+arms that draw from the entropy server (the quantum arm, and a `prng_resample`
+arm if the study has one) send the four keys, and every other arm of any
+study sends `qr_conditioning_mode: "raw"`, so no default of the engine
+decides whether an arm's bytes are hashed.
+
+A study made in the web app is hashed. Raw conditioning and the resampled
+control are kept for future experiments and are options of the study file
+only: the app has no control that sets `conditioning.mode: raw` and no
+picker that offers the source `prng_resample`. A study file that names
+either loads, is shown as what it is, and runs. The app states that a raw
+study runs on raw bytes and leaves it raw through every other edit; the one
+change it offers is to hashed entropy, and it offers no way back.
+`docs/SETUP_GUIDE.md` ("Options of the study file that the app does not
+offer") shows how to write both.
 
 `quantum=true` requires the QRNG source and no fallback. A fallback taints a
 sample; seeded, system, biased, and external provider PRNG are never labelled

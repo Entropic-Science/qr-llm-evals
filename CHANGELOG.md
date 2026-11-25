@@ -6,6 +6,43 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+- Raw conditioning and the resampled control are options of the study file
+  only, kept for future experiments. A study made in the web app is hashed.
+  - The "Entropy conditioning" panel no longer has the choice between hashed
+    and raw. It shows the mode as a statement and edits the hash, the block
+    size and the bytes kept of a hashed study, with the rule that at most
+    half of every digest is served. A raw study (`conditioning.mode: raw` in
+    its file, or no `conditioning` block) still opens. The panel says that
+    it runs on raw bytes, that a raw quantum arm differs from the
+    pseudo-random arms by the device's byte statistics as well as by the
+    source, and that raw entropy is set in the study file only. Editing
+    another setting leaves such a study raw, and a study without the block
+    stays without one. "Use hashed entropy" changes it to hashed; the page
+    has no way from hashed to raw.
+  - The arm source `prng_resample` is back in the backend as it was before
+    it was removed (see the entries below): the schema, the
+    envelope (`qr_entropy_source_type: "qbert_prng_resample"`), the
+    provenance label `resampled_prng`, the health summary and the generated
+    contracts. Its envelope carries what every arm that samples through the
+    amplifier carries since then: the amplifier pins, `qr_sample_count` and
+    `qr_conditioning_mode`. Like the quantum arm it is served by the entropy
+    server, so it sends the four `qr_conditioning_*` keys in a hashed study
+    and `raw` otherwise. No picker of the web app offers the source. A study
+    file that names it loads without a problem, is listed in the arm table
+    and drawn on the map as an arm outside the comparison, and runs; its
+    rows carry the badge "Resampled device-pool PRNG".
+  - The designed pre-registration names the resampled control again in its
+    paragraph on entropy conditioning, so the template hash printed in
+    `backend/tests/fixtures/prereg/golden_designed.md` moved. No config,
+    plan or cards hash moved, and the template of a study without a design
+    block is untouched.
+  - The `409` for a study frozen with a removed setting, added in
+    the entry below for `prng_resample` alone, is removed with its error class:
+    the source is valid again, such a study validates, and nothing else
+    used the path. A draft in the browser with a resampled arm is read like
+    any other draft.
+  - `docs/SETUP_GUIDE.md` ("Options of the study file that the app does not
+    offer") shows how to write both in a study file.
 - A study frozen with a setting that was removed since (an arm with the
   source `prng_resample`, which existed for a day) still opens: its page, its
   runs, their health summaries, its pre-registration, its bundle and its

@@ -625,6 +625,57 @@ applies at once to the study behind the dialog; there is no separate apply
 step. The footer has the file state, "Load study file", "Save study file"
 and "Done".
 
+**Options of the study file that the app does not offer.** A study made in
+the app runs on hashed entropy: the "Entropy conditioning" panel shows the
+mode as a statement and edits the hash, the block size and the bytes kept.
+Two options are kept for future experiments and exist in the study file
+only.
+
+- *Raw conditioning.* The quantum arm samples from the bytes as the device
+  measured them. Write the block by hand:
+
+  ```yaml
+  conditioning:
+    mode: "raw"
+  ```
+
+  A study file without a `conditioning` block is from before the setting and
+  also runs on raw bytes. Raw device bytes are not uniform, so a raw quantum
+  arm differs from the seeded and system pseudo-random arms by the device's
+  byte statistics as well as by the source.
+- *The resampled control.* An arm with the source `prng_resample` replays
+  seeded windows of a recording of the same device. It is the control
+  matched to a raw quantum arm, its provenance label is `resampled_prng`,
+  and it is never labelled quantum. It takes no `study_seed` and no
+  `epsilon`:
+
+  ```yaml
+  arms:
+    - id: "pool"
+      model: "qr-llm"
+      sampling: "creative"
+      source: "prng_resample"
+  ```
+
+  The plan of a study compares the quantum arm with the seeded arms; a
+  resampled arm is run and stored, and no comparison of the plan uses it.
+  What the box needs for it is under DEP-3 below.
+
+A file with either option loads like any other. The panel then reads "Raw:
+the device's measured bytes" with the caution above and the sentence "Raw
+entropy is set in the study file only; this page makes hashed studies and
+has no setting for it." The hash fields are switched off, and editing any
+other setting leaves the study raw; a study without the block stays without
+one. "Use hashed entropy" changes the study to hashed entropy with the
+standard parameters, and the page has no way back to raw: load the file
+again, or edit it by hand. A resampled arm is listed in the arm table as
+"Resampled device pool · matched control for raw bytes" and drawn on the
+map as an arm outside the comparison. Because the arm list is then written
+by hand, the comparison panel shows "These arms were written by hand", as
+it does for any arm that is not one of its roles; "Rebuild from roles"
+would drop the resampled arm. The source picker of the arm table under All
+settings does not offer the source to another arm.
+
 **Saving a study file.** "Save study file" is in the study bar on every step
 and on the map, and in the footer of All settings. It writes the study to a
 `.study.yaml` file named after the study's title. Writing the file needs no
@@ -1079,16 +1130,21 @@ apply to it.
   discards the result. The harness keeps the rows for the reply's tokens.
 - **DEP-2**: epsilon-biased seeded PRNG also belongs in qr-sampler. Unsupported
   arms remain unavailable; record the missing positive control in the prereg.
-- **DEP-3**: entropy conditioning is served by Qbert0G and requested through
-  qr-sampler. A study with `conditioning.mode: hash_truncate` needs
-  `conditioning.allow_request: true` in `/etc/qbert0g/qbert0g.config.yaml` and
-  a qr-sampler that knows the `qr_conditioning_*` keys; qr-sampler's
-  `deployments/qr-server/README.md` describes both. Every envelope carries
-  `qr_conditioning_mode` (`raw` on every arm that is not the quantum arm of a
-  hashed study), so the engine's own default mode decides nothing, and every
-  study, raw ones included, needs a qr-sampler that knows the key. Readiness
-  sends every arm's real envelope, so an engine that lacks either refuses the
-  arm there and not in the run. A hashed token reads eight times the raw bytes of
+- **DEP-3**: entropy conditioning and the resampled control are served by
+  Qbert0G and requested through qr-sampler. A study with
+  `conditioning.mode: hash_truncate` needs `conditioning.allow_request: true`
+  in `/etc/qbert0g/qbert0g.config.yaml` and a qr-sampler that knows the
+  `qr_conditioning_*` keys. An arm with the source `prng_resample` (a study
+  file names it; the app does not offer it) needs the `prng_resample` control
+  in the same file, with its recorded pool, and the `qbert_prng_resample`
+  instance in `QR_ENTROPY_SOURCE_INSTANCES` and `QR_PREINIT_ENTROPY_SOURCES`
+  of `/etc/qr-server/qr-server.env`. qr-sampler's
+  `deployments/qr-server/README.md` describes all of it. Every envelope
+  carries `qr_conditioning_mode` (`raw` on every arm that is not a quantum or
+  resampled arm of a hashed study), so the engine's own default mode decides
+  nothing, and every study, raw ones included, needs a qr-sampler that knows
+  the key. Readiness sends every arm's real envelope, so an engine that lacks
+  any of this refuses the arm there and not in the run. A hashed token reads eight times the raw bytes of
   a raw one at the default parameters; the request must stay within the
   entropy key's `max_bytes_per_request`. The harness sends the draw size
   itself: every envelope carries `qr_sample_count: 10000`, so a token draws
