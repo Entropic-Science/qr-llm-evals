@@ -150,7 +150,7 @@ export interface Arm {
    */
   model: string;
   sampling: "creative" | "t1_minp" | "greedy";
-  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "provider";
+  source: "qrng" | "prng_seeded" | "prng_system" | "prng_epsilon" | "prng_resample" | "provider";
   /**
    * Required for prng_seeded / prng_epsilon; per-request qr_seed is derived from it.
    */
@@ -801,7 +801,13 @@ export interface Provenance {
    */
   preset?: string | null;
   envelope_hash: string;
-  source_label: "quantum" | "seeded_prng" | "system_prng" | "seeded_prng_biased" | "provider_prng";
+  source_label:
+    | "quantum"
+    | "seeded_prng"
+    | "system_prng"
+    | "seeded_prng_biased"
+    | "resampled_prng"
+    | "provider_prng";
   quantum: boolean;
   study_seed?: number | null;
   qr_seed?: number | null;

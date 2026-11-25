@@ -722,3 +722,32 @@ def test_a_study_without_conditioning_keeps_its_bytes_and_hash(study1_raw: dict[
     assert StudyConfig.model_validate_json(hashed.model_dump_json()) == hashed
     with pytest.raises(ValidationError, match="may compromise the integrity of the signal"):
         StudyConfig.model_validate({**study1_raw, "conditioning": {"keep_bytes": 17}})
+
+
+def test_a_resample_arm_takes_no_seed_and_is_never_quantum() -> None:
+    arm = Arm.model_validate(_arm(id="resample", source="prng_resample"))
+    assert arm.source_label == "resampled_prng"
+    with pytest.raises(ValidationError):
+        Arm.model_validate(_arm(id="resample", source="prng_resample", study_seed=1))
+    with pytest.raises(ValidationError):
+        Arm.model_validate(_arm(id="resample", source="prng_resample", epsilon=0.03))
+
+
+def test_a_study_file_may_name_raw_entropy_and_the_resampled_control(
+    study1_raw: dict[str, Any],
+) -> None:
+    """Neither is offered by the web app; both are valid in a study file and round-trip."""
+    pool = {"id": "pool", "model": "qr-llm", "sampling": "creative", "source": "prng_resample"}
+    raw = {**study1_raw, "arms": [*study1_raw["arms"], pool], "conditioning": {"mode": "raw"}}
+    study = StudyConfig.model_validate(raw)
+    assert study.arms[-1].source == "prng_resample"
+    assert study.conditioning is not None and study.conditioning.mode == "raw"
+    assert StudyConfig.model_validate_json(study.model_dump_json()) == study
+    dumped = json.loads(canonical_json(study))
+    assert dumped["conditioning"]["mode"] == "raw"
+    assert dumped["arms"][-1]["source"] == "prng_resample"
+    # The same arm in a hashed study, and in a study from before the setting.
+    assert (
+        StudyConfig.model_validate({**raw, "conditioning": {}}).conditioning.mode == "hash_truncate"
+    )
+    assert StudyConfig.model_validate({**study1_raw, "arms": raw["arms"]}).conditioning is None

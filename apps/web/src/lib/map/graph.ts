@@ -215,6 +215,7 @@ const SAMPLING_LABELS: Readonly<Record<string, string>> = {
 };
 const OTHER_SOURCE_LABELS: Readonly<Record<string, string>> = {
   prng_system: "System pseudo-random",
+  prng_resample: "Resampled device pool",
   provider: "Provider's own sampling",
 };
 const LEVEL_TEXT: Readonly<Record<string, string>> = {
@@ -465,7 +466,7 @@ export function buildStudyGraph(
         },
       });
     }
-    for (const arm of arms.filter((item) => item.source === "prng_system" || item.source === "provider")) {
+    for (const arm of arms.filter((item) => item.source === "prng_system" || item.source === "prng_resample" || item.source === "provider")) {
       armNode(arm, "other_arm", {
         label: OTHER_SOURCE_LABELS[arm.source] ?? arm.source, sub: "not part of a comparison",
         facts: { story: "This arm is run, but no comparison of the plan uses it.", design: [`In ${lane.label}.`], detail: [] },

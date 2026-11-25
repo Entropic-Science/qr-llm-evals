@@ -153,6 +153,12 @@ SOURCE_TYPES: Final[dict[Source, str]] = {
     "prng_seeded": "seeded_prng",
     "prng_system": "system",
     "prng_epsilon": "seeded_prng",
+    # SOURCE: qr-sampler ``deployments/qr-server/qr-server.env.example``
+    # ``QR_ENTROPY_SOURCE_INSTANCES``: the gRPC lane whose key is bound to
+    # Qbert0G's ``prng_resample`` control (seeded windows of a frozen recorded
+    # dragonfly-0 pool), the matched control for raw quantum bytes. No picker
+    # of the web app offers it; a study file names it.
+    "prng_resample": "qbert_prng_resample",
 }
 
 #: The only keys on which qr-llm arms of one study may differ (spec §5.2).

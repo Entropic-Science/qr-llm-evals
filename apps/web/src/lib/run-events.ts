@@ -35,7 +35,7 @@ export function reduceRunEvent(state: RunEventState, event: RunEvent): RunEventS
   if (event.type === "sample.finished" && typeof data?.sample_ref === "string") {
     const armId = state.sampleArms[data.sample_ref];
     const source = object(data.provenance)?.source_label;
-    if (armId && (source === "quantum" || source === "seeded_prng" || source === "system_prng" || source === "seeded_prng_biased" || source === "provider_prng")) {
+    if (armId && (source === "quantum" || source === "seeded_prng" || source === "system_prng" || source === "seeded_prng_biased" || source === "resampled_prng" || source === "provider_prng")) {
       return { ...state, events, sourceByArm: { ...state.sourceByArm, [armId]: source } };
     }
   }

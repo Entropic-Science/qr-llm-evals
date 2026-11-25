@@ -485,6 +485,20 @@ describe("study graph: a study with problems", () => {
     expect(nodeById(graph, "gate:neg:qr-llm/greedy")).toBeUndefined();
   });
 
+  it("draws a resampled device pool arm from a study file as an arm outside the comparison, with no problem", () => {
+    const config = structuredClone(studyOneTemplate());
+    config.conditioning = { mode: "raw", hash: "sha256", in_bytes: 128, keep_bytes: 16 };
+    const before = problemsOf(config, selectableCards).map((problem) => problem.code);
+    config.arms.push({ id: "pool", model: "qr-llm", sampling: "creative", source: "prng_resample" });
+    const { graph } = build(config);
+    expectWellFormed(graph, "resampled");
+    expect(node(graph, "arm:pool")).toMatchObject({ kind: "other_arm", lane: LANE, label: "Resampled device pool", sub: "not part of a comparison" });
+    expect(node(graph, "arm:pool").problems).toEqual([]);
+    // The one thing the arm adds is the notice every hand-written arm list gets; nothing calls the source a problem.
+    const after = problemsOf(config, selectableCards).map((problem) => problem.code);
+    expect(after.filter((code) => !before.includes(code))).toEqual(["compare.custom_arms"]);
+  });
+
   it("puts a problem that names no node on the study", () => {
     const config = studyOneTemplate();
     const stray = { code: "review.server_rejected", severity: "error", message: "Refused.", stepId: "review", nodeId: "nowhere" } as const;

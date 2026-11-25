@@ -178,3 +178,26 @@ def test_a_level_off_its_grid_is_refused_with_the_other_fields_of_the_design() -
         StudyConfig.model_validate(config)
     assert "design.alpha must be one of" in str(refused.value)
     assert "design.sensitivity_epsilon must be one of" in str(refused.value)
+
+
+async def test_a_study_file_with_raw_entropy_and_a_resampled_arm_loads_without_a_problem(
+    client: httpx.AsyncClient,
+) -> None:
+    """The web app offers neither; a study file names both, and the route does not flag them."""
+    config = _designed()
+    config["conditioning"] = {"mode": "raw"}
+    config["arms"].append(
+        {"id": "pool", "model": "qr-llm", "sampling": "creative", "source": "prng_resample"}
+    )
+    for text in (json.dumps(config), yaml.safe_dump(config, sort_keys=False)):
+        loaded = await client.post("/api/config/parse", json={"text": text})
+        assert loaded.status_code == 200, loaded.text
+        body = loaded.json()
+        assert body["problems"] == []
+        assert body["config"]["conditioning"]["mode"] == "raw"
+        assert body["config"]["arms"][-1]["source"] == "prng_resample"
+    # The same file without the block stays without one: it is not turned into a hashed study.
+    del config["conditioning"]
+    loaded = await client.post("/api/config/parse", json={"text": json.dumps(config)})
+    assert loaded.status_code == 200, loaded.text
+    assert loaded.json()["config"].get("conditioning") is None

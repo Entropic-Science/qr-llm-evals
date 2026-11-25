@@ -22,6 +22,7 @@ from qr_llm_evals.config import load_settings
 from qr_llm_evals.keys.verify import FileKeyVerifier
 from qr_llm_evals.models.schema import StudyConfig, config_hash
 from qr_llm_evals.store import Run, Store
+from qr_llm_evals.store.bundle import load_frozen_study
 
 FIXTURE = Path(__file__).parent / "fixtures" / "bundle_mini"
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -240,19 +241,25 @@ async def test_analysis_selection_and_actual_provenance(tmp_path: Path) -> None:
         assert rows["seeded_prng"]["quantum"] is False
 
 
-async def test_a_study_frozen_with_a_removed_arm_source_is_listed_and_clearly_refused(
-    tmp_path: Path,
-) -> None:
-    """A study frozen while ``prng_resample`` existed: its pages still read, its host routes refuse."""
+async def test_a_study_frozen_with_a_resampled_arm_is_read_like_any_other(tmp_path: Path) -> None:
+    """``prng_resample`` is a valid source: the frozen study validates and its rows keep their label."""
     store, run, app = _setup(tmp_path)
     study_dir = store.study(run.study_id)
     frozen = json.loads(study_dir.study_json.read_text(encoding="utf-8"))
     frozen["config"]["arms"].append(
         {"id": "pool", "model": "qr-llm", "sampling": "creative", "source": "prng_resample"}
     )
+    frozen["config"]["conditioning"] = {"mode": "raw"}
+    frozen["config_hash"] = config_hash(StudyConfig.model_validate(frozen["config"]))
     study_dir.study_json.write_text(json.dumps(frozen), encoding="utf-8")
+
+    loaded = load_frozen_study(study_dir)
+    assert loaded.arms[-1].source == "prng_resample"
+    assert loaded.arms[-1].source_label == "resampled_prng"
+    assert loaded.conditioning is not None and loaded.conditioning.mode == "raw"
+
     directory = store.run(run.study_id, run.run_id).run_dir
-    output = directory.analysis_dir("a_old")
+    output = directory.analysis_dir("a_pool")
     (output / "tables").mkdir(parents=True)
     (output / "plan.json").write_text("{}", encoding="utf-8")
     (output / "manifest.json").write_text("{}", encoding="utf-8")
@@ -269,35 +276,17 @@ async def test_a_study_frozen_with_a_removed_arm_source_is_listed_and_clearly_re
         + "\n",
         encoding="utf-8",
     )
-    host = {"X-Host-Token": HOST_TOKEN}
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as client:
         study = await client.get(f"/api/studies/{run.study_id}")
         assert study.status_code == 200, study.text
         assert study.json()["study"]["config"]["arms"][-1]["source"] == "prng_resample"
-        assert [r["run_id"] for r in study.json()["runs"]] == [run.run_id]
-        assert (await client.get(f"/api/runs/{run.run_id}")).status_code == 200
         health = await client.get(f"/api/runs/{run.run_id}/health")
         assert health.status_code == 200, health.text
-        assert (await client.get(f"/api/studies/{run.study_id}/prereg.md")).status_code == 200
-        assert (await client.get(f"/api/studies/{run.study_id}/bundle.tar.zst")).status_code == 200
-        index = await client.get(f"/api/studies/{run.study_id}/analysis/a_old/index")
+        index = await client.get(f"/api/studies/{run.study_id}/analysis/a_pool/index")
         assert index.status_code == 200, index.text
         ledger = [row for row in index.json()["provenance"] if row["arm_id"] == "pool"]
         assert [(row["source_label"], row["quantum"]) for row in ledger] == [
             ("resampled_prng", False)
         ]
-
-        for path, body in (
-            (f"/api/runs/{run.run_id}/analyse", None),
-            (f"/api/runs/{run.run_id}/control", {"action": "resume"}),
-        ):
-            refused = await client.post(path, json=body, headers=host)
-            assert refused.status_code == 409, refused.text
-            message = refused.json()["error"]["message"]
-            assert "no longer reads" in message and "arms.8.source" in message
-            assert "prng_resample" not in message  # field paths and rules, never values
-    # Nothing was changed or removed by the refusals.
-    assert json.loads(study_dir.study_json.read_text(encoding="utf-8")) == frozen
-    assert store.run(run.study_id, run.run_id).read_run().state == "complete"

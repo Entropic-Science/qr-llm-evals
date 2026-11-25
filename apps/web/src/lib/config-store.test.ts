@@ -250,14 +250,20 @@ describe("the saved draft", () => {
     expect(unreadableDraft()).toBe(outdated);
   });
 
-  it("sets a draft with an arm source this version no longer has aside, and says so", () => {
+  it("reads a draft with a resampled device pool arm and raw entropy as it was saved", () => {
     const template = studyOneTemplate();
-    const pooled = JSON.stringify({ ...template, arms: [...template.arms, { id: "pool", model: "qr-llm", sampling: "creative", source: "prng_resample" }] });
-    window.localStorage.setItem(CONFIG_STORAGE_KEY, pooled);
+    const pooled = {
+      ...template,
+      conditioning: { mode: "raw", hash: "sha256", in_bytes: 128, keep_bytes: 16 },
+      arms: [...template.arms, { id: "pool", model: "qr-llm", sampling: "creative", source: "prng_resample" }],
+    };
+    window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(pooled));
     const loaded = loadConfig();
-    expect(loaded).toEqual({ config: template, source: "template", rejected: "storage" });
-    expect(rejectedNote(loaded)).toContain("no longer matches this version");
-    expect(unreadableDraft()).toBe(pooled);
+    expect(loaded.source).toBe("storage");
+    expect(loaded.rejected).toBeNull();
+    expect(loaded.config.arms.at(-1)).toMatchObject({ id: "pool", source: "prng_resample" });
+    expect(loaded.config.conditioning?.mode).toBe("raw");
+    expect(unreadableDraft()).toBeNull();
   });
 
   it("sets nothing aside for a draft it can read", () => {

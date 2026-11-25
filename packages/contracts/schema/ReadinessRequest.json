@@ -35,6 +35,7 @@
             "prng_seeded",
             "prng_system",
             "prng_epsilon",
+            "prng_resample",
             "provider"
           ],
           "title": "Source",
